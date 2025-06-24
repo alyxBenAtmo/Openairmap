@@ -1,6 +1,6 @@
 # Carte de la Qualité de l'Air - React Open Air Map
 
-Une application React modulaire et responsive pour afficher des appareils de mesure de la qualité de l'air sur une carte interactive.
+Une application React modulaire et responsive pour afficher des appareils de mesure de la qualité de l'air sur une carte interactive Leaflet.
 
 ## 🚀 Fonctionnalités
 
@@ -9,9 +9,12 @@ Une application React modulaire et responsive pour afficher des appareils de mes
   - Sélection du polluant (1 actif à la fois)
   - Sélection des sources de données (plusieurs sources possibles)
   - Sélection du pas de temps (1 actif à la fois)
+- **Contrôle du fond de carte** : Basculement entre carte standard et satellite
+- **Légende dynamique** : Affichage des seuils selon le polluant sélectionné
 - **Architecture modulaire** avec services séparés pour chaque source de données
 - **Design responsive** adapté à tous les écrans
 - **Marqueurs colorés** selon la valeur des mesures
+- **Interface moderne** avec Tailwind CSS
 
 ## 📁 Architecture du projet
 
@@ -19,7 +22,14 @@ Une application React modulaire et responsive pour afficher des appareils de mes
 src/
 ├── components/          # Composants React
 │   ├── controls/       # Composants de contrôle (menus)
+│   │   ├── ControlPanel.tsx
+│   │   ├── PollutantDropdown.tsx
+│   │   ├── SourceDropdown.tsx
+│   │   ├── TimeStepDropdown.tsx
+│   │   └── BaseLayerControl.tsx
 │   ├── map/           # Composants de carte
+│   │   ├── AirQualityMap.tsx
+│   │   └── Legend.tsx
 │   └── App.tsx        # Composant principal
 ├── services/          # Services de données
 │   ├── BaseDataService.ts
@@ -29,8 +39,14 @@ src/
 │   ├── SignalAirService.ts
 │   └── DataServiceFactory.ts
 ├── hooks/             # Hooks personnalisés
-├── constants/         # Constantes (sources, polluants, pas de temps)
+│   └── useAirQualityData.ts
+├── constants/         # Constantes
+│   ├── pollutants.ts
+│   ├── sources.ts
+│   ├── timeSteps.ts
+│   └── mapLayers.ts
 ├── types/             # Types TypeScript
+│   └── index.ts
 └── utils/             # Utilitaires
 ```
 
@@ -38,25 +54,65 @@ src/
 
 - **AtmoRef** : Stations de référence AtmoSud
 - **AtmoMicro** : Microcapteurs qualifiés AtmoSud
-- **NebuleAir** : Capteurs communautaires NebuleAir
 - **SignalAir** : Capteurs SignalAir
-- **Sensor.Community** : Capteurs communautaires (prévu)
-- **PurpleAir** : Capteurs PurpleAir (prévu)
+- **Capteurs communautaires** :
+  - **NebuleAir** : Capteurs communautaires NebuleAir
+  - **Sensor.Community** : Capteurs communautaires
+  - **PurpleAir** : Capteurs PurpleAir
 
 ## 🎨 Polluants supportés
 
-- **PM2.5** : Particules fines ≤ 2.5 µm
-- **PM10** : Particules fines ≤ 10 µm
+- **PM₁** : Particules fines ≤ 1 µm
+- **PM₂.₅** : Particules fines ≤ 2.5 µm
+- **PM₁₀** : Particules fines ≤ 10 µm
 - **NO₂** : Dioxyde d'azote
 - **O₃** : Ozone
-- **CO** : Monoxyde de carbone
+- **SO₂** : Dioxyde de soufre
+
+### Seuils de qualité de l'air
+
+Chaque polluant dispose de 6 niveaux de qualité avec des seuils spécifiques :
+
+- **Bon** : Qualité excellente
+- **Moyen** : Qualité acceptable
+- **Dégradé** : Qualité médiocre
+- **Mauvais** : Qualité mauvaise
+- **Très mauvais** : Qualité très mauvaise
+- **Extrêmement mauvais** : Qualité extrêmement mauvaise
 
 ## ⏱️ Pas de temps disponibles
 
-- **Temps réel** : Données en temps réel
-- **Horaire** : Données horaires
-- **Journalier** : Données journalières
-- **Hebdomadaire** : Données hebdomadaires
+- **Scan** : Valeurs instantanées
+- **≤ 2 minutes** : Moyenne sur 2 minutes
+- **15 minutes** : Moyenne sur 15 minutes
+- **Heure** : Moyenne horaire (par défaut)
+- **Jour** : Moyenne journalière
+
+## 🗺️ Fonds de carte
+
+- **Carte standard** : Fond CARTO clair avec OpenStreetMap
+- **Satellite** : Imagerie satellite ESRI
+
+## 🎨 Interface utilisateur
+
+### Contrôles principaux (haut à droite)
+
+- **Menu polluant** : Sélection du polluant à afficher
+- **Menu sources** : Sélection multiple des sources de données
+- **Menu pas de temps** : Sélection du pas de temps
+
+### Contrôles de carte
+
+- **Contrôle fond de carte** : Icône en bas à gauche pour basculer entre carte et satellite
+- **Légende** : Affichage des seuils en bas au centre avec tooltips au hover
+
+### Design
+
+- **Interface moderne** avec Tailwind CSS
+- **Menus déroulants** avec checkboxes personnalisées
+- **États visuels clairs** (sélectionné, partiellement sélectionné, non sélectionné)
+- **Responsive design** adapté à tous les écrans
+- **Animations fluides** et transitions
 
 ## 🚀 Installation et démarrage
 
@@ -102,9 +158,10 @@ export class AtmoRefService extends BaseDataService {
 
 Les menus sont organisés en composants réutilisables :
 
-- `PollutantSelector` : Sélection du polluant
-- `SourceSelector` : Sélection des sources
-- `TimeStepSelector` : Sélection du pas de temps
+- `PollutantDropdown` : Sélection du polluant avec checkboxes
+- `SourceDropdown` : Sélection multiple des sources avec hiérarchie
+- `TimeStepDropdown` : Sélection du pas de temps
+- `BaseLayerControl` : Contrôle du fond de carte avec icônes
 
 ### Hook personnalisé
 
@@ -118,14 +175,20 @@ const { devices, loading, error } = useAirQualityData({
 });
 ```
 
-## 🎯 Prochaines étapes
+### Constantes centralisées
 
-- [ ] Intégration des vraies APIs de données
-- [ ] Ajout d'images PNG pour les marqueurs
-- [ ] Amélioration de la logique de couleur selon les seuils
-- [ ] Ajout de filtres supplémentaires
-- [ ] Optimisation des performances
-- [ ] Tests unitaires et d'intégration
+- `pollutants.ts` : Définition des polluants avec seuils
+- `sources.ts` : Configuration des sources de données
+- `timeSteps.ts` : Définition des pas de temps
+- `mapLayers.ts` : Configuration des fonds de carte
+
+## 🎯 Fonctionnalités avancées
+
+- **Mise à jour automatique** : Les données se mettent à jour quand les paramètres changent
+- **Gestion des erreurs** : Affichage des erreurs de chargement
+- **États de chargement** : Indicateurs visuels pendant le chargement
+- **Cache intelligent** : Évite les appels API redondants
+- **Z-index optimisé** : Menus s'affichent au-dessus de la carte Leaflet
 
 ## 🛠️ Technologies utilisées
 
@@ -133,7 +196,8 @@ const { devices, loading, error } = useAirQualityData({
 - **Vite** pour le build et le développement
 - **Leaflet** pour la carte interactive
 - **React Leaflet** pour l'intégration React
-- **CSS Modules** pour les styles
+- **Tailwind CSS** pour les styles
+- **PostCSS** pour le traitement CSS
 
 ## 📝 Licence
 
