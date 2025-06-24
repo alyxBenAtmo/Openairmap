@@ -192,7 +192,7 @@ const { devices, loading, error } = useAirQualityData({
 
 ## 🛠️ Technologies utilisées
 
-- **React 18** avec TypeScript
+- **React 19** avec TypeScript
 - **Vite** pour le build et le développement
 - **Leaflet** pour la carte interactive
 - **React Leaflet** pour l'intégration React

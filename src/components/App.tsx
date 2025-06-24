@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import ControlPanel from "./controls/ControlPanel";
 import AirQualityMap from "./map/AirQualityMap";
 import { useAirQualityData } from "../hooks/useAirQualityData";
@@ -6,13 +6,13 @@ import { pollutants, getDefaultPollutant } from "../constants/pollutants";
 import { pasDeTemps } from "../constants/timeSteps";
 
 const App: React.FC = () => {
-  // Trouver le pas de temps activé par défaut
-  const getDefaultTimeStep = () => {
+  // Trouver le pas de temps activé par défaut (calculé une seule fois)
+  const defaultTimeStep = useMemo(() => {
     const defaultTimeStep = Object.entries(pasDeTemps).find(
       ([_, timeStep]) => timeStep.activated
     );
     return defaultTimeStep ? defaultTimeStep[0] : "heure";
-  };
+  }, []);
 
   // États pour les contrôles avec polluant par défaut
   const [selectedPollutant, setSelectedPollutant] = useState<string>(
@@ -22,9 +22,8 @@ const App: React.FC = () => {
     "atmoRef",
     "atmoMicro",
   ]);
-  const [selectedTimeStep, setSelectedTimeStep] = useState<string>(
-    getDefaultTimeStep()
-  );
+  const [selectedTimeStep, setSelectedTimeStep] =
+    useState<string>(defaultTimeStep);
 
   // Hook pour récupérer les données
   const { devices, loading, error } = useAirQualityData({
@@ -63,7 +62,9 @@ const App: React.FC = () => {
               <div className="flex items-center space-x-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                 <span className="text-blue-600 text-sm font-medium">
-                  Chargement...
+                  {devices.length === 0
+                    ? "Nettoyage et chargement..."
+                    : "Chargement..."}
                 </span>
               </div>
             </div>

@@ -60,6 +60,10 @@ export interface MeasurementDevice {
   unit: string;
   timestamp: string;
   status: "active" | "inactive" | "error";
+  // Propriétés optionnelles pour les marqueurs
+  qualityLevel?: string; // bon, moyen, degrade, mauvais, tresMauvais, extrMauvais, default
+  address?: string;
+  departmentId?: string;
 }
 
 // Types pour les services de données
@@ -78,3 +82,60 @@ export interface MarkerConfig {
   value: number;
   thresholds: Pollutant["thresholds"];
 }
+
+// Types spécifiques pour AtmoRef
+export interface AtmoRefStation {
+  id_station: string;
+  nom_station: string;
+  departement_id: string;
+  adresse: string;
+  latitude: number;
+  longitude: number;
+  en_service: boolean;
+  date_debut_mesure: string;
+  date_fin_mesure: string | null;
+  variables: Record<
+    string,
+    {
+      label: string;
+      code_iso: string;
+      date_fin: string | null;
+      date_debut: string;
+      en_service: boolean;
+    }
+  >;
+}
+
+export interface AtmoRefStationsResponse {
+  stations: AtmoRefStation[];
+}
+
+export interface AtmoRefMeasure {
+  date_debut: string;
+  valeur: number;
+  unite: string;
+  nom_station: string;
+  id_station: string;
+  label_polluant: string;
+  polluant_id: string;
+  lon: number;
+  lat: number;
+  validation: string;
+  temporalite: string;
+}
+
+export interface AtmoRefMeasuresResponse {
+  mesures: AtmoRefMeasure[];
+}
+
+// Mapping des codes de polluants AtmoRef vers nos codes
+export const ATMOREF_POLLUTANT_MAPPING: Record<string, string> = {
+  "01": "so2", // SO2
+  "02": "no", // NO (pas dans nos polluants)
+  "03": "no2", // NO2
+  "08": "o3", // O3
+  "12": "nox", // NOx (pas dans nos polluants)
+  "24": "pm10", // PM10
+  "39": "pm25", // PM2.5
+  "68": "pm1", // PM1
+};

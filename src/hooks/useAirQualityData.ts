@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { MeasurementDevice } from "../types";
 import { DataServiceFactory } from "../services/DataServiceFactory";
 
@@ -17,56 +17,65 @@ export const useAirQualityData = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (selectedSources.length === 0) {
-        setDevices([]);
-        return;
-      }
+  const fetchData = useCallback(async () => {
+    if (selectedSources.length === 0) {
+      setDevices([]);
+      return;
+    }
 
-      setLoading(true);
-      setError(null);
+    console.log(
+      `🔄 Appel API - Polluant: ${selectedPollutant}, Sources: ${selectedSources.join(
+        ", "
+      )}, Pas de temps: ${selectedTimeStep}`
+    );
 
-      try {
-        const services = DataServiceFactory.getServices(selectedSources);
-        const allDevices: MeasurementDevice[] = [];
+    // Nettoyer complètement les données avant le nouvel appel
+    setDevices([]);
+    setLoading(true);
+    setError(null);
 
-        // Récupérer les données de toutes les sources sélectionnées
-        const promises = services.map(async (service) => {
-          try {
-            const data = await service.fetchData({
-              pollutant: selectedPollutant,
-              timeStep: selectedTimeStep,
-              sources: selectedSources,
-            });
-            return data;
-          } catch (err) {
-            console.error(
-              `Erreur lors de la récupération des données pour ${service}:`,
-              err
-            );
-            return [];
-          }
-        });
+    try {
+      const services = DataServiceFactory.getServices(selectedSources);
+      const allDevices: MeasurementDevice[] = [];
 
-        const results = await Promise.all(promises);
-        results.forEach((devices) => allDevices.push(...devices));
+      // Récupérer les données de toutes les sources sélectionnées
+      const promises = services.map(async (service) => {
+        try {
+          const data = await service.fetchData({
+            pollutant: selectedPollutant,
+            timeStep: selectedTimeStep,
+            sources: selectedSources,
+          });
+          return data;
+        } catch (err) {
+          console.error(
+            `Erreur lors de la récupération des données pour ${service}:`,
+            err
+          );
+          return [];
+        }
+      });
 
-        setDevices(allDevices);
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Erreur lors de la récupération des données"
-        );
-        setDevices([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+      const results = await Promise.all(promises);
+      results.forEach((devices) => allDevices.push(...devices));
 
-    fetchData();
+      console.log(`✅ Données récupérées: ${allDevices.length} appareils`);
+      setDevices(allDevices);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Erreur lors de la récupération des données"
+      );
+      setDevices([]);
+    } finally {
+      setLoading(false);
+    }
   }, [selectedPollutant, selectedSources, selectedTimeStep]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   return { devices, loading, error };
 };

@@ -1,0 +1,141 @@
+# ReactOpenAirMap - Règles de développement
+
+## 🎯 Architecture et Structure
+- Maintenir une architecture modulaire avec séparation claire des responsabilités
+- Utiliser des composants React fonctionnels avec TypeScript
+- Organiser le code en dossiers : components/, services/, hooks/, constants/, types/, utils/
+- Implémenter une factory pattern pour les services de données (DataServiceFactory)
+- Créer des hooks personnalisés pour la logique métier (useAirQualityData)
+
+## 🗺️ Carte et Interface
+- Utiliser Leaflet pour l'affichage de la carte interactive
+- Intégrer les contrôles directement sur la carte en menus flottants
+- Maintenir un z-index élevé (z-[2000]) pour les menus au-dessus de la carte
+- Afficher les marqueurs colorés selon les valeurs de qualité de l'air
+- Utiliser des icônes personnalisées pour chaque type de source de données
+- Implémenter un système de marqueurs avec codes couleur selon les seuils de polluants
+
+## 🎛️ Menus de Contrôle
+- Créer des menus déroulants avec Tailwind CSS pour une interface moderne
+- Implémenter des checkboxes personnalisées avec états visuels clairs
+- Maintenir une hiérarchie visuelle avec sections et sous-menus
+- Permettre la sélection multiple pour les sources de données
+- Afficher les états partiellement sélectionnés pour les groupes
+- Utiliser des animations fluides et des transitions pour l'UX
+- Fermer automatiquement les menus en cliquant à l'extérieur
+
+## 📊 Gestion des Données
+- Refaire automatiquement les appels API quand un paramètre change
+- Gérer les états de chargement et d'erreur pour chaque source
+- Adapter les requêtes selon le format attendu par chaque source
+- Utiliser des services spécifiques pour chaque type de source de données
+- Maintenir une cohérence des données entre les différentes sources
+
+## 🔄 Logique de Mise à Jour
+- Déclencher de nouveaux appels API à chaque changement de paramètre
+- Passer les paramètres sélectionnés à tous les services actifs
+- Adapter les requêtes selon le polluant sélectionné (PM₂.₅, PM₁₀, O₃, etc.)
+- Adapter les requêtes selon le pas de temps (Scan, ≤2min, 15min, Heure, Jour)
+- Gérer la sélection/désélection des sources de données
+- Maintenir la cohérence entre l'interface et les données affichées
+
+## 🎨 Design et UX
+- Utiliser Tailwind CSS pour un design cohérent et moderne
+- Implémenter des états visuels clairs (sélectionné, partiellement sélectionné, non sélectionné)
+- Utiliser des couleurs cohérentes (bleu pour les sélections, gris pour les états neutres)
+- Créer des hover effects et transitions fluides
+- Assurer une bonne lisibilité avec des contrastes appropriés
+- Rendre l'interface responsive pour différents écrans
+
+## �� Sources de Données - Implémentation
+- Maintenir l'ordre des sources : AtmoRef, AtmoMicro, Capteurs communautaires, SignalAir
+- Implémenter des services spécifiques pour chaque source (AtmoRefService, AtmoMicroService, etc.)
+- Gérer les formats de données différents entre les sources
+- Permettre la sélection/désélection en masse des groupes communautaires
+- Adapter les requêtes selon les spécificités de chaque API
+- Maintenir la cohérence des noms et codes entre l'interface et les services
+
+### 🔧 Architecture des Services de Données
+- **BaseDataService** : Classe abstraite avec méthodes communes (fetchData, transformData, handleError)
+- **Interfaces communes** : Définir des interfaces pour les paramètres et réponses standardisées
+- **Transformateurs de données** : Créer des fonctions de transformation spécifiques à chaque source
+- **Gestion d'erreurs** : Implémenter une gestion d'erreur robuste pour chaque service
+- **Validation des données** : Valider les données reçues avant transformation
+
+### 📡 Formats de Requêtes et Réponses
+- **AtmoRef/AtmoMicro** : APIs REST avec authentification, format JSON standardisé
+- **NebuleAir** : API GraphQL ou REST, format de données communautaire
+- **Sensor.Community** : API REST avec format spécifique aux capteurs citoyens
+- **PurpleAir** : API REST avec authentification, format JSON propriétaire
+- **SignalAir** : API REST avec format de signalement (qualitatif vs quantitatif)
+
+### 🔄 Transformation des Données
+- **Normalisation** : Convertir tous les formats vers une structure commune
+- **Mapping des polluants** : Adapter les codes de polluants entre sources
+- **Conversion d'unités** : Standardiser les unités de mesure (µg/m³, ppm, etc.)
+- **Gestion des timestamps** : Normaliser les formats de dates/heures
+- **Validation des valeurs** : Filtrer les valeurs aberrantes ou manquantes
+
+### 🛡️ Gestion des Erreurs par Source
+- **Timeouts** : Gérer les timeouts spécifiques à chaque API
+- **Rate limiting** : Respecter les limites de requêtes par source
+- **Authentification** : Gérer les erreurs d'authentification (API keys, tokens)
+- **Format de réponse** : Gérer les changements de format d'API
+- **Fallback** : Implémenter des mécanismes de repli en cas d'échec
+
+## ⚡ Performance et Optimisation
+- Implémenter un debouncing pour les changements rapides de paramètres
+- Optimiser le rendu des marqueurs sur la carte
+- Gérer efficacement la mémoire avec des cleanup appropriés
+- Utiliser des lazy loading pour les composants non critiques
+- Minimiser les re-renders avec React.memo et useMemo quand approprié
+
+## ⚙️ Configuration et Constantes
+- Centraliser les constantes dans des fichiers dédiés (pollutants.ts, sources.ts, timeSteps.ts)
+- Utiliser des noms scientifiques corrects pour les polluants (PM₂.₅, PM₁₀, O₃, NO₂, SO₂)
+- Maintenir la cohérence des codes et noms entre les constantes et l'interface
+- Configurer les valeurs par défaut via le champ "activated"
+- Organiser les sources en groupes logiques (principales, communautaires)
+- Maintenir la cohérence des pas de temps (Scan, ≤2min, 15min, Heure, Jour)
+
+### 🔧 Configuration des APIs
+- **Variables d'environnement** : Stocker les clés API et URLs dans .env
+- **Configuration par source** : Définir les paramètres spécifiques à chaque API
+- **Endpoints** : Centraliser les URLs d'endpoints dans des constantes
+- **Headers** : Configurer les headers d'authentification et de contenu
+- **Timeouts** : Définir des timeouts appropriés par source
+
+## 🛠️ Développement et Maintenance
+- Utiliser TypeScript pour la sécurité des types
+- Implémenter des interfaces claires pour les props et les données
+- Maintenir une structure de fichiers cohérente
+- Utiliser des noms de variables et fonctions explicites
+- Commenter le code complexe et les logiques métier
+- Tester les composants et hooks critiques
+- Maintenir une séparation claire entre la logique métier et l'interface
+
+### 🧪 Tests et Validation
+- **Tests unitaires** : Tester chaque service de données individuellement
+- **Tests d'intégration** : Valider l'intégration entre services et composants
+- **Validation des données** : Tester la transformation et validation des données
+
+## 🔧 Conventions de Code
+- Utiliser des guillemets simples pour les chaînes de caractères
+- Préférer les fonctions fléchées pour les composants React
+- Utiliser des noms en camelCase pour les variables et fonctions
+- Utiliser des noms en PascalCase pour les composants et interfaces
+- Maintenir une indentation cohérente (2 espaces)
+- Utiliser des commentaires en français pour la documentation
+
+## 📱 Responsive Design
+- Concevoir l'interface pour être responsive dès le départ
+- Utiliser les classes Tailwind responsive (sm:, md:, lg:, xl:)
+- Adapter la taille des menus et contrôles selon la taille d'écran
+- Optimiser l'affichage de la carte sur mobile
+- Maintenir la lisibilité sur tous les appareils
+
+## 🔐 Sécurité et Bonnes Pratiques
+- **Variables d'environnement** : Ne jamais commiter les clés API
+- **Validation des entrées** : Valider tous les paramètres d'entrée
+- **Sanitisation** : Nettoyer les données reçues des APIs
+- **Rate limiting** : Respecter les limites des APIs tierces 

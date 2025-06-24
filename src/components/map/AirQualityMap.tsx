@@ -6,6 +6,7 @@ import { MeasurementDevice } from "../../types";
 import { baseLayers, BaseLayerKey } from "../../constants/mapLayers";
 import BaseLayerControl from "../controls/BaseLayerControl";
 import Legend from "./Legend";
+import { getMarkerPath } from "../../utils";
 
 // Correction pour les icônes Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -66,29 +67,33 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     setCurrentBaseLayer(layerKey);
   };
 
-  const getMarkerColor = (device: MeasurementDevice) => {
-    // Logique simple pour la couleur basée sur la valeur
-    // À améliorer avec les seuils des polluants
-    const value = device.value;
-    if (value < 20) return "#10b981"; // Vert (success)
-    if (value < 40) return "#f59e0b"; // Jaune (warning)
-    if (value < 60) return "#f97316"; // Orange
-    return "#ef4444"; // Rouge (error)
+  const createCustomIcon = (device: MeasurementDevice) => {
+    // Utiliser le marqueur personnalisé selon la source et le niveau de qualité
+    const qualityLevel = device.qualityLevel || "default";
+    const markerPath = getMarkerPath(device.source, qualityLevel);
+
+    return L.icon({
+      iconUrl: markerPath,
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32],
+    });
   };
 
-  const createCustomIcon = (color: string) => {
-    return L.divIcon({
-      className: "custom-marker",
-      html: `<div style="
-        width: 20px;
-        height: 20px;
-        background-color: ${color};
-        border: 2px solid white;
-        border-radius: 50%;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-      "></div>`,
-      iconSize: [20, 20],
-      iconAnchor: [10, 10],
+  const formatValue = (device: MeasurementDevice) => {
+    if (device.status === "inactive") {
+      return "Pas de données récentes";
+    }
+    return `${device.value} ${device.unit}`;
+  };
+
+  const formatTimestamp = (timestamp: string) => {
+    return new Date(timestamp).toLocaleString("fr-FR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -119,27 +124,39 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
           <Marker
             key={device.id}
             position={[device.latitude, device.longitude]}
-            icon={createCustomIcon(getMarkerColor(device))}
+            icon={createCustomIcon(device)}
           >
             <Popup>
-              <div className="device-popup">
-                <h3>{device.name}</h3>
-                <p>
-                  <strong>Source:</strong> {device.source}
-                </p>
-                <p>
-                  <strong>Polluant:</strong> {device.pollutant}
-                </p>
-                <p>
-                  <strong>Valeur:</strong> {device.value} {device.unit}
-                </p>
-                <p>
-                  <strong>Statut:</strong> {device.status}
-                </p>
-                <p>
-                  <strong>Dernière mise à jour:</strong>{" "}
-                  {new Date(device.timestamp).toLocaleString()}
-                </p>
+              <div className="device-popup min-w-[250px]">
+                <h3 className="font-bold text-lg mb-2">{device.name}</h3>
+                <div className="space-y-1 text-sm">
+                  <p>
+                    <strong>Source:</strong> {device.source}
+                  </p>
+                  <p>
+                    <strong>Polluant:</strong> {device.pollutant}
+                  </p>
+                  <p>
+                    <strong>Valeur:</strong> {formatValue(device)}
+                  </p>
+                  {device.qualityLevel && device.qualityLevel !== "default" && (
+                    <p>
+                      <strong>Qualité:</strong> {device.qualityLevel}
+                    </p>
+                  )}
+                  <p>
+                    <strong>Statut:</strong> {device.status}
+                  </p>
+                  <p>
+                    <strong>Dernière mise à jour:</strong>{" "}
+                    {formatTimestamp(device.timestamp)}
+                  </p>
+                  {device.address && (
+                    <p>
+                      <strong>Adresse:</strong> {device.address}
+                    </p>
+                  )}
+                </div>
               </div>
             </Popup>
           </Marker>
