@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Styles personnalisés pour Leaflet */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+}
+
+/* Marqueurs personnalisés */
+.custom-marker {
+  background: transparent;
+  border: none;
+}
+
+/* Popup des appareils */
+.device-popup {
+  min-width: 200px;
+}
+
+.device-popup h3 {
+  @apply text-blue-600 font-semibold text-base mb-2;
+}
+
+.device-popup p {
+  @apply mb-1 text-sm;
+}
+
+.device-popup strong {
+  @apply text-gray-800;
+}
