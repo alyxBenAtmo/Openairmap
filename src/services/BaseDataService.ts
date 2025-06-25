@@ -11,6 +11,7 @@ export abstract class BaseDataService implements DataService {
     pollutant: string;
     timeStep: string;
     sources: string[];
+    signalAirPeriod?: { startDate: string; endDate: string };
   }): Promise<MeasurementDevice[]>;
 
   protected createDevice(
@@ -43,19 +44,49 @@ export abstract class BaseDataService implements DataService {
     options?: RequestInit
   ): Promise<any> {
     try {
-      const response = await fetch(url, {
+      const defaultOptions: RequestInit = {
+        method: "GET",
         headers: {
+          Accept: "application/json,application/geo+json,*/*",
           "Content-Type": "application/json",
-          ...options?.headers,
         },
+        mode: "cors",
+        credentials: "omit",
         ...options,
-      });
+      };
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // Fusionner les en-têtes
+      if (options?.headers) {
+        defaultOptions.headers = {
+          ...defaultOptions.headers,
+          ...options.headers,
+        };
       }
 
-      return await response.json();
+      console.log(`🌐 ${this.sourceCode} - Requête vers: ${url}`);
+
+      const response = await fetch(url, defaultOptions);
+
+      if (!response.ok) {
+        throw new Error(
+          `HTTP error! status: ${response.status} - ${response.statusText}`
+        );
+      }
+
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        return await response.json();
+      } else if (contentType && contentType.includes("application/geo+json")) {
+        return await response.json();
+      } else {
+        // Essayer de parser comme JSON même si le content-type n'est pas exact
+        const text = await response.text();
+        try {
+          return JSON.parse(text);
+        } catch {
+          throw new Error(`Format de réponse non supporté: ${contentType}`);
+        }
+      }
     } catch (error) {
       console.error(
         `Erreur lors de la requête pour ${this.sourceCode}:`,

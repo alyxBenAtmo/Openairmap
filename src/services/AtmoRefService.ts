@@ -21,6 +21,7 @@ export class AtmoRefService extends BaseDataService {
     pollutant: string;
     timeStep: string;
     sources: string[];
+    signalAirPeriod?: { startDate: string; endDate: string };
   }): Promise<MeasurementDevice[]> {
     console.log(`🔍 AtmoRefService.fetchData appelé avec:`, params);
     console.log(`🧹 Nettoyage des données précédentes...`);
@@ -185,5 +186,105 @@ export class AtmoRefService extends BaseDataService {
     };
 
     return timeStepConfigs[timeStep] || null;
+  }
+
+  // Méthode pour récupérer les données historiques d'une station
+  async fetchHistoricalData(params: {
+    stationId: string;
+    pollutant: string;
+    timeStep: string;
+    startDate: string;
+    endDate: string;
+  }): Promise<Array<{ timestamp: string; value: number; unit: string }>> {
+    console.log(`📊 AtmoRefService.fetchHistoricalData appelé avec:`, params);
+
+    try {
+      // Mapping du polluant vers le nom AtmoSud
+      const atmoRefPollutantName = this.getAtmoRefPollutantName(
+        params.pollutant
+      );
+      if (!atmoRefPollutantName) {
+        console.warn(`Polluant ${params.pollutant} non supporté par AtmoRef`);
+        return [];
+      }
+
+      // Configuration du pas de temps
+      const timeStepConfig = this.getAtmoRefTimeStepConfig(params.timeStep);
+      if (!timeStepConfig) {
+        console.warn(
+          `Pas de temps ${params.timeStep} non supporté par AtmoRef`
+        );
+        return [];
+      }
+
+      // Construire l'URL pour les données historiques avec le bon endpoint
+      const url = `${this.BASE_URL}/stations/mesures?format=json&station_id=${params.stationId}&nom_polluant=${atmoRefPollutantName}&temporalite=${timeStepConfig.temporalite}&download=false&metadata=true&date_debut=${params.startDate}&date_fin=${params.endDate}`;
+
+      console.log(`📡 AtmoRef - URL historique:`, url);
+
+      const response = await this.makeRequest(url);
+
+      if (!response.mesures) {
+        console.warn("Aucune donnée historique reçue d'AtmoRef");
+        return [];
+      }
+
+      // Transformer les données historiques
+      const historicalData = response.mesures.map(
+        (measure: AtmoRefMeasure) => ({
+          timestamp: measure.date_debut,
+          value: measure.valeur,
+          unit: measure.unite,
+        })
+      );
+
+      console.log(
+        `✅ AtmoRef - ${historicalData.length} points de données historiques récupérés`
+      );
+      return historicalData;
+    } catch (error) {
+      console.error(
+        "Erreur lors de la récupération des données historiques AtmoRef:",
+        error
+      );
+      throw error;
+    }
+  }
+
+  // Méthode pour récupérer les variables disponibles d'une station
+  async fetchStationVariables(
+    stationId: string
+  ): Promise<
+    Record<string, { label: string; code_iso: string; en_service: boolean }>
+  > {
+    console.log(
+      `🔍 AtmoRefService.fetchStationVariables appelé pour station:`,
+      stationId
+    );
+
+    try {
+      const url = `${this.BASE_URL}/stations?format=json&station_en_service=true&download=false&metadata=true`;
+      const response = await this.makeRequest(url);
+
+      const station = response.stations.find(
+        (s: AtmoRefStation) => s.id_station === stationId
+      );
+      if (!station) {
+        console.warn(`Station ${stationId} non trouvée`);
+        return {};
+      }
+
+      console.log(
+        `✅ AtmoRef - Variables de la station ${stationId}:`,
+        station.variables
+      );
+      return station.variables;
+    } catch (error) {
+      console.error(
+        "Erreur lors de la récupération des variables de la station:",
+        error
+      );
+      throw error;
+    }
   }
 }

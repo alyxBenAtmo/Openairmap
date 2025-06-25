@@ -10,6 +10,7 @@ export class NebuleAirService extends BaseDataService {
     pollutant: string;
     timeStep: string;
     sources: string[];
+    signalAirPeriod?: { startDate: string; endDate: string };
   }): Promise<MeasurementDevice[]> {
     // Simulation de données pour l'exemple
     const mockData: MeasurementDevice[] = [

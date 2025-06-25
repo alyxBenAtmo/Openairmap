@@ -2,25 +2,33 @@ import React, { useState } from "react";
 import PollutantDropdown from "./PollutantDropdown";
 import SourceDropdown from "./SourceDropdown";
 import TimeStepDropdown from "./TimeStepDropdown";
+import SignalAirPeriodSelector from "./SignalAirPeriodSelector";
 
 interface ControlPanelProps {
   selectedPollutant: string;
   selectedSources: string[];
   selectedTimeStep: string;
+  signalAirPeriod: { startDate: string; endDate: string };
   onPollutantChange: (pollutant: string) => void;
   onSourceChange: (sources: string[]) => void;
   onTimeStepChange: (timeStep: string) => void;
+  onSignalAirPeriodChange: (startDate: string, endDate: string) => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
   selectedPollutant,
   selectedSources,
   selectedTimeStep,
+  signalAirPeriod,
   onPollutantChange,
   onSourceChange,
   onTimeStepChange,
+  onSignalAirPeriodChange,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Vérifier si SignalAir est sélectionné
+  const isSignalAirSelected = selectedSources.includes("signalair");
 
   return (
     <div className="absolute top-4 right-4 z-[1000]">
@@ -50,6 +58,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             <TimeStepDropdown
               selectedTimeStep={selectedTimeStep}
               onTimeStepChange={onTimeStepChange}
+            />
+            <SignalAirPeriodSelector
+              startDate={signalAirPeriod.startDate}
+              endDate={signalAirPeriod.endDate}
+              onPeriodChange={onSignalAirPeriodChange}
+              isVisible={isSignalAirSelected}
             />
           </div>
         )}

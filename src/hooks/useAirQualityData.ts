@@ -6,12 +6,14 @@ interface UseAirQualityDataProps {
   selectedPollutant: string;
   selectedSources: string[];
   selectedTimeStep: string;
+  signalAirPeriod?: { startDate: string; endDate: string };
 }
 
 export const useAirQualityData = ({
   selectedPollutant,
   selectedSources,
   selectedTimeStep,
+  signalAirPeriod,
 }: UseAirQualityDataProps) => {
   const [devices, setDevices] = useState<MeasurementDevice[]>([]);
   const [loading, setLoading] = useState(false);
@@ -26,7 +28,11 @@ export const useAirQualityData = ({
     console.log(
       `🔄 Appel API - Polluant: ${selectedPollutant}, Sources: ${selectedSources.join(
         ", "
-      )}, Pas de temps: ${selectedTimeStep}`
+      )}, Pas de temps: ${selectedTimeStep}${
+        signalAirPeriod
+          ? `, Période SignalAir: ${signalAirPeriod.startDate} - ${signalAirPeriod.endDate}`
+          : ""
+      }`
     );
 
     // Nettoyer complètement les données avant le nouvel appel
@@ -45,6 +51,7 @@ export const useAirQualityData = ({
             pollutant: selectedPollutant,
             timeStep: selectedTimeStep,
             sources: selectedSources,
+            signalAirPeriod,
           });
           return data;
         } catch (err) {
@@ -71,7 +78,7 @@ export const useAirQualityData = ({
     } finally {
       setLoading(false);
     }
-  }, [selectedPollutant, selectedSources, selectedTimeStep]);
+  }, [selectedPollutant, selectedSources, selectedTimeStep, signalAirPeriod]);
 
   useEffect(() => {
     fetchData();

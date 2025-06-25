@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from "react";
-import ControlPanel from "./controls/ControlPanel";
-import AirQualityMap from "./map/AirQualityMap";
-import { useAirQualityData } from "../hooks/useAirQualityData";
-import { pollutants, getDefaultPollutant } from "../constants/pollutants";
-import { pasDeTemps } from "../constants/timeSteps";
+import ControlPanel from "./components/controls/ControlPanel";
+import AirQualityMap from "./components/map/AirQualityMap";
+import { useAirQualityData } from "./hooks/useAirQualityData";
+import { pollutants, getDefaultPollutant } from "./constants/pollutants";
+import { pasDeTemps } from "./constants/timeSteps";
+import TimePeriodDisplay from "./components/controls/TimePeriodDisplay";
 
 const App: React.FC = () => {
   // Trouver le pas de temps activé par défaut (calculé une seule fois)
@@ -12,6 +13,18 @@ const App: React.FC = () => {
       ([_, timeStep]) => timeStep.activated
     );
     return defaultTimeStep ? defaultTimeStep[0] : "heure";
+  }, []);
+
+  // Calculer la période par défaut pour SignalAir (2 derniers jours)
+  const defaultSignalAirPeriod = useMemo(() => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 2);
+
+    return {
+      startDate: start.toISOString().split("T")[0],
+      endDate: end.toISOString().split("T")[0],
+    };
   }, []);
 
   // États pour les contrôles avec polluant par défaut
@@ -24,12 +37,21 @@ const App: React.FC = () => {
   ]);
   const [selectedTimeStep, setSelectedTimeStep] =
     useState<string>(defaultTimeStep);
+  const [signalAirPeriod, setSignalAirPeriod] = useState(
+    defaultSignalAirPeriod
+  );
+
+  // Fonction wrapper pour gérer le changement de période SignalAir
+  const handleSignalAirPeriodChange = (startDate: string, endDate: string) => {
+    setSignalAirPeriod({ startDate, endDate });
+  };
 
   // Hook pour récupérer les données
   const { devices, loading, error } = useAirQualityData({
     selectedPollutant,
     selectedSources,
     selectedTimeStep,
+    signalAirPeriod,
   });
 
   // Centre de la carte (Provence-Alpes-Côte d'Azur)
@@ -50,6 +72,8 @@ const App: React.FC = () => {
             </span>
             <span>•</span>
             <span>{selectedSources.length} sources</span>
+            <span>•</span>
+            <TimePeriodDisplay timeStep={selectedTimeStep} />
           </div>
         </div>
       </header>
@@ -89,9 +113,11 @@ const App: React.FC = () => {
           selectedPollutant={selectedPollutant}
           selectedSources={selectedSources}
           selectedTimeStep={selectedTimeStep}
+          signalAirPeriod={signalAirPeriod}
           onPollutantChange={setSelectedPollutant}
           onSourceChange={setSelectedSources}
           onTimeStepChange={setSelectedTimeStep}
+          onSignalAirPeriodChange={handleSignalAirPeriodChange}
         />
 
         {/* Informations de la carte */}

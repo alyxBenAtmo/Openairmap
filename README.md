@@ -187,8 +187,6 @@ const { devices, loading, error } = useAirQualityData({
 - **Mise à jour automatique** : Les données se mettent à jour quand les paramètres changent
 - **Gestion des erreurs** : Affichage des erreurs de chargement
 - **États de chargement** : Indicateurs visuels pendant le chargement
-- **Cache intelligent** : Évite les appels API redondants
-- **Z-index optimisé** : Menus s'affichent au-dessus de la carte Leaflet
 
 ## 🛠️ Technologies utilisées
 

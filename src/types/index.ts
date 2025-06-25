@@ -72,6 +72,7 @@ export interface DataService {
     pollutant: string;
     timeStep: string;
     sources: string[];
+    signalAirPeriod?: { startDate: string; endDate: string };
   }): Promise<MeasurementDevice[]>;
 }
 
@@ -139,3 +140,47 @@ export const ATMOREF_POLLUTANT_MAPPING: Record<string, string> = {
   "39": "pm25", // PM2.5
   "68": "pm1", // PM1
 };
+
+// Types pour le side panel et les données historiques
+export interface HistoricalDataPoint {
+  timestamp: string;
+  value: number;
+  unit: string;
+}
+
+export interface StationVariable {
+  label: string;
+  code_iso: string;
+  en_service: boolean;
+}
+
+export interface StationInfo {
+  id: string;
+  name: string;
+  address: string;
+  departmentId: string;
+  source: string;
+  variables: Record<string, StationVariable>;
+}
+
+export interface ChartControls {
+  selectedPollutants: string[];
+  timeRange: {
+    type: "preset" | "custom";
+    preset?: "3h" | "24h" | "7d" | "1y";
+    custom?: {
+      startDate: string;
+      endDate: string;
+    };
+  };
+  timeStep: string;
+}
+
+export interface SidePanelState {
+  isOpen: boolean;
+  selectedStation: StationInfo | null;
+  chartControls: ChartControls;
+  historicalData: Record<string, HistoricalDataPoint[]>;
+  loading: boolean;
+  error: string | null;
+}
