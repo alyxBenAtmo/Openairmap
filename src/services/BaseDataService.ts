@@ -1,4 +1,4 @@
-import { DataService, MeasurementDevice } from "../types";
+import { DataService, MeasurementDevice, SignalAirReport } from "../types";
 
 export abstract class BaseDataService implements DataService {
   protected sourceCode: string;
@@ -12,7 +12,7 @@ export abstract class BaseDataService implements DataService {
     timeStep: string;
     sources: string[];
     signalAirPeriod?: { startDate: string; endDate: string };
-  }): Promise<MeasurementDevice[]>;
+  }): Promise<MeasurementDevice[] | SignalAirReport[]>;
 
   protected createDevice(
     id: string,

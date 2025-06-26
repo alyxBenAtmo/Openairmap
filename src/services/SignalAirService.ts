@@ -1,7 +1,11 @@
 /// <reference types="vite/client" />
 
 import { BaseDataService } from "./BaseDataService";
-import { MeasurementDevice, SignalAirProperties } from "../types";
+import {
+  MeasurementDevice,
+  SignalAirProperties,
+  SignalAirReport,
+} from "../types";
 
 // Types spécifiques pour SignalAir
 interface SignalAirFeature {
@@ -58,6 +62,10 @@ export class SignalAirService extends BaseDataService {
   // Option pour utiliser le proxy local (développement)
   private useLocalProxy = import.meta.env.DEV;
 
+  // Cache pour les signalements
+  private signalCache: SignalAirReport[] = [];
+  private lastPeriod: { startDate: string; endDate: string } | null = null;
+
   constructor() {
     super("signalair");
     console.log(
@@ -73,15 +81,38 @@ export class SignalAirService extends BaseDataService {
     timeStep: string;
     sources: string[];
     signalAirPeriod?: { startDate: string; endDate: string };
-  }): Promise<MeasurementDevice[]> {
+  }): Promise<SignalAirReport[]> {
     console.log(`🔍 SignalAirService.fetchData appelé avec:`, params);
 
     try {
       // Utiliser la période par défaut si non fournie (2 derniers jours)
       const period = params.signalAirPeriod || this.getDefaultPeriod();
 
+      // Vérifier si la période a changé
+      const periodChanged =
+        !this.lastPeriod ||
+        this.lastPeriod.startDate !== period.startDate ||
+        this.lastPeriod.endDate !== period.endDate;
+
+      // Si la période n'a pas changé et qu'on a des données en cache, les retourner
+      if (!periodChanged && this.signalCache.length > 0) {
+        console.log(
+          `📊 SignalAir - Utilisation du cache: ${this.signalCache.length} signalements`
+        );
+        return this.signalCache;
+      }
+
+      // Si la période a changé, vider le cache et récupérer les nouvelles données
+      if (periodChanged) {
+        console.log(
+          `📊 SignalAir - Période changée, récupération des nouvelles données`
+        );
+        this.signalCache = [];
+        this.lastPeriod = period;
+      }
+
       // Récupérer tous les types de signalements
-      const allDevices: MeasurementDevice[] = [];
+      const allReports: SignalAirReport[] = [];
 
       for (const [signalType, baseUrl] of Object.entries(this.SIGNAL_URLS)) {
         try {
@@ -103,12 +134,11 @@ export class SignalAirService extends BaseDataService {
             const extractedSignalType =
               this.URL_TO_TYPE_MAPPING[urlCode] || signalType;
 
-            const devices = this.transformSignalAirData(
+            const reports = this.transformSignalAirData(
               response,
-              extractedSignalType,
-              params.pollutant
+              extractedSignalType
             );
-            allDevices.push(...devices);
+            allReports.push(...reports);
           } else if (response === null) {
             console.log(
               `📊 SignalAir - ${signalType}: Aucun signalement pour cette période`
@@ -125,8 +155,13 @@ export class SignalAirService extends BaseDataService {
         }
       }
 
-      console.log(`✅ SignalAir - Total: ${allDevices.length} appareils créés`);
-      return allDevices;
+      // Mettre à jour le cache
+      this.signalCache = allReports;
+
+      console.log(
+        `✅ SignalAir - Total: ${allReports.length} signalements créés`
+      );
+      return allReports;
     } catch (error) {
       console.error(
         "Erreur lors de la récupération des données SignalAir:",
@@ -149,10 +184,9 @@ export class SignalAirService extends BaseDataService {
 
   private transformSignalAirData(
     geoJson: SignalAirGeoJSON,
-    signalType: string,
-    pollutant: string
-  ): MeasurementDevice[] {
-    const devices: MeasurementDevice[] = [];
+    signalType: string
+  ): SignalAirReport[] {
+    const reports: SignalAirReport[] = [];
 
     for (const feature of geoJson.features) {
       const { geometry, properties } = feature;
@@ -160,7 +194,7 @@ export class SignalAirService extends BaseDataService {
       // Extraire les coordonnées (GeoJSON utilise [longitude, latitude])
       const [longitude, latitude] = geometry.coordinates;
 
-      devices.push({
+      reports.push({
         id:
           properties.id ||
           `signalair-${signalType}-${Date.now()}-${Math.random()}`,
@@ -168,25 +202,23 @@ export class SignalAirService extends BaseDataService {
         latitude,
         longitude,
         source: this.sourceCode,
-        pollutant, // Utiliser le polluant sélectionné pour la cohérence
-        value: 1, // Valeur fixe car les signalements ne sont pas des mesures de polluants
-        unit: "signalement",
+        signalType,
         timestamp: properties["created_at"] || new Date().toISOString(),
+        status: "active",
         // Propriétés supplémentaires pour le marqueur
         qualityLevel: signalType, // Utiliser le type de signalement pour le marqueur
         address: properties.address || "",
         departmentId: properties.department || "",
         // Propriétés spécifiques à SignalAir
-        signalType,
         signalCreatedAt: properties["created_at"] || "",
         signalDuration: properties["duree-de-la-nuisance"] || "",
         signalHasSymptoms: properties["avez-vous-des-symptomes-"] || "",
         signalSymptoms: properties["si-oui-quels-symptomes-"] || "",
         signalDescription: properties.description || "",
-      } as MeasurementDevice & SignalAirProperties);
+      });
     }
 
-    return devices;
+    return reports;
   }
 
   private async fetchSignalAirData(

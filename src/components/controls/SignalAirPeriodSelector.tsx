@@ -67,15 +67,15 @@ const SignalAirPeriodSelector: React.FC<SignalAirPeriodSelectorProps> = ({
   if (!isVisible) return null;
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      <label className="block text-xs font-medium text-gray-700 mb-1">
-        Période SignalAir
+    <div className="relative flex items-center space-x-2" ref={dropdownRef}>
+      <label className="text-xs font-medium text-gray-700 whitespace-nowrap">
+        Période
       </label>
 
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-white border border-gray-300 rounded-md px-3 py-1.5 text-left shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 transition-colors text-sm"
+        className="bg-white border border-gray-300 rounded-md px-3 py-1.5 text-left shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 transition-colors text-sm min-w-[140px]"
       >
         <span className="block truncate text-gray-900">{getDisplayText()}</span>
         <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
@@ -98,7 +98,7 @@ const SignalAirPeriodSelector: React.FC<SignalAirPeriodSelectorProps> = ({
       </button>
 
       {isOpen && (
-        <div className="absolute z-[2000] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg right-0">
+        <div className="absolute z-[2000] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg right-0 top-full">
           <div className="p-3 space-y-3">
             {/* Sélections rapides */}
             <div>

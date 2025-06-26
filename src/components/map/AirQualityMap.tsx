@@ -4,6 +4,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
   MeasurementDevice,
+  SignalAirReport,
   StationInfo,
   SignalAirProperties,
 } from "../../types";
@@ -27,6 +28,7 @@ L.Icon.Default.mergeOptions({
 
 interface AirQualityMapProps {
   devices: MeasurementDevice[];
+  reports: SignalAirReport[];
   center: [number, number];
   zoom: number;
   selectedPollutant: string;
@@ -35,12 +37,15 @@ interface AirQualityMapProps {
 
 const AirQualityMap: React.FC<AirQualityMapProps> = ({
   devices,
+  reports,
   center,
   zoom,
   selectedPollutant,
   loading,
 }) => {
   const mapRef = useRef<L.Map | null>(null);
+  const previousCenterRef = useRef<[number, number] | null>(null);
+  const previousZoomRef = useRef<number | null>(null);
   const [currentBaseLayer, setCurrentBaseLayer] =
     useState<BaseLayerKey>("Carte standard");
   const [currentTileLayer, setCurrentTileLayer] = useState<L.TileLayer | null>(
@@ -56,7 +61,18 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
 
   useEffect(() => {
     if (mapRef.current) {
-      mapRef.current.setView(center, zoom);
+      // Vérifier si les valeurs ont réellement changé
+      const centerChanged =
+        !previousCenterRef.current ||
+        previousCenterRef.current[0] !== center[0] ||
+        previousCenterRef.current[1] !== center[1];
+      const zoomChanged = previousZoomRef.current !== zoom;
+
+      if (centerChanged || zoomChanged) {
+        mapRef.current.setView(center, zoom);
+        previousCenterRef.current = center;
+        previousZoomRef.current = zoom;
+      }
     }
   }, [center, zoom]);
 
@@ -102,52 +118,78 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       div.style.transition = "all 0.3s ease";
     }
 
-    // Pour SignalAir, on n'ajoute pas de texte par-dessus le marqueur
-    if (device.source === "signalair") {
-      div.appendChild(img);
-    } else {
-      // Texte de la valeur pour les autres sources
-      const valueText = document.createElement("div");
-      valueText.className = "value-text";
+    // Texte de la valeur pour les appareils de mesure
+    const valueText = document.createElement("div");
+    valueText.className = "value-text";
 
-      // Gestion normale pour les autres sources
-      if (device.status === "active" && device.value > 0) {
-        const displayValue = Math.round(device.value);
-        valueText.textContent = displayValue.toString();
+    // Gestion normale pour les appareils de mesure
+    if (device.status === "active" && device.value > 0) {
+      const displayValue = Math.round(device.value);
+      valueText.textContent = displayValue.toString();
 
-        // Ajuster la taille du texte selon la longueur de la valeur
-        if (displayValue >= 100) {
-          valueText.style.fontSize = "12px"; // Police plus petite pour les valeurs à 3 chiffres
-        } else if (displayValue >= 10) {
-          valueText.style.fontSize = "16px"; // Police moyenne pour les valeurs à 2 chiffres
-        } else {
-          valueText.style.fontSize = "18px"; // Police normale pour les valeurs à 1 chiffre
-        }
-
-        // Couleur du texte selon le niveau de qualité
-        const textColors: Record<string, string> = {
-          bon: "#000000",
-          moyen: "#000000",
-          degrade: "#000000",
-          mauvais: "#000000", // Noir au lieu de blanc pour les marqueurs rouges
-          tresMauvais: "#000000", // Noir au lieu de blanc pour les marqueurs rouges
-          extrMauvais: "#000000", // Noir au lieu de blanc pour les marqueurs rouges
-          default: "#666666",
-        };
-
-        valueText.style.color = textColors[qualityLevel] || "#000000";
-
-        // Ajouter un contour blanc pour améliorer la lisibilité
-        if (qualityLevel !== "default") {
-          // Contour plus subtil pour éviter l'effet de "paté"
-          valueText.style.textShadow =
-            "1px 1px 2px rgba(255,255,255,0.8), -1px -1px 2px rgba(255,255,255,0.8)";
-        }
+      // Ajuster la taille du texte selon la longueur de la valeur
+      if (displayValue >= 100) {
+        valueText.style.fontSize = "12px"; // Police plus petite pour les valeurs à 3 chiffres
+      } else if (displayValue >= 10) {
+        valueText.style.fontSize = "16px"; // Police moyenne pour les valeurs à 2 chiffres
+      } else {
+        valueText.style.fontSize = "18px"; // Police normale pour les valeurs à 1 chiffre
       }
 
-      div.appendChild(img);
-      div.appendChild(valueText);
+      // Couleur du texte selon le niveau de qualité
+      const textColors: Record<string, string> = {
+        bon: "#000000",
+        moyen: "#000000",
+        degrade: "#000000",
+        mauvais: "#000000", // Noir au lieu de blanc pour les marqueurs rouges
+        tresMauvais: "#000000", // Noir au lieu de blanc pour les marqueurs rouges
+        extrMauvais: "#000000", // Noir au lieu de blanc pour les marqueurs rouges
+        default: "#666666",
+      };
+
+      valueText.style.color = textColors[qualityLevel] || "#000000";
+
+      // Ajouter un contour blanc pour améliorer la lisibilité
+      if (qualityLevel !== "default") {
+        // Contour plus subtil pour éviter l'effet de "paté"
+        valueText.style.textShadow =
+          "1px 1px 2px rgba(255,255,255,0.8), -1px -1px 2px rgba(255,255,255,0.8)";
+      }
     }
+
+    div.appendChild(img);
+    div.appendChild(valueText);
+
+    return L.divIcon({
+      html: div.outerHTML,
+      className: "custom-marker-div",
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+    });
+  };
+
+  const createSignalIcon = (report: SignalAirReport) => {
+    const qualityLevel = report.qualityLevel || "default";
+    const markerPath = getMarkerPath(report.source, qualityLevel);
+
+    // Créer un élément HTML personnalisé pour le marqueur de signalement
+    const div = document.createElement("div");
+    div.className = "custom-marker-container";
+
+    // Image de base du marqueur
+    const img = document.createElement("img");
+    img.src = markerPath;
+    img.alt = `${report.source} signal marker`;
+
+    // Ajouter une animation subtile pendant le chargement
+    if (loading) {
+      div.style.opacity = "0.7";
+      div.style.transform = "scale(0.95)";
+      div.style.transition = "all 0.3s ease";
+    }
+
+    // Pour SignalAir, on n'ajoute pas de texte par-dessus le marqueur
+    div.appendChild(img);
 
     return L.divIcon({
       html: div.outerHTML,
@@ -248,6 +290,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
           url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
         />
 
+        {/* Marqueurs pour les appareils de mesure */}
         {devices.map((device) => (
           <Marker
             key={device.id}
@@ -256,95 +299,102 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
             eventHandlers={{
               click: () => handleMarkerClick(device),
             }}
+          />
+        ))}
+
+        {/* Marqueurs pour les signalements SignalAir */}
+        {reports.map((report) => (
+          <Marker
+            key={report.id}
+            position={[report.latitude, report.longitude]}
+            icon={createSignalIcon(report)}
+            eventHandlers={{
+              click: () => console.log("Signalement cliqué:", report),
+            }}
           >
-            {/* Popup uniquement pour SignalAir */}
-            {device.source === "signalair" && (
-              <Popup>
-                <div className="device-popup min-w-[280px]">
-                  <h3 className="font-bold text-lg mb-2">{device.name}</h3>
-                  <div className="space-y-2 text-sm">
+            <Popup>
+              <div className="device-popup min-w-[280px]">
+                <h3 className="font-bold text-lg mb-2">{report.name}</h3>
+                <div className="space-y-2 text-sm">
+                  <p>
+                    <strong>Source:</strong> {report.source}
+                  </p>
+
+                  {/* Informations spécifiques à SignalAir */}
+                  <p>
+                    <strong>Type:</strong> {report.signalType || "Non spécifié"}
+                  </p>
+
+                  {/* Date de création */}
+                  <p>
+                    <strong>Date de création:</strong>{" "}
+                    {report.signalCreatedAt
+                      ? formatTimestamp(report.signalCreatedAt)
+                      : "Non spécifiée"}
+                  </p>
+
+                  {/* Durée de la nuisance */}
+                  <p>
+                    <strong>Durée de la nuisance:</strong>{" "}
+                    {report.signalDuration || "Non spécifiée"}
+                  </p>
+
+                  {/* Symptômes */}
+                  <p>
+                    <strong>Avez-vous des symptômes:</strong>{" "}
+                    {report.signalHasSymptoms || "Non spécifié"}
+                  </p>
+
+                  {/* Détail des symptômes si oui */}
+                  {report.signalHasSymptoms === "Oui" && (
                     <p>
-                      <strong>Source:</strong> {device.source}
+                      <strong>Symptômes:</strong>{" "}
+                      {report.signalSymptoms
+                        ? report.signalSymptoms.split("|").join(", ")
+                        : "Non spécifiés"}
                     </p>
+                  )}
 
-                    {/* Informations spécifiques à SignalAir */}
+                  {/* Description */}
+                  {report.signalDescription && (
                     <p>
-                      <strong>Type:</strong>{" "}
-                      {(device as any).signalType || "Non spécifié"}
+                      <strong>Description:</strong> {report.signalDescription}
                     </p>
+                  )}
 
-                    {/* Date de création */}
+                  {report.address && (
                     <p>
-                      <strong>Date de création:</strong>{" "}
-                      {(device as any).signalCreatedAt
-                        ? formatTimestamp((device as any).signalCreatedAt)
-                        : "Non spécifiée"}
+                      <strong>Adresse:</strong> {report.address}
                     </p>
+                  )}
 
-                    {/* Durée de la nuisance */}
-                    <p>
-                      <strong>Durée de la nuisance:</strong>{" "}
-                      {(device as any).signalDuration || "Non spécifiée"}
-                    </p>
-
-                    {/* Symptômes */}
-                    <p>
-                      <strong>Avez-vous des symptômes:</strong>{" "}
-                      {(device as any).signalHasSymptoms || "Non spécifié"}
-                    </p>
-
-                    {/* Détail des symptômes si oui */}
-                    {(device as any).signalHasSymptoms === "Oui" && (
-                      <p>
-                        <strong>Symptômes:</strong>{" "}
-                        {(device as any).signalSymptoms
-                          ? (device as any).signalSymptoms.split("|").join(", ")
-                          : "Non spécifiés"}
-                      </p>
-                    )}
-
-                    {/* Description */}
-                    {(device as any).signalDescription && (
-                      <p>
-                        <strong>Description:</strong>{" "}
-                        {(device as any).signalDescription}
-                      </p>
-                    )}
-
-                    {device.address && (
-                      <p>
-                        <strong>Adresse:</strong> {device.address}
-                      </p>
-                    )}
-
-                    {/* Bouton pour signaler une nuisance */}
-                    <div className="mt-4 pt-3 border-t border-gray-200">
-                      <a
-                        href="https://www.signalair.eu/fr/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center w-full px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-300 rounded-md hover:bg-gray-100 hover:border-gray-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                  {/* Bouton pour signaler une nuisance */}
+                  <div className="mt-4 pt-3 border-t border-gray-200">
+                    <a
+                      href="https://www.signalair.eu/fr/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center w-full px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-300 rounded-md hover:bg-gray-100 hover:border-gray-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                    >
+                      <svg
+                        className="w-4 h-4 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
                       >
-                        <svg
-                          className="w-4 h-4 mr-2"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                          />
-                        </svg>
-                        Signaler une nuisance
-                      </a>
-                    </div>
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                        />
+                      </svg>
+                      Signaler une nuisance
+                    </a>
                   </div>
                 </div>
-              </Popup>
-            )}
+              </div>
+            </Popup>
           </Marker>
         ))}
       </MapContainer>

@@ -5,10 +5,11 @@ Une application React modulaire et responsive pour afficher des appareils de mes
 ## 🚀 Fonctionnalités
 
 - **Carte interactive** avec Leaflet pour afficher les appareils de mesure
-- **3 menus de contrôle** :
+- **Contrôles intégrés dans l'en-tête** :
   - Sélection du polluant (1 actif à la fois)
   - Sélection des sources de données (plusieurs sources possibles)
   - Sélection du pas de temps (1 actif à la fois)
+  - Sélecteur de période pour SignalAir (visible uniquement si SignalAir est sélectionné)
 - **Contrôle du fond de carte** : Basculement entre carte standard et satellite
 - **Légende dynamique** : Affichage des seuils selon le polluant sélectionné
 - **Architecture modulaire** avec services séparés pour chaque source de données
@@ -22,14 +23,17 @@ Une application React modulaire et responsive pour afficher des appareils de mes
 src/
 ├── components/          # Composants React
 │   ├── controls/       # Composants de contrôle (menus)
-│   │   ├── ControlPanel.tsx
 │   │   ├── PollutantDropdown.tsx
 │   │   ├── SourceDropdown.tsx
 │   │   ├── TimeStepDropdown.tsx
+│   │   ├── SignalAirPeriodSelector.tsx
+│   │   ├── TimePeriodDisplay.tsx
 │   │   └── BaseLayerControl.tsx
 │   ├── map/           # Composants de carte
 │   │   ├── AirQualityMap.tsx
-│   │   └── Legend.tsx
+│   │   ├── Legend.tsx
+│   │   ├── HistoricalChart.tsx
+│   │   └── StationSidePanel.tsx
 │   └── App.tsx        # Composant principal
 ├── services/          # Services de données
 │   ├── BaseDataService.ts
@@ -95,24 +99,33 @@ Chaque polluant dispose de 6 niveaux de qualité avec des seuils spécifiques :
 
 ## 🎨 Interface utilisateur
 
-### Contrôles principaux (haut à droite)
+### En-tête avec contrôles intégrés
 
-- **Menu polluant** : Sélection du polluant à afficher
-- **Menu sources** : Sélection multiple des sources de données
-- **Menu pas de temps** : Sélection du pas de temps
+L'interface principale dispose d'un en-tête compact contenant tous les contrôles :
+
+- **Logo OpenAirMap** : Titre de l'application à gauche
+- **Contrôles de sélection** : Alignés horizontalement à droite
+  - **Polluant** : Menu déroulant avec label et bouton côte à côte
+  - **Sources** : Menu déroulant avec sélection multiple et hiérarchie
+  - **Pas de temps** : Menu déroulant pour la période de mesure
+  - **Période SignalAir** : Sélecteur de dates (visible si SignalAir est actif)
+- **Indicateurs d'information** : Affichage des sélections actuelles séparés par une bordure verticale
 
 ### Contrôles de carte
 
 - **Contrôle fond de carte** : Icône en bas à gauche pour basculer entre carte et satellite
 - **Légende** : Affichage des seuils en bas au centre avec tooltips au hover
+- **Informations de la carte** : Compteur d'appareils et signalements en bas à droite
 
-### Design
+### Design et UX
 
-- **Interface moderne** avec Tailwind CSS
-- **Menus déroulants** avec checkboxes personnalisées
-- **États visuels clairs** (sélectionné, partiellement sélectionné, non sélectionné)
-- **Responsive design** adapté à tous les écrans
-- **Animations fluides** et transitions
+- **Interface compacte** : Contrôles intégrés dans l'en-tête pour maximiser l'espace de la carte
+- **Menus déroulants horizontaux** : Labels et boutons alignés côte à côte
+- **Sélection multiple intelligente** : Groupes de sources avec états partiels
+- **États visuels clairs** : Sélectionné, partiellement sélectionné, non sélectionné
+- **Responsive design** : Adapté à tous les écrans
+- **Animations fluides** : Transitions et hover effects
+- **Indicateurs de chargement** : Affichage discret des états de chargement
 
 ## 🚀 Installation et démarrage
 
@@ -156,11 +169,13 @@ export class AtmoRefService extends BaseDataService {
 
 ### Composants de contrôle
 
-Les menus sont organisés en composants réutilisables :
+Les menus sont organisés en composants réutilisables avec interface horizontale :
 
-- `PollutantDropdown` : Sélection du polluant avec checkboxes
-- `SourceDropdown` : Sélection multiple des sources avec hiérarchie
+- `PollutantDropdown` : Sélection du polluant avec label et bouton alignés
+- `SourceDropdown` : Sélection multiple des sources avec hiérarchie et groupes
 - `TimeStepDropdown` : Sélection du pas de temps
+- `SignalAirPeriodSelector` : Sélecteur de période pour SignalAir
+- `TimePeriodDisplay` : Affichage de la période actuelle
 - `BaseLayerControl` : Contrôle du fond de carte avec icônes
 
 ### Hook personnalisé
@@ -168,10 +183,11 @@ Les menus sont organisés en composants réutilisables :
 `useAirQualityData` gère la récupération et l'état des données :
 
 ```typescript
-const { devices, loading, error } = useAirQualityData({
+const { devices, reports, loading, error, loadingSources } = useAirQualityData({
   selectedPollutant,
   selectedSources,
   selectedTimeStep,
+  signalAirPeriod,
 });
 ```
 
@@ -186,7 +202,9 @@ const { devices, loading, error } = useAirQualityData({
 
 - **Mise à jour automatique** : Les données se mettent à jour quand les paramètres changent
 - **Gestion des erreurs** : Affichage des erreurs de chargement
-- **États de chargement** : Indicateurs visuels pendant le chargement
+- **États de chargement** : Indicateurs visuels pendant le chargement avec détails des sources
+- **Sélection intelligente** : Gestion des groupes de sources avec états partiels
+- **Interface adaptative** : Affichage conditionnel des contrôles selon les sélections
 
 ## 🛠️ Technologies utilisées
 

@@ -1,10 +1,13 @@
 import React, { useState, useMemo } from "react";
-import ControlPanel from "./components/controls/ControlPanel";
 import AirQualityMap from "./components/map/AirQualityMap";
 import { useAirQualityData } from "./hooks/useAirQualityData";
 import { pollutants, getDefaultPollutant } from "./constants/pollutants";
 import { pasDeTemps } from "./constants/timeSteps";
 import TimePeriodDisplay from "./components/controls/TimePeriodDisplay";
+import PollutantDropdown from "./components/controls/PollutantDropdown";
+import SourceDropdown from "./components/controls/SourceDropdown";
+import TimeStepDropdown from "./components/controls/TimeStepDropdown";
+import SignalAirPeriodSelector from "./components/controls/SignalAirPeriodSelector";
 
 const App: React.FC = () => {
   // Trouver le pas de temps activé par défaut (calculé une seule fois)
@@ -47,12 +50,13 @@ const App: React.FC = () => {
   };
 
   // Hook pour récupérer les données
-  const { devices, loading, error, loadingSources } = useAirQualityData({
-    selectedPollutant,
-    selectedSources,
-    selectedTimeStep,
-    signalAirPeriod,
-  });
+  const { devices, reports, loading, error, loadingSources } =
+    useAirQualityData({
+      selectedPollutant,
+      selectedSources,
+      selectedTimeStep,
+      signalAirPeriod,
+    });
 
   // Centre de la carte (Provence-Alpes-Côte d'Azur)
   const mapCenter: [number, number] = [43.7102, 7.262]; // Nice
@@ -60,20 +64,31 @@ const App: React.FC = () => {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
-      {/* Header minimal */}
-      <header className="bg-white border-b border-gray-200 px-4 py-2 shadow-sm z-[1000]">
+      {/* Header avec contrôles intégrés */}
+      <header className="bg-white border-b border-gray-200 px-4 py-3 shadow-sm z-[1000]">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold text-blue-600">OpenAirMap</h1>
-          <div className="text-xs text-gray-600 space-x-4">
-            <span>{pollutants[selectedPollutant]?.name}</span>
-            <span>•</span>
-            <span>
-              {pasDeTemps[selectedTimeStep as keyof typeof pasDeTemps]?.name}
-            </span>
-            <span>•</span>
-            <span>{selectedSources.length} sources</span>
-            <span>•</span>
-            <TimePeriodDisplay timeStep={selectedTimeStep} />
+
+          {/* Contrôles intégrés dans l'en-tête */}
+          <div className="flex items-center space-x-4">
+            <PollutantDropdown
+              selectedPollutant={selectedPollutant}
+              onPollutantChange={setSelectedPollutant}
+            />
+            <SourceDropdown
+              selectedSources={selectedSources}
+              onSourceChange={setSelectedSources}
+            />
+            <TimeStepDropdown
+              selectedTimeStep={selectedTimeStep}
+              onTimeStepChange={setSelectedTimeStep}
+            />
+            <SignalAirPeriodSelector
+              startDate={signalAirPeriod.startDate}
+              endDate={signalAirPeriod.endDate}
+              onPeriodChange={handleSignalAirPeriodChange}
+              isVisible={selectedSources.includes("signalair")}
+            />
           </div>
         </div>
 
@@ -88,7 +103,7 @@ const App: React.FC = () => {
         )}
       </header>
 
-      {/* Carte en plein écran avec contrôles intégrés */}
+      {/* Carte en plein écran */}
       <main className="flex-1 relative">
         {/* Indicateur de chargement discret */}
         {loading && (
@@ -99,13 +114,19 @@ const App: React.FC = () => {
                 <div className="flex flex-col">
                   <span className="text-blue-600 text-sm font-medium">
                     {devices.length === 0
-                      ? "Nettoyage et chargement..."
-                      : "Mise à jour..."}
+                      ? "Chargement des données..."
+                      : "Mise à jour en cours..."}
                   </span>
                   {loadingSources.length > 0 && (
                     <span className="text-xs text-gray-500">
                       {loadingSources.length} source
                       {loadingSources.length > 1 ? "s" : ""} en cours
+                      {loadingSources.length > 0 && (
+                        <span className="ml-1">
+                          ({loadingSources.slice(0, 2).join(", ")}
+                          {loadingSources.length > 2 && "..."})
+                        </span>
+                      )}
                     </span>
                   )}
                 </div>
@@ -122,28 +143,22 @@ const App: React.FC = () => {
 
         <AirQualityMap
           devices={devices}
+          reports={reports}
           center={mapCenter}
           zoom={mapZoom}
           selectedPollutant={selectedPollutant}
           loading={loading}
         />
 
-        {/* Panneau de contrôle flottant */}
-        <ControlPanel
-          selectedPollutant={selectedPollutant}
-          selectedSources={selectedSources}
-          selectedTimeStep={selectedTimeStep}
-          signalAirPeriod={signalAirPeriod}
-          onPollutantChange={setSelectedPollutant}
-          onSourceChange={setSelectedSources}
-          onTimeStepChange={setSelectedTimeStep}
-          onSignalAirPeriodChange={handleSignalAirPeriodChange}
-        />
-
         {/* Informations de la carte */}
         <div className="absolute bottom-4 right-4 bg-white px-3 py-2 rounded-md shadow-lg z-[1000]">
           <p className="text-xs text-gray-600">
             {devices.length} appareil{devices.length > 1 ? "s" : ""}
+            {reports.length > 0 && (
+              <span className="ml-2">
+                • {reports.length} signalement{reports.length > 1 ? "s" : ""}
+              </span>
+            )}
           </p>
         </div>
       </main>

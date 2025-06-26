@@ -76,6 +76,28 @@ export interface SignalAirProperties {
   signalDescription: string;
 }
 
+// Nouveau type pour les signalements SignalAir
+export interface SignalAirReport {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  source: string;
+  signalType: string;
+  timestamp: string;
+  status: "active" | "inactive" | "error";
+  // Propriétés optionnelles pour les marqueurs
+  qualityLevel?: string; // bon, moyen, degrade, mauvais, tresMauvais, extrMauvais, default
+  address?: string;
+  departmentId?: string;
+  // Propriétés spécifiques à SignalAir
+  signalCreatedAt: string;
+  signalDuration: string;
+  signalHasSymptoms: string;
+  signalSymptoms: string;
+  signalDescription: string;
+}
+
 // Types pour les services de données
 export interface DataService {
   fetchData(params: {
@@ -83,7 +105,7 @@ export interface DataService {
     timeStep: string;
     sources: string[];
     signalAirPeriod?: { startDate: string; endDate: string };
-  }): Promise<MeasurementDevice[]>;
+  }): Promise<MeasurementDevice[] | SignalAirReport[]>;
 }
 
 // Types pour les marqueurs

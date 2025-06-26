@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { MeasurementDevice } from "../types";
+import { MeasurementDevice, SignalAirReport } from "../types";
 import { DataServiceFactory } from "../services/DataServiceFactory";
 
 interface UseAirQualityDataProps {
@@ -16,6 +16,7 @@ export const useAirQualityData = ({
   signalAirPeriod,
 }: UseAirQualityDataProps) => {
   const [devices, setDevices] = useState<MeasurementDevice[]>([]);
+  const [reports, setReports] = useState<SignalAirReport[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingSources, setLoadingSources] = useState<string[]>([]);
@@ -23,6 +24,7 @@ export const useAirQualityData = ({
   const fetchData = useCallback(async () => {
     if (selectedSources.length === 0) {
       setDevices([]);
+      setReports([]);
       return;
     }
 
@@ -38,17 +40,22 @@ export const useAirQualityData = ({
 
     // Nettoyer complètement les données avant le nouvel appel
     setDevices([]);
+    setReports([]);
     setLoading(true);
     setError(null);
     setLoadingSources(selectedSources);
 
     try {
       const services = DataServiceFactory.getServices(selectedSources);
-      const allDevices: MeasurementDevice[] = [];
 
-      // Récupérer les données de toutes les sources sélectionnées
-      const promises = services.map(async (service, index) => {
+      // Traiter chaque service individuellement pour un affichage progressif
+      for (let i = 0; i < services.length; i++) {
+        const service = services[i];
+        const sourceCode = selectedSources[i];
+
         try {
+          console.log(`📡 Chargement de ${sourceCode}...`);
+
           const data = await service.fetchData({
             pollutant: selectedPollutant,
             timeStep: selectedTimeStep,
@@ -56,42 +63,73 @@ export const useAirQualityData = ({
             signalAirPeriod,
           });
 
-          // Retirer cette source de la liste des sources en cours
-          setLoadingSources((prev) =>
-            prev.filter((source) => source !== selectedSources[index])
-          );
+          // Séparer les appareils de mesure des signalements
+          if (Array.isArray(data)) {
+            const measurementDevices: MeasurementDevice[] = [];
+            const signalReports: SignalAirReport[] = [];
 
-          return data;
+            data.forEach((item) => {
+              if ("pollutant" in item && "value" in item && "unit" in item) {
+                // C'est un MeasurementDevice
+                measurementDevices.push(item as MeasurementDevice);
+              } else if ("signalType" in item) {
+                // C'est un SignalAirReport
+                signalReports.push(item as SignalAirReport);
+              }
+            });
+
+            // Mettre à jour les appareils de mesure
+            if (measurementDevices.length > 0) {
+              setDevices((prevDevices) => {
+                // Filtrer les anciennes données de cette source
+                const filteredDevices = prevDevices.filter(
+                  (device) => device.source !== sourceCode
+                );
+                // Ajouter les nouvelles données
+                return [...filteredDevices, ...measurementDevices];
+              });
+            }
+
+            // Mettre à jour les signalements (uniquement pour SignalAir)
+            if (signalReports.length > 0 && sourceCode === "signalair") {
+              setReports((prevReports) => {
+                // Filtrer les anciens signalements de cette source
+                const filteredReports = prevReports.filter(
+                  (report) => report.source !== sourceCode
+                );
+                // Ajouter les nouveaux signalements
+                return [...filteredReports, ...signalReports];
+              });
+            }
+
+            console.log(
+              `✅ ${sourceCode}: ${measurementDevices.length} appareils, ${signalReports.length} signalements chargés`
+            );
+          }
         } catch (err) {
           console.error(
-            `Erreur lors de la récupération des données pour ${service}:`,
+            `❌ Erreur lors de la récupération des données pour ${sourceCode}:`,
             err
           );
 
-          // Retirer cette source de la liste des sources en cours même en cas d'erreur
+          // En cas d'erreur, on garde les données existantes mais on retire la source du loading
+        } finally {
+          // Retirer cette source de la liste des sources en cours
           setLoadingSources((prev) =>
-            prev.filter((source) => source !== selectedSources[index])
+            prev.filter((source) => source !== sourceCode)
           );
-
-          return [];
         }
-      });
+      }
 
-      const results = await Promise.all(promises);
-      results.forEach((devices) => allDevices.push(...devices));
-
-      console.log(`✅ Données récupérées: ${allDevices.length} appareils`);
-      setDevices(allDevices);
+      console.log(`✅ Toutes les sources traitées`);
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
           : "Erreur lors de la récupération des données"
       );
-      setDevices([]);
     } finally {
       setLoading(false);
-      setLoadingSources([]);
     }
   }, [selectedPollutant, selectedSources, selectedTimeStep, signalAirPeriod]);
 
@@ -99,5 +137,5 @@ export const useAirQualityData = ({
     fetchData();
   }, [fetchData]);
 
-  return { devices, loading, error, loadingSources };
+  return { devices, reports, loading, error, loadingSources };
 };
