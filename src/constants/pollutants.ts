@@ -106,3 +106,15 @@ export const getDefaultPollutant = (): string => {
   );
   return defaultPollutant ? defaultPollutant[0] : "pm25";
 };
+
+// Définition des couleurs pour les polluants dans les graphiques
+export const POLLUTANT_COLORS = {
+  pm1: "#b7cee5",
+  pm25: "#66b2ff",
+  pm10: "#0066cc",
+  no2: "#A133FF",
+  o3: "#FFEEAD",
+  so2: "#D4A5A5",
+  h2s: "#9B59B6",
+  nh3: "#3498DB",
+};

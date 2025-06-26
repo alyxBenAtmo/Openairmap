@@ -162,7 +162,12 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   };
 
   const handleMarkerClick = async (device: MeasurementDevice) => {
-    // Pour l'instant, on ne supporte que AtmoRef
+    // Exclure SignalAir et ne supporter que AtmoRef pour le side panel
+    if (device.source === "signalair") {
+      console.log("Side panel non disponible pour SignalAir");
+      return;
+    }
+
     if (device.source !== "atmoRef") {
       console.log(
         "Side panel non disponible pour cette source:",
@@ -239,67 +244,48 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
               click: () => handleMarkerClick(device),
             }}
           >
-            <Popup>
-              <div className="device-popup min-w-[250px]">
-                <h3 className="font-bold text-lg mb-2">{device.name}</h3>
-                <div className="space-y-1 text-sm">
-                  <p>
-                    <strong>Source:</strong> {device.source}
-                  </p>
-
-                  {/* Informations spécifiques à SignalAir */}
-                  {device.source === "signalair" && (
-                    <>
-                      <p>
-                        <strong>Type:</strong>{" "}
-                        {(device as any).signalType || "Non spécifié"}
-                      </p>
-                      <p>
-                        <strong>Intensité:</strong>{" "}
-                        {(device as any).signalIntensity || "Non spécifiée"}
-                      </p>
-                      {(device as any).signalDescription && (
-                        <p>
-                          <strong>Description:</strong>{" "}
-                          {(device as any).signalDescription}
-                        </p>
-                      )}
-                    </>
-                  )}
-
-                  {/* Informations pour les autres sources */}
-                  {device.source !== "signalair" && (
-                    <>
-                      <p>
-                        <strong>Polluant:</strong> {device.pollutant}
-                      </p>
-                      <p>
-                        <strong>Valeur:</strong> {formatValue(device)}
-                      </p>
-                      {device.qualityLevel &&
-                        device.qualityLevel !== "default" && (
-                          <p>
-                            <strong>Qualité:</strong> {device.qualityLevel}
-                          </p>
-                        )}
-                    </>
-                  )}
-
-                  <p>
-                    <strong>Statut:</strong> {device.status}
-                  </p>
-                  <p>
-                    <strong>Dernière mise à jour:</strong>{" "}
-                    {formatTimestamp(device.timestamp)}
-                  </p>
-                  {device.address && (
+            {/* Popup uniquement pour SignalAir */}
+            {device.source === "signalair" && (
+              <Popup>
+                <div className="device-popup min-w-[250px]">
+                  <h3 className="font-bold text-lg mb-2">{device.name}</h3>
+                  <div className="space-y-1 text-sm">
                     <p>
-                      <strong>Adresse:</strong> {device.address}
+                      <strong>Source:</strong> {device.source}
                     </p>
-                  )}
+
+                    {/* Informations spécifiques à SignalAir */}
+                    <p>
+                      <strong>Type:</strong>{" "}
+                      {(device as any).signalType || "Non spécifié"}
+                    </p>
+                    <p>
+                      <strong>Intensité:</strong>{" "}
+                      {(device as any).signalIntensity || "Non spécifiée"}
+                    </p>
+                    {(device as any).signalDescription && (
+                      <p>
+                        <strong>Description:</strong>{" "}
+                        {(device as any).signalDescription}
+                      </p>
+                    )}
+
+                    <p>
+                      <strong>Statut:</strong> {device.status}
+                    </p>
+                    <p>
+                      <strong>Dernière mise à jour:</strong>{" "}
+                      {formatTimestamp(device.timestamp)}
+                    </p>
+                    {device.address && (
+                      <p>
+                        <strong>Adresse:</strong> {device.address}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </Popup>
+              </Popup>
+            )}
           </Marker>
         ))}
       </MapContainer>
@@ -313,7 +299,11 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       </div>
 
       {/* Légende */}
-      <Legend selectedPollutant={selectedPollutant} />
+      <Legend
+        selectedPollutant={selectedPollutant}
+        isSidePanelOpen={isSidePanelOpen}
+        panelSize={panelSize}
+      />
 
       {/* Side Panel */}
       <StationSidePanel
@@ -330,7 +320,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       {isSidePanelOpen && panelSize === "hidden" && (
         <button
           onClick={() => handleSidePanelSizeChange("normal")}
-          className="fixed top-4 left-4 z-[2001] bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
+          className="fixed top-60 left-2 z-[2001] bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
           title="Rouvrir le panneau de données"
         >
           <svg

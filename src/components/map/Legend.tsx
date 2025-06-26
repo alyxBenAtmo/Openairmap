@@ -3,9 +3,15 @@ import { pollutants } from "../../constants/pollutants";
 
 interface LegendProps {
   selectedPollutant: string;
+  isSidePanelOpen?: boolean;
+  panelSize?: "normal" | "fullscreen" | "hidden";
 }
 
-const Legend: React.FC<LegendProps> = ({ selectedPollutant }) => {
+const Legend: React.FC<LegendProps> = ({
+  selectedPollutant,
+  isSidePanelOpen = false,
+  panelSize = "normal",
+}) => {
   // Couleurs pour chaque seuil
   const colors = {
     noData: "#999999",
@@ -59,8 +65,28 @@ const Legend: React.FC<LegendProps> = ({ selectedPollutant }) => {
     },
   ];
 
+  // Calculer la position de la légende selon l'état du side panel
+  const getLegendPosition = () => {
+    if (!isSidePanelOpen || panelSize === "hidden") {
+      // Side panel fermé ou masqué : position centrée
+      return "absolute bottom-4 left-1/2 transform -translate-x-1/2";
+    }
+
+    if (panelSize === "fullscreen") {
+      // Side panel en plein écran : position centrée (panel au-dessus)
+      return "absolute bottom-4 left-1/2 transform -translate-x-1/2";
+    }
+
+    // Side panel normal : décaler vers la droite pour éviter le chevauchement
+    // Sur mobile, rester centré car le panel prend toute la largeur
+    // Sur desktop, décaler vers la droite
+    return "absolute bottom-4 left-1/2 transform -translate-x-1/2 md:left-auto md:right-4 md:transform-none";
+  };
+
   return (
-    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-[1000]">
+    <div
+      className={`${getLegendPosition()} z-[1000] transition-all duration-300 ease-in-out`}
+    >
       <div className="bg-white/90 backdrop-blur-sm rounded-md shadow-sm border border-gray-200/50 px-3 py-2">
         {/* Grille des seuils */}
         <div className="flex flex-wrap gap-2 justify-center">

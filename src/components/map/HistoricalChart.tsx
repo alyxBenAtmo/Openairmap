@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { HistoricalDataPoint } from "../../types";
-import { pollutants } from "../../constants/pollutants";
+import { pollutants, POLLUTANT_COLORS } from "../../constants/pollutants";
 
 interface HistoricalChartProps {
   data: Record<string, HistoricalDataPoint[]>;
@@ -21,8 +21,8 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   data,
   selectedPollutants,
 }) => {
-  // Couleurs pour les différentes lignes
-  const colors = [
+  // Couleurs de fallback si un polluant n'est pas défini dans POLLUTANT_COLORS
+  const fallbackColors = [
     "#3B82F6",
     "#EF4444",
     "#10B981",
@@ -30,6 +30,14 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     "#8B5CF6",
     "#EC4899",
   ];
+
+  // Fonction pour obtenir la couleur d'un polluant
+  const getPollutantColor = (pollutant: string, index: number): string => {
+    return (
+      POLLUTANT_COLORS[pollutant as keyof typeof POLLUTANT_COLORS] ||
+      fallbackColors[index % fallbackColors.length]
+    );
+  };
 
   // Fonction pour encoder les unités en notation scientifique
   const encodeUnit = (unit: string): string => {
@@ -45,14 +53,21 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     return unitMap[unit] || unit;
   };
 
-  // Obtenir l'unité commune pour l'axe Y (prendre la première disponible)
-  const getCommonUnit = (): string => {
-    for (const pollutant of selectedPollutants) {
+  // Grouper les polluants par unité
+  const groupPollutantsByUnit = () => {
+    const unitGroups: Record<string, string[]> = {};
+
+    selectedPollutants.forEach((pollutant) => {
       if (data[pollutant] && data[pollutant].length > 0) {
-        return encodeUnit(data[pollutant][0].unit);
+        const unit = encodeUnit(data[pollutant][0].unit);
+        if (!unitGroups[unit]) {
+          unitGroups[unit] = [];
+        }
+        unitGroups[unit].push(pollutant);
       }
-    }
-    return "";
+    });
+
+    return unitGroups;
   };
 
   // Transformer les données pour Recharts
@@ -103,7 +118,8 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   };
 
   const chartData = transformData();
-  const commonUnit = getCommonUnit();
+  const unitGroups = groupPollutantsByUnit();
+  const unitKeys = Object.keys(unitGroups);
 
   if (chartData.length === 0) {
     return (
@@ -127,17 +143,36 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
           height={80}
           fontSize={12}
         />
-        <YAxis
-          fontSize={12}
-          label={{
-            value: commonUnit
-              ? `Concentration (${commonUnit})`
-              : "Concentration",
-            angle: -90,
-            position: "insideLeft",
-            style: { textAnchor: "middle", fontSize: 12 },
-          }}
-        />
+
+        {/* Axe Y principal (première unité) */}
+        {unitKeys.length > 0 && (
+          <YAxis
+            yAxisId="left"
+            fontSize={12}
+            label={{
+              value: `Concentration (${unitKeys[0]})`,
+              angle: -90,
+              position: "insideLeft",
+              style: { textAnchor: "middle", fontSize: 12 },
+            }}
+          />
+        )}
+
+        {/* Axe Y secondaire (si plusieurs unités) */}
+        {unitKeys.length > 1 && (
+          <YAxis
+            yAxisId="right"
+            orientation="right"
+            fontSize={12}
+            label={{
+              value: `Concentration (${unitKeys[1]})`,
+              angle: 90,
+              position: "insideRight",
+              style: { textAnchor: "middle", fontSize: 12 },
+            }}
+          />
+        )}
+
         <Tooltip
           formatter={(value: any, name: string, props: any) => {
             const unit = props.payload[`${name}_unit`] || "";
@@ -147,18 +182,26 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
           labelFormatter={(label) => `Date: ${label}`}
         />
         <Legend />
-        {selectedPollutants.map((pollutant, index) => (
-          <Line
-            key={pollutant}
-            type="monotone"
-            dataKey={pollutant}
-            stroke={colors[index % colors.length]}
-            strokeWidth={2}
-            dot={{ r: 3 }}
-            activeDot={{ r: 5 }}
-            name={pollutants[pollutant]?.name || pollutant}
-          />
-        ))}
+
+        {/* Rendu des lignes par unité */}
+        {unitKeys.map((unit, unitIndex) => {
+          const pollutantsInUnit = unitGroups[unit];
+          const yAxisId = unitIndex === 0 ? "left" : "right";
+
+          return pollutantsInUnit.map((pollutant, pollutantIndex) => (
+            <Line
+              key={pollutant}
+              type="monotone"
+              dataKey={pollutant}
+              yAxisId={yAxisId}
+              stroke={getPollutantColor(pollutant, pollutantIndex)}
+              strokeWidth={2}
+              dot={{ r: 3 }}
+              activeDot={{ r: 5 }}
+              name={pollutants[pollutant]?.name || pollutant}
+            />
+          ));
+        })}
       </LineChart>
     </ResponsiveContainer>
   );
