@@ -75,7 +75,7 @@ const TimeStepDropdown: React.FC<TimeStepDropdownProps> = ({
       </button>
 
       {isOpen && (
-        <div className="absolute z-[2000] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg right-0 top-full">
+        <div className="absolute z-[2000] w-48 mt-1 bg-white border border-gray-300 rounded-md shadow-lg right-0 top-full">
           <div className="p-1">
             {Object.entries(pasDeTemps).map(([code, timeStep]) => (
               <button

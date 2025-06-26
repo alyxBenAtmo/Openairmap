@@ -44,6 +44,8 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     const unitMap: Record<string, string> = {
       "µg-m3": "µg/m³",
       "µg-m³": "μg/m³",
+      "µg/m3": "µg/m³",
+      "µg/m³": "µg/m³",
       "mg/m³": "mg/m³",
       ppm: "ppm",
       ppb: "ppb",
@@ -88,7 +90,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     const sortedTimestamps = Array.from(allTimestamps).sort();
 
     // Créer les points de données
-    return sortedTimestamps.map((timestamp) => {
+    const transformedData = sortedTimestamps.map((timestamp) => {
       const point: any = {
         timestamp: new Date(timestamp).toLocaleString("fr-FR", {
           month: "short",
@@ -108,13 +110,22 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
           if (dataPoint) {
             point[pollutant] = dataPoint.value;
             // Stocker l'unité pour ce polluant
-            point[`${pollutant}_unit`] = dataPoint.unit;
+            let unit = dataPoint.unit;
+
+            // Si pas d'unité dans les données, utiliser celle des constantes
+            if (!unit && pollutants[pollutant]) {
+              unit = pollutants[pollutant].unit;
+            }
+
+            point[`${pollutant}_unit`] = unit;
           }
         }
       });
 
       return point;
     });
+
+    return transformedData;
   };
 
   const chartData = transformData();
@@ -175,11 +186,37 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
 
         <Tooltip
           formatter={(value: any, name: string, props: any) => {
-            const unit = props.payload[`${name}_unit`] || "";
+            // Utiliser la clé originale du polluant (dataKey) au lieu du nom affiché
+            const pollutantKey = props.dataKey || name;
+
+            // Récupérer l'unité stockée dans les données
+            let unit = props.payload[`${pollutantKey}_unit`] || "";
+
+            // Si pas d'unité dans les données, utiliser celle des constantes
+            if (!unit && pollutants[pollutantKey]) {
+              unit = pollutants[pollutantKey].unit;
+            }
+
             const encodedUnit = encodeUnit(unit);
-            return [`${value} ${encodedUnit}`, pollutants[name]?.name || name];
+
+            // Formater la valeur avec l'unité
+            const formattedValue =
+              value !== null && value !== undefined
+                ? `${value} ${encodedUnit}`
+                : "N/A";
+
+            // Nom du polluant (utiliser le nom affiché)
+            const pollutantName = name;
+
+            return [formattedValue, pollutantName];
           }}
           labelFormatter={(label) => `Date: ${label}`}
+          contentStyle={{
+            backgroundColor: "white",
+            border: "1px solid #ccc",
+            borderRadius: "4px",
+            padding: "8px",
+          }}
         />
         <Legend />
 

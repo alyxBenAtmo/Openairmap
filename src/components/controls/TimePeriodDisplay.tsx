@@ -86,11 +86,64 @@ const TimePeriodDisplay: React.FC<TimePeriodDisplayProps> = ({ timeStep }) => {
     }
   };
 
+  const getTimeStepIcon = (): string => {
+    switch (timeStep) {
+      case "jour":
+        return "📅";
+      case "heure":
+        return "🕐";
+      case "quartHeure":
+        return "⏰";
+      case "instantane":
+        return "⚡";
+      case "deuxMin":
+        return "⏱️";
+      default:
+        return "📊";
+    }
+  };
+
+  const getTimeStepLabel = (): string => {
+    switch (timeStep) {
+      case "jour":
+        return "Jour";
+      case "heure":
+        return "Horaire";
+      case "quartHeure":
+        return "15 min";
+      case "instantane":
+        return "Scan";
+      case "deuxMin":
+        return "≤2 min";
+      default:
+        return "";
+    }
+  };
+
   const period = getTimePeriod();
 
   if (!period) return null;
 
-  return <span className="text-xs text-gray-600">Période: {period}</span>;
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 bg-white/90 backdrop-blur-sm rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200">
+      <div className="flex items-center gap-2">
+        <span className="text-lg">{getTimeStepIcon()}</span>
+        <div className="flex flex-col">
+          <span className="text-xs font-medium text-gray-700 leading-tight">
+            {getTimeStepLabel()}
+          </span>
+          <span className="text-sm font-semibold text-gray-900 leading-tight">
+            {period}
+          </span>
+        </div>
+      </div>
+      {/* <div className="w-px h-6 bg-gray-300"></div> */}
+      {/* <div className="flex items-center gap-1">
+        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+        <span className="text-xs text-gray-600">Données</span>
+      </div> */}
+    </div>
+  );
 };
 
 export default TimePeriodDisplay;
