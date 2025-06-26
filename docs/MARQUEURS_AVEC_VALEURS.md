@@ -72,7 +72,7 @@ La valeur n'est affichée que si :
 ### Format de la Valeur
 
 - **Arrondi** : La valeur est arrondie à l'entier le plus proche
-- **Pas d'unité** : Seule la valeur numérique est affichée (l'unité est visible dans la popup)
+- **Pas d'unité** : Seule la valeur numérique est affichée
 - **Taille adaptative** : Police qui s'ajuste selon la longueur de la valeur
   - 1 chiffre : 16px
   - 2 chiffres : 14px

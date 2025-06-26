@@ -39,25 +39,25 @@ const PollutantDropdown: React.FC<PollutantDropdownProps> = ({
 
   return (
     <div className="relative flex items-center space-x-2" ref={dropdownRef}>
-      <label className="text-xs font-medium text-gray-700 whitespace-nowrap">
+      {/* <label className="text-xs font-medium text-gray-700 whitespace-nowrap">
         Polluant
-      </label>
+      </label> */}
 
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="bg-white border border-gray-300 rounded-md px-3 py-1.5 text-left shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 transition-colors text-sm min-w-[120px]"
+        className="bg-[#0074d9] border border-[#0074d9] rounded-md px-3 py-1.5 text-left shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 hover:bg-[#0056b3] hover:border-[#0056b3] transition-colors text-sm min-w-[120px]"
       >
         <span
           className={`block truncate pr-6 ${
-            selectedPollutant ? "text-gray-900" : "text-gray-500"
+            selectedPollutant ? "text-white" : "text-white/80"
           }`}
         >
           {getDisplayText()}
         </span>
         <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
           <svg
-            className={`h-4 w-4 text-gray-400 transition-transform ${
+            className={`h-4 w-4 text-white/80 transition-transform ${
               isOpen ? "rotate-180" : ""
             }`}
             fill="none"

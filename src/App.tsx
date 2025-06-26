@@ -89,6 +89,11 @@ const App: React.FC = () => {
               onPeriodChange={handleSignalAirPeriodChange}
               isVisible={selectedSources.includes("signalair")}
             />
+
+            {/* Indicateurs d'information */}
+            <div className="text-xs text-gray-600 space-x-4 border-l border-gray-300 pl-4">
+              <TimePeriodDisplay timeStep={selectedTimeStep} />
+            </div>
           </div>
         </div>
 
