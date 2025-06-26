@@ -2,7 +2,11 @@ import React, { useEffect, useRef, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { MeasurementDevice, StationInfo } from "../../types";
+import {
+  MeasurementDevice,
+  StationInfo,
+  SignalAirProperties,
+} from "../../types";
 import { baseLayers, BaseLayerKey } from "../../constants/mapLayers";
 import BaseLayerControl from "../controls/BaseLayerControl";
 import Legend from "./Legend";
@@ -245,47 +249,97 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
             }}
           >
             {/* Popup uniquement pour SignalAir */}
-            {device.source === "signalair" && (
-              <Popup>
-                <div className="device-popup min-w-[250px]">
-                  <h3 className="font-bold text-lg mb-2">{device.name}</h3>
-                  <div className="space-y-1 text-sm">
-                    <p>
-                      <strong>Source:</strong> {device.source}
-                    </p>
-
-                    {/* Informations spécifiques à SignalAir */}
-                    <p>
-                      <strong>Type:</strong>{" "}
-                      {(device as any).signalType || "Non spécifié"}
-                    </p>
-                    <p>
-                      <strong>Intensité:</strong>{" "}
-                      {(device as any).signalIntensity || "Non spécifiée"}
-                    </p>
-                    {(device as any).signalDescription && (
+            {device.source === "signalair" &&
+              (console.log(device),
+              (
+                <Popup>
+                  <div className="device-popup min-w-[280px]">
+                    <h3 className="font-bold text-lg mb-2">{device.name}</h3>
+                    <div className="space-y-2 text-sm">
                       <p>
-                        <strong>Description:</strong>{" "}
-                        {(device as any).signalDescription}
+                        <strong>Source:</strong> {device.source}
                       </p>
-                    )}
 
-                    <p>
-                      <strong>Statut:</strong> {device.status}
-                    </p>
-                    <p>
-                      <strong>Dernière mise à jour:</strong>{" "}
-                      {formatTimestamp(device.timestamp)}
-                    </p>
-                    {device.address && (
+                      {/* Informations spécifiques à SignalAir */}
                       <p>
-                        <strong>Adresse:</strong> {device.address}
+                        <strong>Type:</strong>{" "}
+                        {(device as any).signalType || "Non spécifié"}
                       </p>
-                    )}
+
+                      {/* Date de création */}
+                      <p>
+                        <strong>Date de création:</strong>{" "}
+                        {(device as any).signalCreatedAt
+                          ? formatTimestamp((device as any).signalCreatedAt)
+                          : "Non spécifiée"}
+                      </p>
+
+                      {/* Durée de la nuisance */}
+                      <p>
+                        <strong>Durée de la nuisance:</strong>{" "}
+                        {(device as any).signalDuration || "Non spécifiée"}
+                      </p>
+
+                      {/* Symptômes */}
+                      <p>
+                        <strong>Avez-vous des symptômes:</strong>{" "}
+                        {(device as any).signalHasSymptoms || "Non spécifié"}
+                      </p>
+
+                      {/* Détail des symptômes si oui */}
+                      {(device as any).signalHasSymptoms === "Oui" && (
+                        <p>
+                          <strong>Symptômes:</strong>{" "}
+                          {(device as any).signalSymptoms
+                            ? (device as any).signalSymptoms
+                                .split("|")
+                                .join(", ")
+                            : "Non spécifiés"}
+                        </p>
+                      )}
+
+                      {/* Description */}
+                      {(device as any).signalDescription && (
+                        <p>
+                          <strong>Description:</strong>{" "}
+                          {(device as any).signalDescription}
+                        </p>
+                      )}
+
+                      {device.address && (
+                        <p>
+                          <strong>Adresse:</strong> {device.address}
+                        </p>
+                      )}
+
+                      {/* Bouton pour signaler une nuisance */}
+                      <div className="mt-4 pt-3 border-t border-gray-200">
+                        <a
+                          href="https://www.signalair.eu/fr/"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center w-full px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-300 rounded-md hover:bg-gray-100 hover:border-gray-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                        >
+                          <svg
+                            className="w-4 h-4 mr-2"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                            />
+                          </svg>
+                          Signaler une nuisance
+                        </a>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </Popup>
-            )}
+                </Popup>
+              ))}
           </Marker>
         ))}
       </MapContainer>

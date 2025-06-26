@@ -66,6 +66,16 @@ export interface MeasurementDevice {
   departmentId?: string;
 }
 
+// Types spécifiques pour SignalAir
+export interface SignalAirProperties {
+  signalType: string;
+  signalCreatedAt: string;
+  signalDuration: string;
+  signalHasSymptoms: string;
+  signalSymptoms: string;
+  signalDescription: string;
+}
+
 // Types pour les services de données
 export interface DataService {
   fetchData(params: {

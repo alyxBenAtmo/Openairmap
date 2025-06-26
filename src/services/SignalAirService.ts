@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 import { BaseDataService } from "./BaseDataService";
-import { MeasurementDevice } from "../types";
+import { MeasurementDevice, SignalAirProperties } from "../types";
 
 // Types spécifiques pour SignalAir
 interface SignalAirFeature {
@@ -13,9 +13,11 @@ interface SignalAirFeature {
   properties: {
     id: string;
     type: "odeur" | "bruit" | "brulage" | "pollen" | "visuel";
-    timestamp: string;
+    created_at?: string;
+    "duree-de-la-nuisance"?: string;
+    "avez-vous-des-symptomes-"?: string;
+    "si-oui-quels-symptomes-"?: string;
     description?: string;
-    intensity?: "faible" | "moyenne" | "forte";
     address?: string;
     department?: string;
   };
@@ -158,10 +160,6 @@ export class SignalAirService extends BaseDataService {
       // Extraire les coordonnées (GeoJSON utilise [longitude, latitude])
       const [longitude, latitude] = geometry.coordinates;
 
-      // Déterminer l'intensité (par défaut "moyenne" si non spécifiée)
-      const intensity = properties.intensity || "moyenne";
-      const intensityValue = this.getIntensityValue(intensity);
-
       devices.push({
         id:
           properties.id ||
@@ -171,40 +169,24 @@ export class SignalAirService extends BaseDataService {
         longitude,
         source: this.sourceCode,
         pollutant, // Utiliser le polluant sélectionné pour la cohérence
-        value: intensityValue,
-        unit: "intensité",
-        timestamp: properties.timestamp || new Date().toISOString(),
-        status: "active",
+        value: 1, // Valeur fixe car les signalements ne sont pas des mesures de polluants
+        unit: "signalement",
+        timestamp: properties["created_at"] || new Date().toISOString(),
         // Propriétés supplémentaires pour le marqueur
         qualityLevel: signalType, // Utiliser le type de signalement pour le marqueur
         address: properties.address || "",
         departmentId: properties.department || "",
         // Propriétés spécifiques à SignalAir
         signalType,
-        signalIntensity: intensity,
+        signalCreatedAt: properties["created_at"] || "",
+        signalDuration: properties["duree-de-la-nuisance"] || "",
+        signalHasSymptoms: properties["avez-vous-des-symptomes-"] || "",
+        signalSymptoms: properties["si-oui-quels-symptomes-"] || "",
         signalDescription: properties.description || "",
-      } as MeasurementDevice & {
-        qualityLevel: string;
-        address: string;
-        departmentId: string;
-        signalType: string;
-        signalIntensity: string;
-        signalDescription: string;
-      });
+      } as MeasurementDevice & SignalAirProperties);
     }
 
     return devices;
-  }
-
-  private getIntensityValue(intensity: string): number {
-    // Convertir l'intensité en valeur numérique pour l'affichage
-    const intensityValues: Record<string, number> = {
-      faible: 1,
-      moyenne: 2,
-      forte: 3,
-    };
-
-    return intensityValues[intensity] || 2; // Par défaut "moyenne"
   }
 
   private async fetchSignalAirData(
