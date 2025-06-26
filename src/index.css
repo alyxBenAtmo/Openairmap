@@ -67,13 +67,17 @@
 }
 
 .device-popup h3 {
-  @apply text-blue-600 font-semibold text-base mb-2;
+  color: #2563eb;
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
 }
 
 .device-popup p {
-  @apply mb-1 text-sm;
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
 }
 
 .device-popup strong {
-  @apply text-gray-800;
+  color: #1f2937;
 }

@@ -18,6 +18,7 @@ export const useAirQualityData = ({
   const [devices, setDevices] = useState<MeasurementDevice[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadingSources, setLoadingSources] = useState<string[]>([]);
 
   const fetchData = useCallback(async () => {
     if (selectedSources.length === 0) {
@@ -39,13 +40,14 @@ export const useAirQualityData = ({
     setDevices([]);
     setLoading(true);
     setError(null);
+    setLoadingSources(selectedSources);
 
     try {
       const services = DataServiceFactory.getServices(selectedSources);
       const allDevices: MeasurementDevice[] = [];
 
       // Récupérer les données de toutes les sources sélectionnées
-      const promises = services.map(async (service) => {
+      const promises = services.map(async (service, index) => {
         try {
           const data = await service.fetchData({
             pollutant: selectedPollutant,
@@ -53,12 +55,24 @@ export const useAirQualityData = ({
             sources: selectedSources,
             signalAirPeriod,
           });
+
+          // Retirer cette source de la liste des sources en cours
+          setLoadingSources((prev) =>
+            prev.filter((source) => source !== selectedSources[index])
+          );
+
           return data;
         } catch (err) {
           console.error(
             `Erreur lors de la récupération des données pour ${service}:`,
             err
           );
+
+          // Retirer cette source de la liste des sources en cours même en cas d'erreur
+          setLoadingSources((prev) =>
+            prev.filter((source) => source !== selectedSources[index])
+          );
+
           return [];
         }
       });
@@ -77,6 +91,7 @@ export const useAirQualityData = ({
       setDevices([]);
     } finally {
       setLoading(false);
+      setLoadingSources([]);
     }
   }, [selectedPollutant, selectedSources, selectedTimeStep, signalAirPeriod]);
 
@@ -84,5 +99,5 @@ export const useAirQualityData = ({
     fetchData();
   }, [fetchData]);
 
-  return { devices, loading, error };
+  return { devices, loading, error, loadingSources };
 };

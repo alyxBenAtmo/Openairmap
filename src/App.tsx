@@ -47,7 +47,7 @@ const App: React.FC = () => {
   };
 
   // Hook pour récupérer les données
-  const { devices, loading, error } = useAirQualityData({
+  const { devices, loading, error, loadingSources } = useAirQualityData({
     selectedPollutant,
     selectedSources,
     selectedTimeStep,
@@ -76,20 +76,39 @@ const App: React.FC = () => {
             <TimePeriodDisplay timeStep={selectedTimeStep} />
           </div>
         </div>
+
+        {/* Barre de progression pour le chargement */}
+        {loading && (
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-200">
+            <div
+              className="h-full bg-blue-600 animate-pulse"
+              style={{ width: "100%" }}
+            ></div>
+          </div>
+        )}
       </header>
 
       {/* Carte en plein écran avec contrôles intégrés */}
       <main className="flex-1 relative">
+        {/* Indicateur de chargement discret */}
         {loading && (
-          <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-[1500]">
-            <div className="bg-white px-4 py-3 rounded-lg shadow-lg">
+          <div className="absolute top-4 right-4 z-[1500]">
+            <div className="bg-white/90 backdrop-blur-sm px-3 py-2 rounded-lg shadow-lg border border-gray-200">
               <div className="flex items-center space-x-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                <span className="text-blue-600 text-sm font-medium">
-                  {devices.length === 0
-                    ? "Nettoyage et chargement..."
-                    : "Chargement..."}
-                </span>
+                <div className="flex flex-col">
+                  <span className="text-blue-600 text-sm font-medium">
+                    {devices.length === 0
+                      ? "Nettoyage et chargement..."
+                      : "Mise à jour..."}
+                  </span>
+                  {loadingSources.length > 0 && (
+                    <span className="text-xs text-gray-500">
+                      {loadingSources.length} source
+                      {loadingSources.length > 1 ? "s" : ""} en cours
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -106,6 +125,7 @@ const App: React.FC = () => {
           center={mapCenter}
           zoom={mapZoom}
           selectedPollutant={selectedPollutant}
+          loading={loading}
         />
 
         {/* Panneau de contrôle flottant */}

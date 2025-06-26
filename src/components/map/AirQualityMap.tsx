@@ -30,6 +30,7 @@ interface AirQualityMapProps {
   center: [number, number];
   zoom: number;
   selectedPollutant: string;
+  loading?: boolean;
 }
 
 const AirQualityMap: React.FC<AirQualityMapProps> = ({
@@ -37,6 +38,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   center,
   zoom,
   selectedPollutant,
+  loading,
 }) => {
   const mapRef = useRef<L.Map | null>(null);
   const [currentBaseLayer, setCurrentBaseLayer] =
@@ -92,6 +94,13 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     const img = document.createElement("img");
     img.src = markerPath;
     img.alt = `${device.source} marker`;
+
+    // Ajouter une animation subtile pendant le chargement
+    if (loading) {
+      div.style.opacity = "0.7";
+      div.style.transform = "scale(0.95)";
+      div.style.transition = "all 0.3s ease";
+    }
 
     // Pour SignalAir, on n'ajoute pas de texte par-dessus le marqueur
     if (device.source === "signalair") {
@@ -249,97 +258,93 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
             }}
           >
             {/* Popup uniquement pour SignalAir */}
-            {device.source === "signalair" &&
-              (console.log(device),
-              (
-                <Popup>
-                  <div className="device-popup min-w-[280px]">
-                    <h3 className="font-bold text-lg mb-2">{device.name}</h3>
-                    <div className="space-y-2 text-sm">
+            {device.source === "signalair" && (
+              <Popup>
+                <div className="device-popup min-w-[280px]">
+                  <h3 className="font-bold text-lg mb-2">{device.name}</h3>
+                  <div className="space-y-2 text-sm">
+                    <p>
+                      <strong>Source:</strong> {device.source}
+                    </p>
+
+                    {/* Informations spécifiques à SignalAir */}
+                    <p>
+                      <strong>Type:</strong>{" "}
+                      {(device as any).signalType || "Non spécifié"}
+                    </p>
+
+                    {/* Date de création */}
+                    <p>
+                      <strong>Date de création:</strong>{" "}
+                      {(device as any).signalCreatedAt
+                        ? formatTimestamp((device as any).signalCreatedAt)
+                        : "Non spécifiée"}
+                    </p>
+
+                    {/* Durée de la nuisance */}
+                    <p>
+                      <strong>Durée de la nuisance:</strong>{" "}
+                      {(device as any).signalDuration || "Non spécifiée"}
+                    </p>
+
+                    {/* Symptômes */}
+                    <p>
+                      <strong>Avez-vous des symptômes:</strong>{" "}
+                      {(device as any).signalHasSymptoms || "Non spécifié"}
+                    </p>
+
+                    {/* Détail des symptômes si oui */}
+                    {(device as any).signalHasSymptoms === "Oui" && (
                       <p>
-                        <strong>Source:</strong> {device.source}
+                        <strong>Symptômes:</strong>{" "}
+                        {(device as any).signalSymptoms
+                          ? (device as any).signalSymptoms.split("|").join(", ")
+                          : "Non spécifiés"}
                       </p>
+                    )}
 
-                      {/* Informations spécifiques à SignalAir */}
+                    {/* Description */}
+                    {(device as any).signalDescription && (
                       <p>
-                        <strong>Type:</strong>{" "}
-                        {(device as any).signalType || "Non spécifié"}
+                        <strong>Description:</strong>{" "}
+                        {(device as any).signalDescription}
                       </p>
+                    )}
 
-                      {/* Date de création */}
+                    {device.address && (
                       <p>
-                        <strong>Date de création:</strong>{" "}
-                        {(device as any).signalCreatedAt
-                          ? formatTimestamp((device as any).signalCreatedAt)
-                          : "Non spécifiée"}
+                        <strong>Adresse:</strong> {device.address}
                       </p>
+                    )}
 
-                      {/* Durée de la nuisance */}
-                      <p>
-                        <strong>Durée de la nuisance:</strong>{" "}
-                        {(device as any).signalDuration || "Non spécifiée"}
-                      </p>
-
-                      {/* Symptômes */}
-                      <p>
-                        <strong>Avez-vous des symptômes:</strong>{" "}
-                        {(device as any).signalHasSymptoms || "Non spécifié"}
-                      </p>
-
-                      {/* Détail des symptômes si oui */}
-                      {(device as any).signalHasSymptoms === "Oui" && (
-                        <p>
-                          <strong>Symptômes:</strong>{" "}
-                          {(device as any).signalSymptoms
-                            ? (device as any).signalSymptoms
-                                .split("|")
-                                .join(", ")
-                            : "Non spécifiés"}
-                        </p>
-                      )}
-
-                      {/* Description */}
-                      {(device as any).signalDescription && (
-                        <p>
-                          <strong>Description:</strong>{" "}
-                          {(device as any).signalDescription}
-                        </p>
-                      )}
-
-                      {device.address && (
-                        <p>
-                          <strong>Adresse:</strong> {device.address}
-                        </p>
-                      )}
-
-                      {/* Bouton pour signaler une nuisance */}
-                      <div className="mt-4 pt-3 border-t border-gray-200">
-                        <a
-                          href="https://www.signalair.eu/fr/"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center w-full px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-300 rounded-md hover:bg-gray-100 hover:border-gray-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                    {/* Bouton pour signaler une nuisance */}
+                    <div className="mt-4 pt-3 border-t border-gray-200">
+                      <a
+                        href="https://www.signalair.eu/fr/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center w-full px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-300 rounded-md hover:bg-gray-100 hover:border-gray-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                      >
+                        <svg
+                          className="w-4 h-4 mr-2"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
                         >
-                          <svg
-                            className="w-4 h-4 mr-2"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                            />
-                          </svg>
-                          Signaler une nuisance
-                        </a>
-                      </div>
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                          />
+                        </svg>
+                        Signaler une nuisance
+                      </a>
                     </div>
                   </div>
-                </Popup>
-              ))}
+                </div>
+              </Popup>
+            )}
           </Marker>
         ))}
       </MapContainer>
