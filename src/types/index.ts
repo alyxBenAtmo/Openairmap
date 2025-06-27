@@ -3,6 +3,7 @@ export interface SubSource {
   name: string;
   code: string;
   activated: boolean;
+  supportedTimeSteps?: string[];
 }
 
 export interface Source {
@@ -11,6 +12,7 @@ export interface Source {
   activated: boolean;
   isGroup?: boolean;
   subSources?: Record<string, SubSource>;
+  supportedTimeSteps?: string[];
 }
 
 export interface Sources {
@@ -64,6 +66,10 @@ export interface MeasurementDevice {
   qualityLevel?: string; // bon, moyen, degrade, mauvais, tresMauvais, extrMauvais, default
   address?: string;
   departmentId?: string;
+  // Propriétés pour les valeurs corrigées (AtmoMicro)
+  corrected_value?: number; // Valeur corrigée si disponible
+  raw_value?: number; // Valeur brute originale
+  has_correction?: boolean; // Indique si une correction a été appliquée
 }
 
 // Types spécifiques pour SignalAir
@@ -215,4 +221,91 @@ export interface SidePanelState {
   historicalData: Record<string, HistoricalDataPoint[]>;
   loading: boolean;
   error: string | null;
+}
+
+// Types spécifiques pour AtmoMicro
+export interface AtmoMicroSite {
+  id_site: number;
+  nom_site: string;
+  type_site: string;
+  influence: string;
+  lon: number;
+  lat: number;
+  code_station_commun: string | null;
+  date_debut_site: string;
+  date_fin_site: string;
+  alti_mer: number | null;
+  alti_sol: number | null;
+  id_campagne: number;
+  nom_campagne: string;
+  id_capteur: number;
+  marque_capteur: string;
+  modele_capteur: string;
+  variables: string;
+}
+
+export interface AtmoMicroMeasure {
+  id_site: number;
+  nom_site: string;
+  variable: string;
+  time: string;
+  lat: number;
+  lon: number;
+  id_pas_de_temps: number;
+  pas_de_temps: number;
+  valeur: number | null; // Valeur corrigée (peut être null)
+  valeur_ref: number | null; // Valeur de référence corrigée
+  valeur_brute: number; // Valeur brute
+  marque_capteur: string;
+  modele_capteur: string;
+  coef_corr: number | null; // Coefficient de correction
+  biais_corr: number | null; // Biais de correction
+  unite: string;
+  code_etat: string;
+}
+
+export interface AtmoMicroSitesResponse {
+  sites: AtmoMicroSite[];
+}
+
+export interface AtmoMicroMeasuresResponse {
+  mesures: AtmoMicroMeasure[];
+}
+
+// Types pour le clustering
+export interface ClusterConfig {
+  enabled: boolean;
+  maxClusterRadius: number;
+  spiderfyOnMaxZoom: boolean;
+  showCoverageOnHover: boolean;
+  zoomToBoundsOnClick: boolean;
+  animate: boolean;
+  animateAddingMarkers: boolean;
+}
+
+// Types pour les statistiques
+export interface MapStatistics {
+  totalDevices: number;
+  totalReports: number;
+  devicesBySource: Record<string, number>;
+  reportsByType: Record<string, number>;
+  qualityLevels: Record<string, number>;
+  averageValue: number;
+  minValue: number;
+  maxValue: number;
+  activeDevices: number;
+  inactiveDevices: number;
+}
+
+// Types pour les contrôles de clustering
+export interface ClusterControlProps {
+  config: ClusterConfig;
+  onConfigChange: (config: ClusterConfig) => void;
+}
+
+// Types pour les contrôles de statistiques
+export interface StatisticsControlProps {
+  statistics: MapStatistics;
+  isVisible: boolean;
+  onToggleVisibility: () => void;
 }

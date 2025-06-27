@@ -174,7 +174,6 @@ export class AtmoRefService extends BaseDataService {
     timeStep: string
   ): { temporalite: string; delais: number } | null {
     // Configuration des pas de temps supportés par AtmoRef
-    // Utiliser les clés de l'objet pasDeTemps (ex: "heure", "jour") au lieu des codes
     const timeStepConfigs: Record<
       string,
       { temporalite: string; delais: number }

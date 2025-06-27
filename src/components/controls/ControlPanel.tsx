@@ -28,7 +28,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Vérifier si SignalAir est sélectionné
-  const isSignalAirSelected = selectedSources.includes("signalair");
+  const isSignalAirSelected = selectedSources?.includes("signalair") || false;
 
   return (
     <div className="absolute top-4 right-4 z-[1000]">
@@ -84,6 +84,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             />
             <TimeStepDropdown
               selectedTimeStep={selectedTimeStep}
+              selectedSources={selectedSources}
               onTimeStepChange={onTimeStepChange}
             />
             <SignalAirPeriodSelector

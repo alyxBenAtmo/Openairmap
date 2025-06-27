@@ -1,13 +1,16 @@
 import React, { useState, useRef, useEffect } from "react";
 import { pasDeTemps } from "../../constants/timeSteps";
+import { sources } from "../../constants/sources";
 
 interface TimeStepDropdownProps {
   selectedTimeStep: string;
+  selectedSources: string[];
   onTimeStepChange: (timeStep: string) => void;
 }
 
 const TimeStepDropdown: React.FC<TimeStepDropdownProps> = ({
   selectedTimeStep,
+  selectedSources,
   onTimeStepChange,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -26,6 +29,53 @@ const TimeStepDropdown: React.FC<TimeStepDropdownProps> = ({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Fonction pour obtenir les pas de temps supportés par les sources sélectionnées
+  const getSupportedTimeSteps = () => {
+    if (!selectedSources || selectedSources.length === 0) {
+      return Object.keys(pasDeTemps);
+    }
+
+    const allSupportedTimeSteps = new Set<string>();
+
+    selectedSources.forEach((sourceCode) => {
+      const source = sources[sourceCode];
+      if (source) {
+        // Ajouter les pas de temps de la source principale
+        if (source.supportedTimeSteps) {
+          source.supportedTimeSteps.forEach((timeStep) => {
+            allSupportedTimeSteps.add(timeStep);
+          });
+        }
+
+        // Ajouter les pas de temps des sous-sources si c'est un groupe
+        if (source.isGroup && source.subSources) {
+          Object.values(source.subSources).forEach((subSource) => {
+            if (subSource.supportedTimeSteps) {
+              subSource.supportedTimeSteps.forEach((timeStep) => {
+                allSupportedTimeSteps.add(timeStep);
+              });
+            }
+          });
+        }
+      }
+    });
+
+    return Array.from(allSupportedTimeSteps);
+  };
+
+  const supportedTimeSteps = getSupportedTimeSteps();
+
+  // Vérifier si le pas de temps actuel est toujours supporté
+  useEffect(() => {
+    if (selectedTimeStep && !supportedTimeSteps.includes(selectedTimeStep)) {
+      // Si le pas de temps actuel n'est plus supporté, passer au premier disponible
+      const firstSupported = supportedTimeSteps[0];
+      if (firstSupported) {
+        onTimeStepChange(firstSupported);
+      }
+    }
+  }, [selectedTimeStep, supportedTimeSteps, onTimeStepChange]);
 
   const handleTimeStepSelect = (code: string) => {
     onTimeStepChange(code);
@@ -77,41 +127,43 @@ const TimeStepDropdown: React.FC<TimeStepDropdownProps> = ({
       {isOpen && (
         <div className="absolute z-[2000] w-48 mt-1 bg-white border border-gray-300 rounded-md shadow-lg right-0 top-full">
           <div className="p-1">
-            {Object.entries(pasDeTemps).map(([code, timeStep]) => (
-              <button
-                key={code}
-                type="button"
-                onClick={() => handleTimeStepSelect(code)}
-                className={`w-full flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
-                  selectedTimeStep === code
-                    ? "bg-blue-50 text-blue-900 border border-blue-200"
-                    : "text-gray-700 hover:bg-gray-50"
-                }`}
-              >
-                <div
-                  className={`w-4 h-4 rounded border mr-3 flex items-center justify-center ${
+            {Object.entries(pasDeTemps)
+              .filter(([code]) => supportedTimeSteps.includes(code))
+              .map(([code, timeStep]) => (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => handleTimeStepSelect(code)}
+                  className={`w-full flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
                     selectedTimeStep === code
-                      ? "bg-blue-600 border-blue-600"
-                      : "border-gray-300"
+                      ? "bg-blue-50 text-blue-900 border border-blue-200"
+                      : "text-gray-700 hover:bg-gray-50"
                   }`}
                 >
-                  {selectedTimeStep === code && (
-                    <svg
-                      className="w-3 h-3 text-white"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  )}
-                </div>
-                <span>{timeStep.name}</span>
-              </button>
-            ))}
+                  <div
+                    className={`w-4 h-4 rounded border mr-3 flex items-center justify-center ${
+                      selectedTimeStep === code
+                        ? "bg-blue-600 border-blue-600"
+                        : "border-gray-300"
+                    }`}
+                  >
+                    {selectedTimeStep === code && (
+                      <svg
+                        className="w-3 h-3 text-white"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                  <span>{timeStep.name}</span>
+                </button>
+              ))}
           </div>
         </div>
       )}

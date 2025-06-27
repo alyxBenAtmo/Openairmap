@@ -4,6 +4,8 @@
 
 L'intégration AtmoRef permet de récupérer et d'afficher les données des stations de référence AtmoSud sur la carte interactive. Cette source utilise deux appels API en parallèle pour optimiser les performances.
 
+**Note importante :** AtmoRef n'utilise pas les valeurs corrigées. Cette source fournit des données de référence déjà validées et calibrées, contrairement à AtmoMicro qui peut proposer des valeurs brutes et corrigées.
+
 ## 📡 Architecture des appels API
 
 ### 1. Récupération des stations
@@ -55,6 +57,11 @@ Les marqueurs sont stockés dans `/public/markers/atmoRefMarkers/` :
 1. **Toutes les stations** sont affichées avec le marqueur par défaut
 2. **Les stations avec données récentes** voient leur marqueur mis à jour selon la qualité de l'air
 3. **Les stations sans données récentes** conservent le marqueur par défaut
+4. **Valeurs affichées** : La valeur de mesure est affichée directement sur le marqueur (arrondie)
+
+### Gestion des valeurs
+
+AtmoRef utilise directement la valeur de mesure (`measure.valeur`) sans distinction entre valeur brute et corrigée, car les données de référence sont déjà validées.
 
 ## 🔧 Configuration
 
@@ -152,3 +159,14 @@ Les données sont automatiquement mises à jour quand :
 - Le polluant sélectionné change
 - Le pas de temps change
 - Les sources sélectionnées changent
+
+## 🔗 Différences avec AtmoMicro
+
+| Aspect                  | AtmoRef                        | AtmoMicro                         |
+| ----------------------- | ------------------------------ | --------------------------------- |
+| **Type de données**     | Données de référence validées  | Données de micro-capteurs         |
+| **Valeurs corrigées**   | Non applicable (déjà validées) | Oui (valeur brute + corrigée)     |
+| **Qualité des données** | Haute (stations de référence)  | Variable (micro-capteurs)         |
+| **Indicateur visuel**   | Aucun                          | Point vert pour valeurs corrigées |
+| **Format d'affichage**  | `42 µg/m³`                     | `42 µg/m³ (corrigé, brut: 45)`    |
+| **Fiabilité**           | Élevée                         | Moyenne à élevée                  |

@@ -58,7 +58,6 @@ const App: React.FC = () => {
       signalAirPeriod,
     });
 
-  // Centre de la carte (Provence-Alpes-Côte d'Azur)
   const mapCenter: [number, number] = [43.7102, 7.262]; // Nice
   const mapZoom = 9;
 
@@ -81,6 +80,7 @@ const App: React.FC = () => {
             />
             <TimeStepDropdown
               selectedTimeStep={selectedTimeStep}
+              selectedSources={selectedSources}
               onTimeStepChange={setSelectedTimeStep}
             />
             <SignalAirPeriodSelector
