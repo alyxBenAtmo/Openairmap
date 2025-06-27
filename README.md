@@ -1,16 +1,18 @@
 # Carte de la Qualité de l'Air - React Open Air Map
 
-Une application React modulaire et responsive pour afficher des appareils de mesure de la qualité de l'air sur une carte interactive Leaflet.
+Une application React modulaire et responsive pour afficher des appareils de mesure de la qualité de l'air sur une carte interactive Leaflet avec clustering intelligent et statistiques.
 
 ## 🚀 Fonctionnalités
 
 - **Carte interactive** avec Leaflet pour afficher les appareils de mesure
+- **Clustering intelligent** des marqueurs avec paramétrage utilisateur
 - **Contrôles intégrés dans l'en-tête** :
   - Sélection du polluant (1 actif à la fois)
   - Sélection des sources de données (plusieurs sources possibles)
   - Sélection du pas de temps (1 actif à la fois)
   - Sélecteur de période pour SignalAir (visible uniquement si SignalAir est sélectionné)
 - **Contrôle du fond de carte** : Basculement entre carte standard et satellite
+- **Contrôle du clustering** : Paramétrage en temps réel du clustering des marqueurs
 - **Légende dynamique** : Affichage des seuils selon le polluant sélectionné
 - **Architecture modulaire** avec services séparés pour chaque source de données
 - **Design responsive** adapté à tous les écrans
@@ -28,7 +30,8 @@ src/
 │   │   ├── TimeStepDropdown.tsx
 │   │   ├── SignalAirPeriodSelector.tsx
 │   │   ├── TimePeriodDisplay.tsx
-│   │   └── BaseLayerControl.tsx
+│   │   ├── BaseLayerControl.tsx
+│   │   └── ClusterControl.tsx
 │   ├── map/           # Composants de carte
 │   │   ├── AirQualityMap.tsx
 │   │   ├── Legend.tsx
@@ -97,6 +100,25 @@ Chaque polluant dispose de 6 niveaux de qualité avec des seuils spécifiques :
 - **Carte standard** : Fond CARTO clair avec OpenStreetMap
 - **Satellite** : Imagerie satellite ESRI
 
+## 🔗 Clustering des marqueurs
+
+### Fonctionnalités de clustering
+
+- **Clustering automatique** : Regroupement intelligent des marqueurs proches
+- **Paramétrage en temps réel** : Contrôle utilisateur des options de clustering
+- **Performance optimisée** : Amélioration des performances avec de nombreux marqueurs
+- **Interface intuitive** : Menu de contrôle accessible depuis la carte
+
+### Options de clustering configurables
+
+- **Activation/Désactivation** : Basculement du clustering
+- **Rayon de clustering** : Distance de regroupement (20px à 200px)
+- **Spiderfy au zoom maximum** : Éclatement des clusters au zoom max
+- **Affichage de la zone** : Visualisation de la zone de cluster au survol
+- **Zoom sur la zone** : Zoom automatique sur la zone du cluster au clic
+- **Animations** : Transitions fluides pour le clustering
+- **Animations d'ajout** : Effets visuels lors de l'ajout de marqueurs
+
 ## 🎨 Interface utilisateur
 
 ### En-tête avec contrôles intégrés
@@ -113,6 +135,7 @@ L'interface principale dispose d'un en-tête compact contenant tous les contrôl
 
 ### Contrôles de carte
 
+- **Contrôle du clustering** : Icône en bas à gauche pour paramétrer le clustering
 - **Contrôle fond de carte** : Icône en bas à gauche pour basculer entre carte et satellite
 - **Légende** : Affichage des seuils en bas au centre avec tooltips au hover
 - **Informations de la carte** : Compteur d'appareils et signalements en bas à droite
@@ -126,6 +149,7 @@ L'interface principale dispose d'un en-tête compact contenant tous les contrôl
 - **Responsive design** : Adapté à tous les écrans
 - **Animations fluides** : Transitions et hover effects
 - **Indicateurs de chargement** : Affichage discret des états de chargement
+- **Clustering intelligent** : Amélioration de la lisibilité avec de nombreux marqueurs
 
 ## 🚀 Installation et démarrage
 
@@ -177,6 +201,7 @@ Les menus sont organisés en composants réutilisables avec interface horizontal
 - `SignalAirPeriodSelector` : Sélecteur de période pour SignalAir
 - `TimePeriodDisplay` : Affichage de la période actuelle
 - `BaseLayerControl` : Contrôle du fond de carte avec icônes
+- `ClusterControl` : Contrôle du clustering des marqueurs
 
 ### Hook personnalisé
 
@@ -198,22 +223,60 @@ const { devices, reports, loading, error, loadingSources } = useAirQualityData({
 - `timeSteps.ts` : Définition des pas de temps
 - `mapLayers.ts` : Configuration des fonds de carte
 
-## 🎯 Fonctionnalités avancées
+## 📊 Utilisation du clustering
 
-- **Mise à jour automatique** : Les données se mettent à jour quand les paramètres changent
-- **Gestion des erreurs** : Affichage des erreurs de chargement
-- **États de chargement** : Indicateurs visuels pendant le chargement avec détails des sources
-- **Sélection intelligente** : Gestion des groupes de sources avec états partiels
-- **Interface adaptative** : Affichage conditionnel des contrôles selon les sélections
+### Activation du clustering
 
-## 🛠️ Technologies utilisées
+1. Cliquez sur l'icône de clustering en bas à gauche de la carte
+2. Cochez "Activer le clustering" pour activer le regroupement automatique
+3. Ajustez le rayon de clustering selon vos préférences
 
-- **React 19** avec TypeScript
-- **Vite** pour le build et le développement
-- **Leaflet** pour la carte interactive
-- **React Leaflet** pour l'intégration React
-- **Tailwind CSS** pour les styles
-- **PostCSS** pour le traitement CSS
+### Personnalisation des options
+
+- **Rayon de clustering** : Détermine la distance à laquelle les marqueurs se regroupent
+- **Spiderfy au zoom maximum** : Éclate les clusters quand vous zoomez au maximum
+- **Affichage de la zone** : Montre la zone couverte par un cluster au survol
+- **Zoom sur la zone** : Zoom automatique sur la zone du cluster au clic
+- **Animations** : Active les transitions fluides pour une meilleure UX
+
+### Avantages du clustering
+
+- **Performance améliorée** : Moins de marqueurs à rendre simultanément
+- **Lisibilité accrue** : Regroupement logique des points proches
+- **Navigation facilitée** : Zoom automatique sur les zones d'intérêt
+- **Interface responsive** : Adaptation automatique selon le niveau de zoom
+
+## 🔧 Dépendances principales
+
+- **React 19** : Framework principal
+- **Leaflet** : Bibliothèque de cartographie
+- **react-leaflet** : Intégration React pour Leaflet
+- **react-leaflet-cluster** : Clustering des marqueurs
+- **Tailwind CSS** : Framework CSS utilitaire
+- **Recharts** : Graphiques pour les données historiques
+- **TypeScript** : Typage statique
+
+## 📝 Notes de développement
+
+### Compatibilité
+
+- Compatible avec React 19 et react-leaflet v5
+- Utilisation de `--legacy-peer-deps` pour certaines dépendances
+- Support complet de TypeScript
+
+### Performance
+
+- Clustering automatique pour optimiser les performances
+- Chargement différé des données
+- Gestion intelligente des états de chargement
+- Optimisation du rendu des marqueurs
+
+### Extensibilité
+
+- Architecture modulaire pour faciliter l'ajout de nouvelles sources
+- Services séparés pour chaque type de données
+- Composants réutilisables
+- Configuration centralisée
 
 ## 📝 Licence
 

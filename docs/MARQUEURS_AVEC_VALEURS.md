@@ -28,6 +28,78 @@ Nous utilisons des **marqueurs HTML personnalisés** (L.divIcon) plutôt que des
 </div>
 ```
 
+## 🔗 Clustering des Marqueurs
+
+### Vue d'ensemble du clustering
+
+Le système de clustering permet de regrouper automatiquement les marqueurs géographiquement proches, améliorant ainsi les performances et la lisibilité de la carte.
+
+### Intégration avec les marqueurs personnalisés
+
+Les marqueurs avec valeurs affichées sont entièrement compatibles avec le système de clustering :
+
+```typescript
+{
+  clusterConfig.enabled ? (
+    <MarkerClusterGroup
+      maxClusterRadius={clusterConfig.maxClusterRadius}
+      spiderfyOnMaxZoom={clusterConfig.spiderfyOnMaxZoom}
+      showCoverageOnHover={clusterConfig.showCoverageOnHover}
+      zoomToBoundsOnClick={clusterConfig.zoomToBoundsOnClick}
+      animate={clusterConfig.animate}
+      animateAddingMarkers={clusterConfig.animateAddingMarkers}
+    >
+      {devices.map((device) => (
+        <Marker
+          key={device.id}
+          position={[device.latitude, device.longitude]}
+          icon={createCustomIcon(device)}
+          eventHandlers={{
+            click: () => handleMarkerClick(device),
+          }}
+        />
+      ))}
+    </MarkerClusterGroup>
+  ) : (
+    // Rendu normal sans clustering
+    devices.map((device) => (
+      <Marker
+        key={device.id}
+        position={[device.latitude, device.longitude]}
+        icon={createCustomIcon(device)}
+        eventHandlers={{
+          click: () => handleMarkerClick(device),
+        }}
+      />
+    ))
+  );
+}
+```
+
+### Avantages du clustering avec marqueurs personnalisés
+
+1. **Performance optimisée** : Moins de marqueurs HTML à rendre simultanément
+2. **Lisibilité améliorée** : Regroupement logique des points proches
+3. **Navigation facilitée** : Zoom automatique sur les zones d'intérêt
+4. **Préservation des fonctionnalités** : Les valeurs affichées restent visibles dans les clusters
+
+### Configuration du clustering
+
+Le clustering est configurable via l'interface utilisateur avec les options suivantes :
+
+- **Activation/Désactivation** : Basculement du clustering
+- **Rayon de clustering** : Distance de regroupement (20px à 200px)
+- **Spiderfy au zoom maximum** : Éclatement des clusters au zoom max
+- **Affichage de la zone** : Visualisation de la zone de cluster au survol
+- **Zoom sur la zone** : Zoom automatique sur la zone du cluster au clic
+- **Animations** : Transitions fluides pour le clustering
+
+### Comportement des marqueurs dans les clusters
+
+- **Marqueurs individuels** : Affichage normal avec valeurs visibles
+- **Clusters** : Compteur du nombre de marqueurs dans le cluster
+- **Éclatement** : Les marqueurs reprennent leur apparence normale lors de l'éclatement
+
 ## 🎨 Styles CSS
 
 ### Classes Principales
