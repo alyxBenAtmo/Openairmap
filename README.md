@@ -14,10 +14,13 @@ Une application React modulaire et responsive pour afficher des appareils de mes
 - **Contrôle du fond de carte** : Basculement entre carte standard et satellite
 - **Contrôle du clustering** : Paramétrage en temps réel du clustering des marqueurs
 - **Légende dynamique** : Affichage des seuils selon le polluant sélectionné
+- **Side Panel avec graphiques historiques** : Visualisation des données historiques pour AtmoRef
 - **Architecture modulaire** avec services séparés pour chaque source de données
 - **Design responsive** adapté à tous les écrans
-- **Marqueurs colorés** selon la valeur des mesures
+- **Marqueurs colorés** selon la valeur des mesures avec affichage des valeurs
 - **Interface moderne** avec Tailwind CSS
+- **Indicateurs de correction** pour les données AtmoMicro
+- **Barre de progression** et indicateurs de chargement par source
 
 ## 📁 Architecture du projet
 
@@ -59,18 +62,49 @@ src/
 
 ## 🛠️ Sources de données supportées
 
+### ✅ **Sources implémentées et fonctionnelles :**
+
 - **AtmoRef** : Stations de référence AtmoSud
-- **AtmoMicro** : Microcapteurs qualifiés AtmoSud
+
+  - ✅ Données en temps réel
+  - ✅ Side panel avec graphiques historiques
+  - ✅ Support de tous les polluants
+  - ✅ Gestion des variables par station
+
 - **SignalAir** : Capteurs SignalAir
-- **Capteurs communautaires** :
-  - **NebuleAir** : Capteurs communautaires NebuleAir
-  - **Sensor.Community** : Capteurs communautaires
-  - **PurpleAir** : Capteurs PurpleAir
+  - ✅ Signalements de nuisances (odeurs, bruits, brûlages, visuels)
+  - ✅ Sélecteur de période personnalisé
+  - ✅ Marqueurs spécifiques par type de signalement
+  - ✅ Filtrage par date
+
+### 🔄 **Sources partiellement implémentées :**
+
+- **AtmoMicro** : Microcapteurs qualifiés AtmoSud
+
+  - ✅ Données en temps réel avec valeurs corrigées
+  - ✅ Indicateurs visuels de correction
+  - ❌ Side panel (en développement)
+  - ✅ Support des polluants PM₁, PM₂.₅, PM₁₀, NO₂, O₃, SO₂
+
+- **NebuleAir** : Capteurs communautaires NebuleAir
+  - 🔄 Données mockées (implémentation en cours)
+  - ❌ API réelle (à implémenter)
+
+### 🚧 **Sources à implémenter :**
+
+- **PurpleAir** : Capteurs PurpleAir
+
+  - ❌ Service vide (planifié)
+  - ❌ API à intégrer
+
+- **Sensor.Community** : Capteurs communautaires
+  - ❌ Service vide (planifié)
+  - ❌ API à intégrer
 
 ## 🎨 Polluants supportés
 
 - **PM₁** : Particules fines ≤ 1 µm
-- **PM₂.₅** : Particules fines ≤ 2.5 µm
+- **PM₂.₅** : Particules fines ≤ 2.5 µm (activé par défaut)
 - **PM₁₀** : Particules fines ≤ 10 µm
 - **NO₂** : Dioxyde d'azote
 - **O₃** : Ozone
@@ -89,11 +123,11 @@ Chaque polluant dispose de 6 niveaux de qualité avec des seuils spécifiques :
 
 ## ⏱️ Pas de temps disponibles
 
-- **Scan** : Valeurs instantanées
-- **≤ 2 minutes** : Moyenne sur 2 minutes
-- **15 minutes** : Moyenne sur 15 minutes
-- **Heure** : Moyenne horaire (par défaut)
-- **Jour** : Moyenne journalière
+- **instantane** : Valeurs instantanées
+- **deuxMin** : Moyenne sur 2 minutes
+- **quartHeure** : Moyenne sur 15 minutes
+- **heure** : Moyenne horaire (activé par défaut)
+- **jour** : Moyenne journalière
 
 ## 🗺️ Fonds de carte
 
@@ -119,6 +153,24 @@ Chaque polluant dispose de 6 niveaux de qualité avec des seuils spécifiques :
 - **Animations** : Transitions fluides pour le clustering
 - **Animations d'ajout** : Effets visuels lors de l'ajout de marqueurs
 
+## 📊 Side Panel et Graphiques Historiques
+
+### Fonctionnalités du Side Panel
+
+- **Affichage des informations de station** : Détails complets de la station sélectionnée
+- **Graphiques historiques** : Visualisation des données sur différentes périodes
+- **Sélection de polluants** : Choix des polluants à afficher dans les graphiques
+- **Contrôles de période** : Sélection de la période d'analyse (3h, 24h, 7j, 1an)
+- **Gestion des tailles** : Panel normal, plein écran ou masqué
+- **Support AtmoRef** : Intégration complète avec les données historiques AtmoRef
+
+### Contrôles du Side Panel
+
+- **Sélection de polluants** : Checkboxes pour choisir les polluants à afficher
+- **Périodes prédéfinies** : Boutons pour 3h, 24h, 7 jours, 1 an
+- **Pas de temps** : Sélection de la granularité des données
+- **Redimensionnement** : Boutons pour changer la taille du panel
+
 ## 🎨 Interface utilisateur
 
 ### En-tête avec contrôles intégrés
@@ -132,6 +184,7 @@ L'interface principale dispose d'un en-tête compact contenant tous les contrôl
   - **Pas de temps** : Menu déroulant pour la période de mesure
   - **Période SignalAir** : Sélecteur de dates (visible si SignalAir est actif)
 - **Indicateurs d'information** : Affichage des sélections actuelles séparés par une bordure verticale
+- **Barre de progression** : Indicateur de chargement discret en bas de l'en-tête
 
 ### Contrôles de carte
 
@@ -139,6 +192,15 @@ L'interface principale dispose d'un en-tête compact contenant tous les contrôl
 - **Contrôle fond de carte** : Icône en bas à gauche pour basculer entre carte et satellite
 - **Légende** : Affichage des seuils en bas au centre avec tooltips au hover
 - **Informations de la carte** : Compteur d'appareils et signalements en bas à droite
+- **Indicateur de chargement** : Affichage discret des sources en cours de chargement
+
+### Marqueurs et affichage
+
+- **Marqueurs colorés** : Couleurs selon les seuils de qualité de l'air
+- **Affichage des valeurs** : Valeurs numériques directement sur les marqueurs
+- **Indicateurs de correction** : Badge bleu pour les données AtmoMicro corrigées
+- **Marqueurs SignalAir** : Icônes spécifiques par type de signalement
+- **Animations de chargement** : Effets visuels pendant le chargement des données
 
 ### Design et UX
 
@@ -187,6 +249,10 @@ Chaque source de données a son propre service qui hérite de `BaseDataService` 
 export class AtmoRefService extends BaseDataService {
   async fetchData(params) {
     // Logique spécifique à AtmoRef
+  }
+
+  async fetchHistoricalData(params) {
+    // Données historiques pour le side panel
   }
 }
 ```
@@ -246,6 +312,28 @@ const { devices, reports, loading, error, loadingSources } = useAirQualityData({
 - **Navigation facilitée** : Zoom automatique sur les zones d'intérêt
 - **Interface responsive** : Adaptation automatique selon le niveau de zoom
 
+## 📊 Utilisation du Side Panel
+
+### Ouverture du Side Panel
+
+1. Cliquez sur un marqueur AtmoRef sur la carte
+2. Le side panel s'ouvre automatiquement avec les informations de la station
+3. Les graphiques historiques se chargent pour la période par défaut (24h)
+
+### Contrôles du Side Panel
+
+- **Sélection de polluants** : Cochez/décochez les polluants à afficher
+- **Périodes** : Utilisez les boutons 3h, 24h, 7j, 1an pour changer la période
+- **Pas de temps** : Sélectionnez la granularité des données (15min par défaut)
+- **Redimensionnement** : Utilisez les boutons pour changer la taille du panel
+
+### Fonctionnalités avancées
+
+- **Données historiques** : Visualisation des tendances sur différentes périodes
+- **Multi-polluants** : Affichage simultané de plusieurs polluants
+- **Zoom et navigation** : Interactions avec les graphiques pour explorer les données
+- **Export** : Possibilité d'exporter les données (à implémenter)
+
 ## 🔧 Dépendances principales
 
 - **React 19** : Framework principal
@@ -270,6 +358,7 @@ const { devices, reports, loading, error, loadingSources } = useAirQualityData({
 - Chargement différé des données
 - Gestion intelligente des états de chargement
 - Optimisation du rendu des marqueurs
+- Cache des données SignalAir pour éviter les appels répétés
 
 ### Extensibilité
 
@@ -277,6 +366,24 @@ const { devices, reports, loading, error, loadingSources } = useAirQualityData({
 - Services séparés pour chaque type de données
 - Composants réutilisables
 - Configuration centralisée
+
+## 🚧 Fonctionnalités en développement
+
+### À implémenter prochainement
+
+- **Side Panel pour AtmoMicro** : Graphiques historiques pour les microcapteurs
+- **Panel statistique** : Statistiques des appareils affichés sur la carte
+- **NebuleAir complet** : Intégration de l'API réelle NebuleAir
+- **PurpleAir** : Intégration des capteurs PurpleAir
+- **Sensor.Community** : Intégration des capteurs communautaires
+
+### Améliorations prévues
+
+- **Export de données** : Export CSV/JSON des données affichées
+- **Notifications** : Alertes pour les dépassements de seuils
+- **Filtres avancés** : Filtrage par qualité de l'air, distance, etc.
+- **Mode hors ligne** : Cache local pour consultation hors ligne
+- **API publique** : Exposition des données via API REST
 
 ## 📝 Licence
 

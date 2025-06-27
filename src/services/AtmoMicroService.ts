@@ -78,14 +78,15 @@ export class AtmoMicroService extends BaseDataService {
         sitesMap.set(site.id_site, site);
       });
 
-      // Transformer les sites en MeasurementDevice
+      // Transformer les données en MeasurementDevice
       const devices: MeasurementDevice[] = [];
 
-      for (const site of sitesResponse) {
-        const measure = measuresMap.get(site.id_site);
+      // 1. Traiter d'abord les sites avec des mesures récentes (coordonnées à jour)
+      for (const measure of measuresResponse) {
+        const site = sitesMap.get(measure.id_site);
 
-        if (measure) {
-          // Site avec mesure disponible
+        if (site) {
+          // Site avec mesure disponible - utiliser les coordonnées de mesures/dernieres
           const pollutant = pollutants[params.pollutant];
 
           // Déterminer quelle valeur utiliser
@@ -102,10 +103,10 @@ export class AtmoMicroService extends BaseDataService {
           );
 
           devices.push({
-            id: site.id_site.toString(),
+            id: measure.id_site.toString(),
             name: site.nom_site,
-            latitude: site.lat,
-            longitude: site.lon,
+            latitude: measure.lat, // Coordonnées à jour depuis mesures/dernieres
+            longitude: measure.lon, // Coordonnées à jour depuis mesures/dernieres
             source: this.sourceCode,
             pollutant: params.pollutant,
             value: displayValue, // Valeur affichée sur le marqueur
@@ -128,13 +129,18 @@ export class AtmoMicroService extends BaseDataService {
             raw_value?: number;
             has_correction?: boolean;
           });
-        } else {
-          // Site sans mesure récente - utiliser le marqueur par défaut
+        }
+      }
+
+      // 2. Ajouter les sites sans mesures récentes (coordonnées potentiellement obsolètes)
+      for (const site of sitesResponse) {
+        // Vérifier si ce site n'a pas déjà été traité (pas de mesure récente)
+        if (!measuresMap.has(site.id_site)) {
           devices.push({
             id: site.id_site.toString(),
             name: site.nom_site,
-            latitude: site.lat,
-            longitude: site.lon,
+            latitude: site.lat, // Coordonnées potentiellement obsolètes depuis sites
+            longitude: site.lon, // Coordonnées potentiellement obsolètes depuis sites
             source: this.sourceCode,
             pollutant: params.pollutant,
             value: 0,
