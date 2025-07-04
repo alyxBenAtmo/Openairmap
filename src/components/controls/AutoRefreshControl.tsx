@@ -1,11 +1,29 @@
 import React from "react";
 
-interface TimePeriodDisplayProps {
-  timeStep: string;
+interface AutoRefreshControlProps {
+  enabled: boolean;
+  onToggle: (enabled: boolean) => void;
+  lastRefresh?: Date | null;
+  loading?: boolean;
+  selectedTimeStep: string;
 }
 
-const TimePeriodDisplay: React.FC<TimePeriodDisplayProps> = ({ timeStep }) => {
-  const getTimePeriod = (): string => {
+const AutoRefreshControl: React.FC<AutoRefreshControlProps> = ({
+  enabled,
+  onToggle,
+  lastRefresh,
+  loading = false,
+  selectedTimeStep,
+}) => {
+  const formatLastRefresh = (date: Date): string => {
+    return date.toLocaleTimeString("fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  // Fonction pour obtenir la période de données actuellement affichée
+  const getCurrentDataPeriod = (timeStep: string): string => {
     const now = new Date();
 
     switch (timeStep) {
@@ -86,64 +104,66 @@ const TimePeriodDisplay: React.FC<TimePeriodDisplayProps> = ({ timeStep }) => {
     }
   };
 
-  const getTimeStepIcon = (): string => {
-    switch (timeStep) {
-      case "jour":
-        return "📅";
-      case "heure":
-        return "🕐";
-      case "quartHeure":
-        return "⏰";
-      case "instantane":
-        return "⚡";
-      case "deuxMin":
-        return "⏱️";
-      default:
-        return "📊";
-    }
-  };
-
-  const getTimeStepLabel = (): string => {
-    switch (timeStep) {
-      case "jour":
-        return "Jour";
-      case "heure":
-        return "Horaire";
-      case "quartHeure":
-        return "15 min";
-      case "instantane":
-        return "Scan";
-      case "deuxMin":
-        return "≤2 min";
-      default:
-        return "";
-    }
-  };
-
-  const period = getTimePeriod();
-
-  if (!period) return null;
+  const currentPeriod = getCurrentDataPeriod(selectedTimeStep);
 
   return (
     <div className="flex items-center gap-2 px-3 py-2 bg-white/90 backdrop-blur-sm rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200">
-      <div className="flex items-center gap-2">
-        <span className="text-lg">{getTimeStepIcon()}</span>
-        <div className="flex flex-col">
-          <span className="text-xs font-medium text-gray-700 leading-tight">
-            {getTimeStepLabel()}
-          </span>
-          <span className="text-sm font-semibold text-gray-900 leading-tight">
-            {period}
-          </span>
-        </div>
+      {/* Bouton toggle */}
+      <button
+        onClick={() => onToggle(!enabled)}
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+          enabled ? "bg-blue-600" : "bg-gray-200"
+        }`}
+        disabled={loading}
+      >
+        <span
+          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+            enabled ? "translate-x-6" : "translate-x-1"
+          }`}
+        />
+      </button>
+
+      {/* Label */}
+      <span className="text-xs font-medium text-gray-700">Auto-refresh</span>
+
+      {/* Indicateur de statut */}
+      <div className="flex items-center space-x-1">
+        {loading ? (
+          <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+        ) : enabled ? (
+          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+        ) : (
+          <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+        )}
       </div>
-      {/* <div className="w-px h-6 bg-gray-300"></div> */}
-      {/* <div className="flex items-center gap-1">
-        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-        <span className="text-xs text-gray-600">Données</span>
-      </div> */}
+
+      {/* Période de données actuellement affichée */}
+      {currentPeriod && (
+        <>
+          <div className="w-px h-4 bg-gray-300"></div>
+          <div className="flex flex-col">
+            <span className="text-xs text-gray-600">Période:</span>
+            <span className="text-xs font-medium text-gray-800">
+              {currentPeriod}
+            </span>
+          </div>
+        </>
+      )}
+
+      {/* Dernier rafraîchissement */}
+      {lastRefresh && (
+        <>
+          <div className="w-px h-4 bg-gray-300"></div>
+          <div className="flex flex-col">
+            <span className="text-xs text-gray-600">Dernier:</span>
+            <span className="text-xs font-medium text-gray-800">
+              {formatLastRefresh(lastRefresh)}
+            </span>
+          </div>
+        </>
+      )}
     </div>
   );
 };
 
-export default TimePeriodDisplay;
+export default AutoRefreshControl;

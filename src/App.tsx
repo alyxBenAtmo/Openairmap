@@ -3,7 +3,7 @@ import AirQualityMap from "./components/map/AirQualityMap";
 import { useAirQualityData } from "./hooks/useAirQualityData";
 import { pollutants, getDefaultPollutant } from "./constants/pollutants";
 import { pasDeTemps } from "./constants/timeSteps";
-import TimePeriodDisplay from "./components/controls/TimePeriodDisplay";
+import AutoRefreshControl from "./components/controls/AutoRefreshControl";
 import PollutantDropdown from "./components/controls/PollutantDropdown";
 import SourceDropdown from "./components/controls/SourceDropdown";
 import TimeStepDropdown from "./components/controls/TimeStepDropdown";
@@ -49,13 +49,17 @@ const App: React.FC = () => {
     setSignalAirPeriod({ startDate, endDate });
   };
 
+  // État pour l'auto-refresh
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+
   // Hook pour récupérer les données
-  const { devices, reports, loading, error, loadingSources } =
+  const { devices, reports, loading, error, loadingSources, lastRefresh } =
     useAirQualityData({
       selectedPollutant,
       selectedSources,
       selectedTimeStep,
       signalAirPeriod,
+      autoRefreshEnabled,
     });
 
   const mapCenter: [number, number] = [43.7102, 7.262]; // Nice
@@ -90,9 +94,15 @@ const App: React.FC = () => {
               isVisible={selectedSources.includes("signalair")}
             />
 
-            {/* Indicateurs d'information */}
+            {/* Contrôle auto-refresh */}
             <div className="text-xs text-gray-600 space-x-4 border-l border-gray-300 pl-4">
-              <TimePeriodDisplay timeStep={selectedTimeStep} />
+              <AutoRefreshControl
+                enabled={autoRefreshEnabled}
+                onToggle={setAutoRefreshEnabled}
+                lastRefresh={lastRefresh}
+                loading={loading}
+                selectedTimeStep={selectedTimeStep}
+              />
             </div>
           </div>
         </div>

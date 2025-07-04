@@ -34,20 +34,6 @@ const ClusterControl: React.FC<ClusterControlProps> = ({
     });
   };
 
-  const handleRadiusChange = (value: number) => {
-    onConfigChange({
-      ...config,
-      maxClusterRadius: value,
-    });
-  };
-
-  const handleOptionChange = (option: keyof ClusterConfig, value: boolean) => {
-    onConfigChange({
-      ...config,
-      [option]: value,
-    });
-  };
-
   return (
     <div className="relative" ref={dropdownRef}>
       <button
@@ -74,14 +60,14 @@ const ClusterControl: React.FC<ClusterControlProps> = ({
       </button>
 
       {isOpen && (
-        <div className="absolute z-[2000] w-80 bg-white/95 backdrop-blur-sm border border-gray-200/50 rounded-md shadow-sm bottom-full mb-1 left-0">
+        <div className="absolute z-[2000] w-64 bg-white/95 backdrop-blur-sm border border-gray-200/50 rounded-md shadow-sm bottom-full mb-1 left-0">
           <div className="p-4">
             <h3 className="text-sm font-semibold text-gray-900 mb-3">
               Paramètres de clustering
             </h3>
 
             {/* Activation du clustering */}
-            <div className="mb-4">
+            <div className="mb-2">
               <label className="flex items-center space-x-2">
                 <input
                   type="checkbox"
@@ -95,118 +81,11 @@ const ClusterControl: React.FC<ClusterControlProps> = ({
               </label>
             </div>
 
-            {config.enabled && (
-              <>
-                {/* Rayon de clustering */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Rayon de clustering: {config.maxClusterRadius}px
-                  </label>
-                  <input
-                    type="range"
-                    min="20"
-                    max="200"
-                    step="10"
-                    value={config.maxClusterRadius}
-                    onChange={(e) => handleRadiusChange(Number(e.target.value))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-                  />
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>20px</span>
-                    <span>200px</span>
-                  </div>
-                </div>
-
-                {/* Options avancées */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-gray-900">
-                    Options avancées
-                  </h4>
-
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={config.spiderfyOnMaxZoom}
-                      onChange={(e) =>
-                        handleOptionChange(
-                          "spiderfyOnMaxZoom",
-                          e.target.checked
-                        )
-                      }
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700">
-                      Spiderfy au zoom maximum
-                    </span>
-                  </label>
-
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={config.showCoverageOnHover}
-                      onChange={(e) =>
-                        handleOptionChange(
-                          "showCoverageOnHover",
-                          e.target.checked
-                        )
-                      }
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700">
-                      Afficher la zone au survol
-                    </span>
-                  </label>
-
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={config.zoomToBoundsOnClick}
-                      onChange={(e) =>
-                        handleOptionChange(
-                          "zoomToBoundsOnClick",
-                          e.target.checked
-                        )
-                      }
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700">
-                      Zoom sur la zone au clic
-                    </span>
-                  </label>
-
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={config.animate}
-                      onChange={(e) =>
-                        handleOptionChange("animate", e.target.checked)
-                      }
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700">
-                      Animations de clustering
-                    </span>
-                  </label>
-
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={config.animateAddingMarkers}
-                      onChange={(e) =>
-                        handleOptionChange(
-                          "animateAddingMarkers",
-                          e.target.checked
-                        )
-                      }
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700">
-                      Animations d'ajout de marqueurs
-                    </span>
-                  </label>
-                </div>
-              </>
-            )}
+            {/* Description */}
+            <p className="text-xs text-gray-500 mt-3">
+              Le clustering regroupe automatiquement les marqueurs proches pour
+              améliorer la lisibilité de la carte.
+            </p>
           </div>
         </div>
       )}

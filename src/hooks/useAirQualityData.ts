@@ -1,25 +1,50 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { MeasurementDevice, SignalAirReport } from "../types";
 import { DataServiceFactory } from "../services/DataServiceFactory";
+import { pasDeTemps } from "../constants/timeSteps";
 
 interface UseAirQualityDataProps {
   selectedPollutant: string;
   selectedSources: string[];
   selectedTimeStep: string;
   signalAirPeriod?: { startDate: string; endDate: string };
+  autoRefreshEnabled?: boolean;
 }
+
+// Correction : utiliser le code réel du pas de temps
+const getRefreshInterval = (timeStep: string): number => {
+  const code = pasDeTemps[timeStep]?.code || timeStep;
+  switch (code) {
+    case "instantane": // Scan
+    case "2min": // ≤ 2 minutes
+      return 60 * 1000; // 60 secondes
+    case "qh": // 15 minutes
+      return 15 * 60 * 1000; // 15 minutes
+    case "h": // Heure
+      return 60 * 60 * 1000; // 60 minutes
+    case "d": // Jour
+      return 24 * 60 * 60 * 1000; // 24 heures
+    default:
+      return 60 * 1000; // Par défaut, 60 secondes
+  }
+};
 
 export const useAirQualityData = ({
   selectedPollutant,
   selectedSources,
   selectedTimeStep,
   signalAirPeriod,
+  autoRefreshEnabled = true,
 }: UseAirQualityDataProps) => {
   const [devices, setDevices] = useState<MeasurementDevice[]>([]);
   const [reports, setReports] = useState<SignalAirReport[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingSources, setLoadingSources] = useState<string[]>([]);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+
+  // Référence pour stocker l'intervalle
+  const intervalRef = useRef<number | null>(null);
 
   const fetchData = useCallback(async () => {
     if (selectedSources.length === 0) {
@@ -37,6 +62,10 @@ export const useAirQualityData = ({
           : ""
       }`
     );
+
+    // Mettre à jour le timestamp du dernier rafraîchissement
+    const now = new Date();
+    setLastRefresh(now);
 
     // Nettoyer complètement les données avant le nouvel appel
     setDevices([]);
@@ -133,9 +162,54 @@ export const useAirQualityData = ({
     }
   }, [selectedPollutant, selectedSources, selectedTimeStep, signalAirPeriod]);
 
+  // Effet pour gérer l'auto-refresh
+  useEffect(() => {
+    // Nettoyer l'intervalle précédent s'il existe
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    // Ne pas démarrer l'auto-refresh si désactivé ou aucune source sélectionnée
+    if (!autoRefreshEnabled || selectedSources.length === 0) {
+      return;
+    }
+
+    // Récupérer l'intervalle de rafraîchissement selon le pas de temps
+    const refreshInterval = getRefreshInterval(selectedTimeStep);
+
+    console.log(
+      `⏰ Auto-refresh configuré: ${refreshInterval / 1000} secondes`
+    );
+
+    // Démarrer l'intervalle d'auto-refresh
+    intervalRef.current = setInterval(() => {
+      console.log(
+        `🔄 Auto-refresh déclenché pour le pas de temps: ${selectedTimeStep}`
+      );
+      fetchData();
+    }, refreshInterval);
+
+    // Nettoyer l'intervalle lors du démontage du composant
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [selectedTimeStep, selectedSources, autoRefreshEnabled, fetchData]);
+
+  // Effet pour le chargement initial des données
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  return { devices, reports, loading, error, loadingSources };
+  return {
+    devices,
+    reports,
+    loading,
+    error,
+    loadingSources,
+    lastRefresh,
+  };
 };
