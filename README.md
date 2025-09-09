@@ -739,16 +739,13 @@ const { devices, reports, loading, error, loadingSources } = useAirQualityData({
 - **PurpleAir** : Intégration des capteurs PurpleAir
 - **Sensor.Community** : Intégration des capteurs communautaires
 - **Panel statistique** : Statistiques des appareils affichés sur la carte
-- **Export de données** : Export CSV/JSON des données affichées
+- **Export de données** : Export CSV/JSON/PNG/PDF des données affichées
 
 ### 🔮 **Améliorations prévues**
 
-- **Notifications** : Alertes pour les dépassements de seuils
 - **Filtres avancés** : Filtrage par qualité de l'air, distance, etc.
-- **Mode hors ligne** : Cache local pour consultation hors ligne
-- **API publique** : Exposition des données via API REST
-- **Comparaison de sources** : Analyse comparative entre différentes sources
-- **Alertes personnalisées** : Configuration d'alertes par zone géographique
+- **Comparaison de sources** : Analyse comparative entre différents appareils de mesure dans un même panel
+- **Possibilité de remonté dans le temps** : Possibilité de remonter dans le temps pour voir les épisodes de pollution passés sur la carte
 
 ## 📝 Licence
 
