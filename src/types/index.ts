@@ -196,6 +196,10 @@ export interface HistoricalDataPoint {
   timestamp: string;
   value: number;
   unit: string;
+  // Propriétés pour les données corrigées (AtmoMicro)
+  corrected_value?: number; // Valeur corrigée si disponible
+  raw_value?: number; // Valeur brute originale
+  has_correction?: boolean; // Indique si une correction a été appliquée
 }
 
 export interface StationVariable {

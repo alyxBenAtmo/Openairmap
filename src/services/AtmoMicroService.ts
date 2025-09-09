@@ -306,13 +306,19 @@ export class AtmoMicroService extends BaseDataService {
       // Transformer les données historiques
       const historicalData = response.map((measure: AtmoMicroMeasure) => {
         // Utiliser la valeur corrigée si disponible, sinon la valeur brute
-        const value =
-          measure.valeur !== null ? measure.valeur : measure.valeur_brute;
+        const hasCorrection = measure.valeur !== null;
+        const correctedValue = hasCorrection ? measure.valeur : undefined;
+        const rawValue = measure.valeur_brute;
+        const value = hasCorrection ? measure.valeur! : measure.valeur_brute;
 
         return {
           timestamp: measure.time,
           value,
           unit: measure.unite,
+          // Propriétés pour les données corrigées
+          corrected_value: correctedValue,
+          raw_value: rawValue,
+          has_correction: hasCorrection,
         };
       });
 

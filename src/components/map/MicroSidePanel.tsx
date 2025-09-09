@@ -53,6 +53,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
   const [internalPanelSize, setInternalPanelSize] =
     useState<PanelSize>("normal");
   const [showPollutantsList, setShowPollutantsList] = useState(false);
+  const [hasCorrectedData, setHasCorrectedData] = useState(false);
 
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
@@ -107,6 +108,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
 
       // Réinitialiser la taille du panel
       setInternalPanelSize("normal");
+      setHasCorrectedData(false);
 
       // Charger les données historiques initiales si des polluants sont disponibles
       if (selectedPollutants.length > 0) {
@@ -303,6 +305,10 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
     if (newSize === "hidden" && onHidden) {
       onHidden();
     }
+  };
+
+  const handleHasCorrectedDataChange = (hasCorrected: boolean) => {
+    setHasCorrectedData(hasCorrected);
   };
 
   const getPanelClasses = () => {
@@ -585,6 +591,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                   <HistoricalChart
                     data={state.historicalData}
                     selectedPollutants={state.chartControls.selectedPollutants}
+                    onHasCorrectedDataChange={handleHasCorrectedDataChange}
                   />
                 </div>
 

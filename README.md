@@ -7,7 +7,7 @@ Une application React modulaire et responsive pour afficher des appareils de mes
 ### 🗺️ **Carte Interactive**
 
 - **Carte Leaflet** pour afficher les appareils de mesure
-- **Clustering intelligent** des marqueurs avec paramétrage utilisateur
+- **Clustering intelligent** des marqueurs avec possibilé de le desactiver
 - **Marqueurs colorés** selon la valeur des mesures avec affichage des valeurs
 - **Contrôle du fond de carte** : Basculement entre carte standard et satellite
 - **Légende dynamique** : Affichage des seuils selon le polluant sélectionné
@@ -15,18 +15,18 @@ Une application React modulaire et responsive pour afficher des appareils de mes
 
 ### 🎛️ **Contrôles Intégrés**
 
-- **Sélection du polluant** : Un polluant actif à la fois
-- **Sélection des sources** : Plusieurs sources possibles avec hiérarchie
+- **Sélection du polluant** : Un polluant actif à la fois sur la carte
+- **Sélection des sources** : Plusieurs sources possibles
 - **Sélection du pas de temps** : Un pas de temps actif à la fois
 - **Sélecteurs de période** : Périodes personnalisées pour SignalAir et MobileAir
 - **Auto-refresh intelligent** : Rafraîchissement automatique adaptatif
-- **Contrôle du clustering** : Paramétrage en temps réel du clustering
+- **Contrôle du clustering** : Possibilité d'activer/desactiver le clustering
 
 ### 📊 **Side Panels Spécialisés**
 
 - **AtmoRef Panel** : Graphiques historiques complets
-- **AtmoMicro Panel** : Visualisation des microcapteurs avec données corrigées
-- **NebuleAir Panel** : Analyse des capteurs communautaires
+- **AtmoMicro Panel** : Graphiques historiques complets
+- **NebuleAir Panel** : Graphiques historiques complets
 - **MobileAir Panels** : Sélection et visualisation des capteurs mobiles
 - **Périodes personnalisées** : 3h, 24h, 7j, 1an + sélecteur de dates
 - **Redimensionnement** : Normal, plein écran, masqué
@@ -102,28 +102,27 @@ src/
 
 - **AtmoRef** : Stations de référence AtmoSud
 
-  - ✅ Données en temps réel
+  - ✅ Affichage des valeurs dans un marqueurs colorés selon le dépassement de seuil du polluant selectionné
   - ✅ Side panel avec graphiques historiques
-  - ✅ Support de tous les polluants
+  - ✅ Support de tous les polluants (selon les polluants supportés par les stations AtmoSud)
   - ✅ Gestion des variables par station
   - ✅ Auto-refresh intelligent
 
 - **AtmoMicro** : Microcapteurs qualifiés AtmoSud
 
-  - ✅ Données en temps réel avec valeurs corrigées
+  - ✅ Affichage des valeurs dans un marqueurs colorés selon le dépassement de seuil du polluant selectionné avec différenciation des données corrigées et non corrigées
   - ✅ Side panel avec graphiques historiques
-  - ✅ Indicateurs visuels de correction
-  - ✅ Support des polluants PM₁, PM₂.₅, PM₁₀, NO₂, O₃, SO₂
+  - ✅ Support des polluants PM₁, PM₂.₅, PM₁₀, NO₂ (selon les polluants supportés par les microcapteurs AtmoSud)
   - ✅ Gestion des sites actifs et inactifs
 
-- **NebuleAir** : Capteurs communautaires NebuleAir
+- **NebuleAir** : Capteurs communautaires NebuleAir Air Carto
 
-  - ✅ Données en temps réel
+  - ✅ Affichage des valeurs dans un marqueurs colorés selon le dépassement de seuil du polluant selectionné
   - ✅ Side panel avec graphiques historiques
-  - ✅ Support des polluants PM₁, PM₂.₅, PM₁₀, NO₂, O₃, SO₂
-  - ✅ Gestion des capteurs communautaires
+  - ✅ Support des polluants PM₁, PM₂.₅, PM₁₀, NO₂ (selon les polluants supportés par les capteurs communautaires NebuleAir Air Carto)
+  - ✅ Gestion des site actifs/inactifs
 
-- **MobileAir** : Capteurs mobiles Air Carto
+- **MobileAir** : Capteurs communautaires mobileAir Air Carto
 
   - ✅ Sélection de capteurs individuels
   - ✅ Side panel de sélection des capteurs
@@ -132,11 +131,10 @@ src/
   - ✅ Limitation à un capteur à la fois (protection API)
   - ✅ Gestion des périodes personnalisées
 
-- **SignalAir** : Capteurs SignalAir
-  - ✅ Signalements de nuisances (odeurs, bruits, brûlages, visuels)
+- **SignalAir** : Signalement citoyenSignalAir
+  - ✅ Affichage des signalements sur la carte (odeurs, bruits, brûlages, visuels)
   - ✅ Sélecteur de période personnalisé
   - ✅ Marqueurs spécifiques par type de signalement
-  - ✅ Filtrage par date
 
 ### 🚧 **Sources à implémenter :**
 
@@ -204,7 +202,6 @@ L'application dispose d'un système d'auto-refresh intelligent qui s'adapte auto
 - **Périodes prédéfinies** : 3h, 24h, 7 jours, 1 an
 - **Périodes personnalisées** : Sélecteur de dates pour analyses sur mesure
 - **Validation des dates** : Contrôles de cohérence des périodes sélectionnées
-- **Adaptation automatique** : Ajustement selon les sources de données sélectionnées
 
 ## 🗺️ Fonds de carte
 
@@ -216,15 +213,13 @@ L'application dispose d'un système d'auto-refresh intelligent qui s'adapte auto
 ### Fonctionnalités de clustering
 
 - **Clustering automatique** : Regroupement intelligent des marqueurs proches
-- **Paramétrage en temps réel** : Contrôle utilisateur des options de clustering
 - **Performance optimisée** : Amélioration des performances avec de nombreux marqueurs
-- **Interface intuitive** : Menu de contrôle accessible depuis la carte
+- **Activation/Désactivation** : Activation/Désactivation du clustering depuis le menu de la carte
 
 ### Options de clustering configurables
 
-- **Activation/Désactivation** : Basculement du clustering
-- **Rayon de clustering** : Distance de regroupement (20px à 200px)
-- **Spiderfy au zoom maximum** : Éclatement des clusters au zoom max
+- **Activation/Désactivation** : Basculement du clustering depuis le menu de la carte
+- **Spiderfy au zoom maximum** : Éclatement des clusters au zoom maximum
 - **Affichage de la zone** : Visualisation de la zone de cluster au survol
 - **Zoom sur la zone** : Zoom automatique sur la zone du cluster au clic
 - **Animations** : Transitions fluides pour le clustering
