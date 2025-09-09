@@ -32,6 +32,7 @@ const SourceDropdown: React.FC<SourceDropdownProps> = ({
     "communautaire.nebuleair",
     "communautaire.sensorCommunity",
     "communautaire.purpleair",
+    "communautaire.mobileair",
   ];
 
   // Vérifier l'état des groupes
@@ -84,6 +85,7 @@ const SourceDropdown: React.FC<SourceDropdownProps> = ({
         if (subSource === "nebuleair") return "NebuleAir";
         if (subSource === "sensorCommunity") return "Sensor.Community";
         if (subSource === "purpleair") return "PurpleAir";
+        if (subSource === "mobileair") return "MobileAir";
       }
       return source;
     }
@@ -256,6 +258,7 @@ const SourceDropdown: React.FC<SourceDropdownProps> = ({
                   name: "Sensor.Community",
                 },
                 { code: "communautaire.purpleair", name: "PurpleAir" },
+                { code: "communautaire.mobileair", name: "MobileAir" },
               ].map(({ code, name }) => (
                 <button
                   key={code}

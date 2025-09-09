@@ -28,6 +28,26 @@ export default defineConfig({
           });
         },
       },
+      "/aircarto": {
+        target: "https://api.aircarto.fr",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/aircarto/, ""),
+        configure: (proxy) => {
+          proxy.on("error", (err) => {
+            console.log("aircarto proxy error", err);
+          });
+          proxy.on("proxyReq", (proxyReq, req) => {
+            console.log("Sending Request to AirCarto:", req.method, req.url);
+          });
+          proxy.on("proxyRes", (proxyRes, req) => {
+            console.log(
+              "Received Response from AirCarto:",
+              proxyRes.statusCode,
+              req.url
+            );
+          });
+        },
+      },
     },
   },
 });

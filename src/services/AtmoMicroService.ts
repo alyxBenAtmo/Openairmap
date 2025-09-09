@@ -3,8 +3,9 @@ import {
   MeasurementDevice,
   AtmoMicroSite,
   AtmoMicroMeasure,
-  AtmoMicroSitesResponse,
-  AtmoMicroMeasuresResponse,
+  // AtmoMicroSitesResponse,
+  // AtmoMicroMeasuresResponse,
+  ATMOMICRO_POLLUTANT_MAPPING,
 } from "../types";
 import { getAirQualityLevel } from "../utils";
 import { pollutants } from "../constants/pollutants";
@@ -21,9 +22,9 @@ export class AtmoMicroService extends BaseDataService {
     timeStep: string;
     sources: string[];
     signalAirPeriod?: { startDate: string; endDate: string };
+    mobileAirPeriod?: { startDate: string; endDate: string };
+    selectedSensors?: string[];
   }): Promise<MeasurementDevice[]> {
-    console.log(`🔍 AtmoMicroService.fetchData appelé avec:`, params);
-
     try {
       // Mapping du polluant vers le format AtmoMicro
       const atmoMicroVariable = this.getAtmoMicroVariable(params.pollutant);
@@ -41,11 +42,6 @@ export class AtmoMicroService extends BaseDataService {
         return [];
       }
 
-      console.log(`📡 AtmoMicro - URLs générées:`, {
-        sites: `${this.BASE_URL}/sites?format=json&variable=${atmoMicroVariable}&actifs=2880`,
-        measures: `${this.BASE_URL}/mesures/dernieres?format=json&download=false&valeur_brute=true&type_capteur=true&variable=${atmoMicroVariable}&aggregation=${timeStepConfig.aggregation}&delais=${timeStepConfig.delais}`,
-      });
-
       // Faire les deux appels API en parallèle
       const [sitesResponse, measuresResponse] = await Promise.all([
         this.fetchSites(atmoMicroVariable),
@@ -61,10 +57,6 @@ export class AtmoMicroService extends BaseDataService {
         console.warn("Aucune donnée reçue d'AtmoMicro");
         return [];
       }
-
-      console.log(
-        `📊 AtmoMicro - Données reçues: ${sitesResponse.length} sites, ${measuresResponse.length} mesures`
-      );
 
       // Créer un map des mesures par ID de site pour un accès rapide
       const measuresMap = new Map<number, AtmoMicroMeasure>();
@@ -159,9 +151,6 @@ export class AtmoMicroService extends BaseDataService {
         }
       }
 
-      console.log(
-        `✅ AtmoMicro - ${devices.length} appareils créés (données fraîches)`
-      );
       return devices;
     } catch (error) {
       console.error(
@@ -218,5 +207,122 @@ export class AtmoMicroService extends BaseDataService {
     };
 
     return timeStepConfigs[timeStep] || null;
+  }
+
+  // Méthode pour récupérer les variables disponibles d'un site
+  async fetchSiteVariables(
+    siteId: string
+  ): Promise<
+    Record<string, { label: string; code_iso: string; en_service: boolean }>
+  > {
+    try {
+      // Récupérer tous les sites pour trouver celui qui nous intéresse
+      const url = `${this.BASE_URL}/sites?format=json&actifs=2880`;
+      const sites = await this.makeRequest(url);
+
+      const site = sites.find(
+        (s: AtmoMicroSite) => s.id_site.toString() === siteId
+      );
+      if (!site) {
+        console.warn(`Site ${siteId} non trouvé`);
+        return {};
+      }
+
+      // Parser la chaîne de variables (ex: "PM10, PM2.5, Air Pres., Air Temp., Air Hum., PM1")
+      const variablesString = site.variables;
+      const availableVariables: Record<
+        string,
+        { label: string; code_iso: string; en_service: boolean }
+      > = {};
+
+      // Extraire les variables et les mapper vers nos codes de polluants
+      const variableList = variablesString.split(",").map((v) => v.trim());
+
+      for (const variable of variableList) {
+        const pollutantCode = ATMOMICRO_POLLUTANT_MAPPING[variable];
+        if (pollutantCode && pollutants[pollutantCode]) {
+          availableVariables[pollutantCode] = {
+            label: pollutants[pollutantCode].name,
+            code_iso: variable,
+            en_service: true, // On suppose que si la variable est listée, elle est en service
+          };
+        }
+      }
+
+      return availableVariables;
+    } catch (error) {
+      console.error(
+        "Erreur lors de la récupération des variables du site:",
+        error
+      );
+      throw error;
+    }
+  }
+
+  // Méthode pour récupérer les données historiques d'un site
+  async fetchHistoricalData(params: {
+    siteId: string;
+    pollutant: string;
+    timeStep: string;
+    startDate: string;
+    endDate: string;
+  }): Promise<Array<{ timestamp: string; value: number; unit: string }>> {
+    try {
+      // Mapping du polluant vers le format AtmoMicro
+      const atmoMicroVariable = this.getAtmoMicroVariable(params.pollutant);
+      if (!atmoMicroVariable) {
+        console.warn(`Polluant ${params.pollutant} non supporté par AtmoMicro`);
+        return [];
+      }
+
+      // Configuration du pas de temps
+      const timeStepConfig = this.getAtmoMicroTimeStepConfig(params.timeStep);
+      if (!timeStepConfig) {
+        console.warn(
+          `Pas de temps ${params.timeStep} non supporté par AtmoMicro`
+        );
+        return [];
+      }
+
+      // Formater les dates pour AtmoMicro (format YYYY-MM-DDTHH:mm:ss.sssZ)
+      const formatDateForAtmoMicro = (dateString: string): string => {
+        const date = new Date(dateString);
+        return date.toISOString();
+      };
+
+      const formattedStartDate = formatDateForAtmoMicro(params.startDate);
+      const formattedEndDate = formatDateForAtmoMicro(params.endDate);
+
+      // Construire l'URL pour les données historiques avec les bons paramètres
+      const url = `${this.BASE_URL}/mesures?id_site=${params.siteId}&format=json&download=false&nb_dec=1&valeur_brute=true&variable=${atmoMicroVariable}&type_capteur=true&aggregation=${timeStepConfig.aggregation}&debut=${formattedStartDate}&fin=${formattedEndDate}`;
+
+      const response = await this.makeRequest(url);
+
+      if (!response || !Array.isArray(response)) {
+        console.warn("Aucune donnée historique reçue d'AtmoMicro");
+        return [];
+      }
+
+      // Transformer les données historiques
+      const historicalData = response.map((measure: AtmoMicroMeasure) => {
+        // Utiliser la valeur corrigée si disponible, sinon la valeur brute
+        const value =
+          measure.valeur !== null ? measure.valeur : measure.valeur_brute;
+
+        return {
+          timestamp: measure.time,
+          value,
+          unit: measure.unite,
+        };
+      });
+
+      return historicalData;
+    } catch (error) {
+      console.error(
+        "Erreur lors de la récupération des données historiques AtmoMicro:",
+        error
+      );
+      throw error;
+    }
   }
 }

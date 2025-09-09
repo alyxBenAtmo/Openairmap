@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import AirQualityMap from "./components/map/AirQualityMap";
 import { useAirQualityData } from "./hooks/useAirQualityData";
 import { pollutants, getDefaultPollutant } from "./constants/pollutants";
@@ -44,10 +44,42 @@ const App: React.FC = () => {
     defaultSignalAirPeriod
   );
 
+  // États pour MobileAir
+  const [mobileAirPeriod, setMobileAirPeriod] = useState(
+    defaultSignalAirPeriod // Utiliser la même période par défaut
+  );
+  const [selectedMobileAirSensor, setSelectedMobileAirSensor] = useState<
+    string | null
+  >(null);
+
   // Fonction wrapper pour gérer le changement de période SignalAir
   const handleSignalAirPeriodChange = (startDate: string, endDate: string) => {
     setSignalAirPeriod({ startDate, endDate });
   };
+
+  // Fonction pour gérer la sélection d'un capteur MobileAir
+  const handleMobileAirSensorSelected = (
+    sensorId: string,
+    period: { startDate: string; endDate: string }
+  ) => {
+    setSelectedMobileAirSensor(sensorId);
+    setMobileAirPeriod(period);
+    // Ajouter communautaire.mobileair aux sources sélectionnées si pas déjà présent
+    if (!selectedSources.includes("communautaire.mobileair")) {
+      setSelectedSources([...selectedSources, "communautaire.mobileair"]);
+    }
+  };
+
+  // Effet pour ouvrir automatiquement le side panel MobileAir quand la source est sélectionnée
+  useEffect(() => {
+    if (
+      selectedSources.includes("communautaire.mobileair") &&
+      !selectedMobileAirSensor
+    ) {
+      // MobileAir est sélectionné mais aucun capteur n'est encore choisi
+      // Le side panel s'ouvrira automatiquement via le composant AirQualityMap
+    }
+  }, [selectedSources, selectedMobileAirSensor]);
 
   // État pour l'auto-refresh
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
@@ -59,6 +91,8 @@ const App: React.FC = () => {
       selectedSources,
       selectedTimeStep,
       signalAirPeriod,
+      mobileAirPeriod,
+      selectedMobileAirSensor,
       autoRefreshEnabled,
     });
 
@@ -70,7 +104,15 @@ const App: React.FC = () => {
       {/* Header avec contrôles intégrés */}
       <header className="bg-white border-b border-gray-200 px-4 py-3 shadow-sm z-[1000]">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-blue-600">OpenAirMap</h1>
+          {/* Titre et logo groupés à gauche */}
+          <div className="flex items-center space-x-3">
+            <h1 className="text-lg font-semibold text-blue-600">OpenAirMap</h1>
+            <img
+              src="./logo_atmosud_inspirer_ok_web.png"
+              alt="OpenAirMap logo"
+              className="h-10"
+            />
+          </div>
 
           {/* Contrôles intégrés dans l'en-tête */}
           <div className="flex items-center space-x-4">
@@ -120,7 +162,7 @@ const App: React.FC = () => {
 
       {/* Carte en plein écran */}
       <main className="flex-1 relative">
-        {/* Indicateur de chargement discret */}
+        {/* Indicateur de chargement */}
         {loading && (
           <div className="absolute top-4 right-4 z-[1500]">
             <div className="bg-white/90 backdrop-blur-sm px-3 py-2 rounded-lg shadow-lg border border-gray-200">
@@ -155,17 +197,19 @@ const App: React.FC = () => {
             <p className="text-xs">Erreur: {error}</p>
           </div>
         )}
-
+        {/* Carte */}
         <AirQualityMap
           devices={devices}
           reports={reports}
           center={mapCenter}
           zoom={mapZoom}
           selectedPollutant={selectedPollutant}
+          selectedSources={selectedSources}
           loading={loading}
+          onMobileAirSensorSelected={handleMobileAirSensorSelected}
         />
 
-        {/* Informations de la carte */}
+        {/* Informations de la carte (nombre d'appareils et de signalements) */}
         <div className="absolute bottom-4 right-4 bg-white px-3 py-2 rounded-md shadow-lg z-[1000]">
           <p className="text-xs text-gray-600">
             {devices.length} appareil{devices.length > 1 ? "s" : ""}

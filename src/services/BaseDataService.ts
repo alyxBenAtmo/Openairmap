@@ -12,6 +12,8 @@ export abstract class BaseDataService implements DataService {
     timeStep: string;
     sources: string[];
     signalAirPeriod?: { startDate: string; endDate: string };
+    mobileAirPeriod?: { startDate: string; endDate: string };
+    selectedSensors?: string[];
   }): Promise<MeasurementDevice[] | SignalAirReport[]>;
 
   protected createDevice(
@@ -44,11 +46,13 @@ export abstract class BaseDataService implements DataService {
     options?: RequestInit
   ): Promise<any> {
     try {
+      const method = options?.method || "GET";
       const defaultOptions: RequestInit = {
-        method: "GET",
+        method,
         headers: {
           Accept: "application/json,application/geo+json,*/*",
-          "Content-Type": "application/json",
+          // Ne pas envoyer Content-Type pour les requêtes GET
+          ...(method !== "GET" && { "Content-Type": "application/json" }),
         },
         mode: "cors",
         credentials: "omit",
@@ -62,8 +66,6 @@ export abstract class BaseDataService implements DataService {
           ...options.headers,
         };
       }
-
-      console.log(`🌐 ${this.sourceCode} - Requête vers: ${url}`);
 
       const response = await fetch(url, defaultOptions);
 
@@ -84,7 +86,11 @@ export abstract class BaseDataService implements DataService {
         try {
           return JSON.parse(text);
         } catch {
-          throw new Error(`Format de réponse non supporté: ${contentType}`);
+          // Retourner le texte brut si ce n'est pas du JSON
+          console.warn(
+            `Réponse non-JSON reçue (${contentType}), retour du texte brut`
+          );
+          return text;
         }
       }
     } catch (error) {

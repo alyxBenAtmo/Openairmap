@@ -25,3 +25,12 @@ dist-ssr
 
 # config
 .env
+
+#test
+coverage/
+
+#docs
+docs/
+
+#Note personnelle
+note.txt

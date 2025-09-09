@@ -111,6 +111,8 @@ export interface DataService {
     timeStep: string;
     sources: string[];
     signalAirPeriod?: { startDate: string; endDate: string };
+    mobileAirPeriod?: { startDate: string; endDate: string };
+    selectedSensors?: string[];
   }): Promise<MeasurementDevice[] | SignalAirReport[]>;
 }
 
@@ -177,6 +179,16 @@ export const ATMOREF_POLLUTANT_MAPPING: Record<string, string> = {
   "24": "pm10", // PM10
   "39": "pm25", // PM2.5
   "68": "pm1", // PM1
+};
+
+// Mapping des variables AtmoMicro vers nos codes de polluants
+export const ATMOMICRO_POLLUTANT_MAPPING: Record<string, string> = {
+  "PM2.5": "pm25",
+  PM10: "pm10",
+  PM1: "pm1",
+  NO2: "no2",
+  O3: "o3",
+  SO2: "so2",
 };
 
 // Types pour le side panel et les données historiques
@@ -309,3 +321,133 @@ export interface StatisticsControlProps {
   isVisible: boolean;
   onToggleVisibility: () => void;
 }
+
+// Types spécifiques pour NebuleAir
+export interface NebuleAirSensor {
+  sensorId: string;
+  time: string;
+  timeUTC: string;
+  COV: string;
+  PM1: string;
+  PM25: string;
+  PM10: string;
+  PM1_qh: string;
+  PM25_qh: string;
+  PM10_qh: string;
+  PM1_h: string;
+  PM25_h: string;
+  PM10_h: string;
+  PM1_d: string | null;
+  PM25_d: string | null;
+  PM10_d: string | null;
+  TEMP: string;
+  HUM: string;
+  latitude: string;
+  longitude: string;
+  wifi_signal: string;
+  AtmoSud: boolean;
+  last_seen_sec: number;
+  connected: boolean;
+  displayMap: boolean;
+  check_token: boolean;
+  room: string | null;
+  etage: string | null;
+}
+
+export interface NebuleAirMetadataResponse {
+  sensors: NebuleAirSensor[];
+}
+
+export interface NebuleAirDataResponse {
+  data: NebuleAirSensor[];
+}
+
+// Mapping des polluants NebuleAir vers nos codes
+export const NEBULEAIR_POLLUTANT_MAPPING: Record<string, string> = {
+  PM1: "pm1",
+  PM25: "pm25",
+  PM10: "pm10",
+  // Note: NebuleAir ne mesure que les particules fines (PM1, PM2.5, PM10)
+  // Les autres polluants (NO2, O3, SO2) ne sont pas disponibles
+};
+
+// Mapping des pas de temps NebuleAir vers nos codes
+export const NEBULEAIR_TIMESTEP_MAPPING: Record<string, string> = {
+  instantane: "", // Pas de suffixe pour les valeurs instantanées (2min)
+  deuxMin: "", // Pas de suffixe pour les valeurs 2min
+  quartHeure: "_qh", // Quart-horaire
+  heure: "_h", // Horaire
+  jour: "_d", // Journalier
+};
+
+// Types spécifiques pour MobileAir
+export interface MobileAirSensor {
+  sensorId: string;
+  sensorToken: string;
+  time: string;
+  timeUTC: string;
+  COV: string | null;
+  PM1: string | null;
+  PM25: string | null;
+  PM10: string | null;
+  TEMP: string | null;
+  HUM: string | null;
+  latitude: string;
+  longitude: string;
+  wifi_signal: string | null;
+  last_seen_sec: number;
+  connected: boolean;
+  displayMap: boolean;
+}
+
+export interface MobileAirMetadataResponse {
+  sensors: MobileAirSensor[];
+}
+
+export interface MobileAirDataPoint {
+  time: string;
+  sensorId: string;
+  sessionId: number;
+  sat: number;
+  PM1: number;
+  PM25: number;
+  PM10: number;
+  lat: number;
+  lon: number;
+}
+
+export interface MobileAirDataResponse {
+  data: MobileAirDataPoint[];
+}
+
+// Type pour représenter un parcours MobileAir (session)
+export interface MobileAirRoute {
+  sessionId: number;
+  sensorId: string;
+  points: MobileAirDataPoint[];
+  pollutant: string;
+  averageValue: number;
+  maxValue: number;
+  minValue: number;
+  startTime: string;
+  endTime: string;
+  duration: number; // en minutes
+}
+
+// Mapping des polluants MobileAir vers nos codes
+export const MOBILEAIR_POLLUTANT_MAPPING: Record<string, string> = {
+  PM1: "pm1",
+  PM25: "pm25",
+  PM10: "pm10",
+  // Note: MobileAir ne mesure que les particules fines (PM1, PM2.5, PM10)
+  // Les autres polluants (NO2, O3, SO2) ne sont pas disponibles
+};
+
+// Mapping des pas de temps MobileAir vers les paramètres d'API
+export const MOBILEAIR_TIMESTEP_MAPPING: Record<string, string> = {
+  instantane: "-18d", // 18 jours pour avoir assez de données
+  deuxMin: "-18d", // 18 jours pour avoir assez de données
+  quartHeure: "-18d", // 18 jours pour avoir assez de données
+  heure: "-18d", // 18 jours pour avoir assez de données
+  jour: "-18d", // 18 jours pour avoir assez de données
+};

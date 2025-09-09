@@ -68,12 +68,6 @@ export class SignalAirService extends BaseDataService {
 
   constructor() {
     super("signalair");
-    console.log(
-      `🔧 SignalAirService - Environnement de développement: ${this.useLocalProxy}`
-    );
-    console.log(
-      `🔧 SignalAirService - Proxy local activé: ${this.useLocalProxy}`
-    );
   }
 
   async fetchData(params: {
@@ -81,9 +75,9 @@ export class SignalAirService extends BaseDataService {
     timeStep: string;
     sources: string[];
     signalAirPeriod?: { startDate: string; endDate: string };
+    mobileAirPeriod?: { startDate: string; endDate: string };
+    selectedSensors?: string[];
   }): Promise<SignalAirReport[]> {
-    console.log(`🔍 SignalAirService.fetchData appelé avec:`, params);
-
     try {
       // Utiliser la période par défaut si non fournie (2 derniers jours)
       const period = params.signalAirPeriod || this.getDefaultPeriod();
@@ -96,17 +90,11 @@ export class SignalAirService extends BaseDataService {
 
       // Si la période n'a pas changé et qu'on a des données en cache, les retourner
       if (!periodChanged && this.signalCache.length > 0) {
-        console.log(
-          `📊 SignalAir - Utilisation du cache: ${this.signalCache.length} signalements`
-        );
         return this.signalCache;
       }
 
       // Si la période a changé, vider le cache et récupérer les nouvelles données
       if (periodChanged) {
-        console.log(
-          `📊 SignalAir - Période changée, récupération des nouvelles données`
-        );
         this.signalCache = [];
         this.lastPeriod = period;
       }
@@ -125,10 +113,6 @@ export class SignalAirService extends BaseDataService {
             Array.isArray(response.features) &&
             response.features.length > 0
           ) {
-            console.log(
-              `📊 SignalAir - ${signalType}: ${response.features.length} signalements reçus`
-            );
-
             // Extraire le type de signalement depuis l'URL
             const urlCode = baseUrl.split("/").pop() || "";
             const extractedSignalType =
@@ -140,11 +124,7 @@ export class SignalAirService extends BaseDataService {
             );
             allReports.push(...reports);
           } else if (response === null) {
-            console.log(
-              `📊 SignalAir - ${signalType}: Aucun signalement pour cette période`
-            );
           } else {
-            console.log(`📊 SignalAir - ${signalType}: Réponse invalide reçue`);
           }
         } catch (error) {
           console.warn(
@@ -158,9 +138,6 @@ export class SignalAirService extends BaseDataService {
       // Mettre à jour le cache
       this.signalCache = allReports;
 
-      console.log(
-        `✅ SignalAir - Total: ${allReports.length} signalements créés`
-      );
       return allReports;
     } catch (error) {
       console.error(
@@ -235,9 +212,6 @@ export class SignalAirService extends BaseDataService {
         ].replace("https://www.signalair.eu", "")}/${period.startDate}/${
           period.endDate
         }`;
-        console.log(
-          `📡 SignalAir - Utilisation proxy local pour ${signalType}: ${localProxyUrl}`
-        );
 
         const response = await this.makeRequest(localProxyUrl, {
           method: "GET",
@@ -253,14 +227,8 @@ export class SignalAirService extends BaseDataService {
           typeof response === "object" &&
           response.type === "FeatureCollection"
         ) {
-          console.log(
-            `✅ SignalAir - Succès avec proxy local pour ${signalType}`
-          );
           return response;
         } else {
-          console.log(
-            `📊 SignalAir - Aucun signalement pour ${signalType} sur cette période`
-          );
           return null;
         }
       } catch (error) {
@@ -274,9 +242,6 @@ export class SignalAirService extends BaseDataService {
     for (const [proxyName, proxyUrl] of Object.entries(this.CORS_PROXIES)) {
       try {
         const fullProxyUrl = `${proxyUrl}${encodeURIComponent(directUrl)}`;
-        console.log(
-          `📡 SignalAir - Tentative avec ${proxyName} pour ${signalType}: ${fullProxyUrl}`
-        );
 
         const response = await this.makeRequest(fullProxyUrl, {
           method: "GET",
@@ -294,14 +259,8 @@ export class SignalAirService extends BaseDataService {
           typeof response === "object" &&
           response.type === "FeatureCollection"
         ) {
-          console.log(
-            `✅ SignalAir - Succès avec ${proxyName} pour ${signalType}`
-          );
           return response;
         } else {
-          console.log(
-            `📊 SignalAir - Aucun signalement pour ${signalType} sur cette période`
-          );
           return null;
         }
       } catch (proxyError) {
@@ -315,10 +274,6 @@ export class SignalAirService extends BaseDataService {
 
     // En dernier recours, essayer la requête directe (peut échouer à cause de CORS)
     try {
-      console.log(
-        `📡 SignalAir - Dernière tentative directe pour ${signalType}: ${directUrl}`
-      );
-
       const response = await this.makeRequest(directUrl, {
         method: "GET",
         headers: {
@@ -337,9 +292,6 @@ export class SignalAirService extends BaseDataService {
       ) {
         return response;
       } else {
-        console.log(
-          `📊 SignalAir - Aucun signalement pour ${signalType} sur cette période`
-        );
         return null;
       }
     } catch (directError) {

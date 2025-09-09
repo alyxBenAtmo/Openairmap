@@ -22,10 +22,9 @@ export class AtmoRefService extends BaseDataService {
     timeStep: string;
     sources: string[];
     signalAirPeriod?: { startDate: string; endDate: string };
+    mobileAirPeriod?: { startDate: string; endDate: string };
+    selectedSensors?: string[];
   }): Promise<MeasurementDevice[]> {
-    console.log(`🔍 AtmoRefService.fetchData appelé avec:`, params);
-    console.log(`🧹 Nettoyage des données précédentes...`);
-
     try {
       // Mapping du polluant vers le nom AtmoSud
       const atmoRefPollutantName = this.getAtmoRefPollutantName(
@@ -45,11 +44,6 @@ export class AtmoRefService extends BaseDataService {
         return [];
       }
 
-      console.log(`📡 AtmoRef - URLs générées:`, {
-        stations: `${this.BASE_URL}/stations?format=json&nom_polluant=${atmoRefPollutantName}&station_en_service=true&download=false&metadata=true`,
-        measures: `${this.BASE_URL}/stations/mesures/derniere?format=json&nom_polluant=${atmoRefPollutantName}&temporalite=${timeStepConfig.temporalite}&delais=${timeStepConfig.delais}&download=false`,
-      });
-
       // Faire les deux appels API en parallèle
       const [stationsResponse, measuresResponse] = await Promise.all([
         this.fetchStations(atmoRefPollutantName),
@@ -65,10 +59,6 @@ export class AtmoRefService extends BaseDataService {
         console.warn("Aucune donnée reçue d'AtmoRef");
         return [];
       }
-
-      console.log(
-        `📊 AtmoRef - Données reçues: ${stationsResponse.stations.length} stations, ${measuresResponse.mesures.length} mesures`
-      );
 
       // Créer un map des mesures par ID de station pour un accès rapide
       const measuresMap = new Map<string, AtmoRefMeasure>();
@@ -127,9 +117,6 @@ export class AtmoRefService extends BaseDataService {
         }
       }
 
-      console.log(
-        `✅ AtmoRef - ${devices.length} appareils créés (données fraîches)`
-      );
       return devices;
     } catch (error) {
       console.error(
@@ -195,8 +182,6 @@ export class AtmoRefService extends BaseDataService {
     startDate: string;
     endDate: string;
   }): Promise<Array<{ timestamp: string; value: number; unit: string }>> {
-    console.log(`📊 AtmoRefService.fetchHistoricalData appelé avec:`, params);
-
     try {
       // Mapping du polluant vers le nom AtmoSud
       const atmoRefPollutantName = this.getAtmoRefPollutantName(
@@ -219,8 +204,6 @@ export class AtmoRefService extends BaseDataService {
       // Construire l'URL pour les données historiques avec le bon endpoint
       const url = `${this.BASE_URL}/stations/mesures?format=json&station_id=${params.stationId}&nom_polluant=${atmoRefPollutantName}&temporalite=${timeStepConfig.temporalite}&download=false&metadata=true&date_debut=${params.startDate}&date_fin=${params.endDate}`;
 
-      console.log(`📡 AtmoRef - URL historique:`, url);
-
       const response = await this.makeRequest(url);
 
       if (!response.mesures) {
@@ -237,9 +220,6 @@ export class AtmoRefService extends BaseDataService {
         })
       );
 
-      console.log(
-        `✅ AtmoRef - ${historicalData.length} points de données historiques récupérés`
-      );
       return historicalData;
     } catch (error) {
       console.error(
@@ -256,11 +236,6 @@ export class AtmoRefService extends BaseDataService {
   ): Promise<
     Record<string, { label: string; code_iso: string; en_service: boolean }>
   > {
-    console.log(
-      `🔍 AtmoRefService.fetchStationVariables appelé pour station:`,
-      stationId
-    );
-
     try {
       const url = `${this.BASE_URL}/stations?format=json&station_en_service=true&download=false&metadata=true`;
       const response = await this.makeRequest(url);
@@ -273,10 +248,6 @@ export class AtmoRefService extends BaseDataService {
         return {};
       }
 
-      console.log(
-        `✅ AtmoRef - Variables de la station ${stationId}:`,
-        station.variables
-      );
       return station.variables;
     } catch (error) {
       console.error(

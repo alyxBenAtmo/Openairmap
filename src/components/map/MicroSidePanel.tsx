@@ -4,17 +4,16 @@ import {
   ChartControls,
   HistoricalDataPoint,
   SidePanelState,
-  ATMOREF_POLLUTANT_MAPPING,
+  ATMOMICRO_POLLUTANT_MAPPING,
 } from "../../types";
 import { pollutants } from "../../constants/pollutants";
-import { pasDeTemps } from "../../constants/timeSteps";
-import { AtmoRefService } from "../../services/AtmoRefService";
+import { AtmoMicroService } from "../../services/AtmoMicroService";
 import HistoricalChart from "./HistoricalChart";
 import HistoricalTimeRangeSelector, {
   TimeRange,
 } from "../controls/HistoricalTimeRangeSelector";
 
-interface StationSidePanelProps {
+interface MicroSidePanelProps {
   isOpen: boolean;
   selectedStation: StationInfo | null;
   onClose: () => void;
@@ -26,7 +25,7 @@ interface StationSidePanelProps {
 
 type PanelSize = "normal" | "fullscreen" | "hidden";
 
-const StationSidePanel: React.FC<StationSidePanelProps> = ({
+const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
   isOpen,
   selectedStation,
   onClose,
@@ -58,14 +57,13 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
 
-  const atmoRefService = new AtmoRefService();
+  const atmoMicroService = new AtmoMicroService();
 
   // Fonction utilitaire pour vérifier si un polluant est disponible dans la station
   const isPollutantAvailable = (pollutantCode: string): boolean => {
     return Object.entries(selectedStation?.variables || {}).some(
       ([code, variable]) => {
-        const mappedCode = ATMOREF_POLLUTANT_MAPPING[code];
-        return mappedCode === pollutantCode && variable.en_service;
+        return code === pollutantCode && variable.en_service;
       }
     );
   };
@@ -136,8 +134,6 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
       timeRange: TimeRange,
       timeStep: string
     ) => {
-      // Pour l'instant, on ne supporte que AtmoRef
-      // TODO: Ajouter le support pour d'autres sources
       setState((prev) => ({ ...prev, loading: true, error: null }));
 
       try {
@@ -146,8 +142,8 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
 
         // Charger les données pour chaque polluant sélectionné
         for (const pollutant of pollutants) {
-          const data = await atmoRefService.fetchHistoricalData({
-            stationId: station.id,
+          const data = await atmoMicroService.fetchHistoricalData({
+            siteId: station.id,
             pollutant,
             timeStep,
             startDate,
@@ -173,7 +169,7 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
         }));
       }
     },
-    [atmoRefService]
+    [atmoMicroService]
   );
 
   const getDateRange = (
@@ -237,9 +233,9 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
       const { startDate, endDate } = getDateRange(
         state.chartControls.timeRange
       );
-      atmoRefService
+      atmoMicroService
         .fetchHistoricalData({
-          stationId: selectedStation.id,
+          siteId: selectedStation.id,
           pollutant,
           timeStep: state.chartControls.timeStep,
           startDate,
@@ -328,14 +324,13 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
   if (!isOpen || !selectedStation) {
     return null;
   }
-
   return (
     <div className={getPanelClasses()}>
       {/* Header */}
       <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200 bg-gray-50">
         <div className="flex-1 min-w-0">
           <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-            {selectedStation.name}
+            {selectedStation.name} (AtmoMicro)
           </h2>
           <p className="text-xs sm:text-sm text-gray-600 truncate">
             {selectedStation.address}
@@ -440,7 +435,7 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
           {/* Graphique avec contrôles intégrés */}
           <div className="flex-1 min-h-80 sm:min-h-96 md:min-h-[28rem]">
             <h3 className="text-sm font-medium text-gray-700 mb-2 sm:mb-3">
-              Évolution temporelle
+              Évolution temporelle (AtmoMicro)
             </h3>
             {state.loading ? (
               <div className="flex items-center justify-center h-80 sm:h-96 md:h-[28rem] bg-gray-50 rounded-lg">
@@ -523,18 +518,8 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
                     <div className="px-2.5 sm:px-3 pb-2.5 sm:pb-3 space-y-1">
                       {Object.entries(pollutants).map(
                         ([pollutantCode, pollutant]) => {
-                          // Trouver si ce polluant est disponible dans la station
-                          const availableVariable = Object.entries(
-                            selectedStation.variables
-                          ).find(([code, variable]) => {
-                            const mappedCode = ATMOREF_POLLUTANT_MAPPING[code];
-                            return (
-                              mappedCode === pollutantCode &&
-                              variable.en_service
-                            );
-                          });
-
-                          const isEnabled = !!availableVariable;
+                          // Vérifier si ce polluant est disponible dans la station
+                          const isEnabled = isPollutantAvailable(pollutantCode);
                           const isSelected =
                             state.chartControls.selectedPollutants.includes(
                               pollutantCode
@@ -605,7 +590,7 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
 
                 {/* Contrôles du graphique - en bas du graphique */}
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                  {/* Contrôles de la période */}
+                  {/* Contrôles de la période - Utilisation du composant réutilisable */}
                   <div className="flex-1 border border-gray-200 rounded-lg p-2.5 sm:p-3">
                     <HistoricalTimeRangeSelector
                       timeRange={state.chartControls.timeRange}
@@ -664,4 +649,4 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
   );
 };
 
-export default StationSidePanel;
+export default MicroSidePanel;

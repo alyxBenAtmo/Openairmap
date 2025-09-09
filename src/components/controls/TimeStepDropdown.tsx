@@ -39,7 +39,13 @@ const TimeStepDropdown: React.FC<TimeStepDropdownProps> = ({
     const allSupportedTimeSteps = new Set<string>();
 
     selectedSources.forEach((sourceCode) => {
-      const source = sources[sourceCode];
+      // Gérer les sources communautaires (communautaire.nebuleair -> nebuleair)
+      let actualSourceCode = sourceCode;
+      if (sourceCode.startsWith("communautaire.")) {
+        actualSourceCode = sourceCode.split(".")[1];
+      }
+
+      const source = sources[actualSourceCode];
       if (source) {
         // Ajouter les pas de temps de la source principale
         if (source.supportedTimeSteps) {
@@ -57,6 +63,17 @@ const TimeStepDropdown: React.FC<TimeStepDropdownProps> = ({
               });
             }
           });
+        }
+      } else {
+        // Si c'est une source communautaire, chercher dans le groupe communautaire
+        const communautaireSource = sources["communautaire"];
+        if (communautaireSource && communautaireSource.subSources) {
+          const subSource = communautaireSource.subSources[actualSourceCode];
+          if (subSource && subSource.supportedTimeSteps) {
+            subSource.supportedTimeSteps.forEach((timeStep) => {
+              allSupportedTimeSteps.add(timeStep);
+            });
+          }
         }
       }
     });

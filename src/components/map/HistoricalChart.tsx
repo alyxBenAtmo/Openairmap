@@ -21,6 +21,12 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   data,
   selectedPollutants,
 }) => {
+  // Log pour debug
+  console.log("📊 [HistoricalChart] Props reçues:", {
+    data,
+    selectedPollutants,
+  });
+
   // Couleurs de fallback si un polluant n'est pas défini dans POLLUTANT_COLORS
   const fallbackColors = [
     "#3B82F6",
@@ -128,11 +134,23 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     return transformedData;
   };
 
+  // Transformer les données pour Recharts
   const chartData = transformData();
   const unitGroups = groupPollutantsByUnit();
   const unitKeys = Object.keys(unitGroups);
 
+  console.log("📈 [HistoricalChart] Données transformées:", {
+    chartDataLength: chartData.length,
+    unitGroups,
+    unitKeys,
+    chartData: chartData.slice(0, 3), // Log des 3 premiers points
+  });
+
+  // Afficher un message si aucune donnée n'est disponible
   if (chartData.length === 0) {
+    console.log(
+      "⚠️ [HistoricalChart] Aucune donnée disponible pour le graphique"
+    );
     return (
       <div className="flex items-center justify-center h-full text-gray-500">
         <p>Aucune donnée disponible</p>

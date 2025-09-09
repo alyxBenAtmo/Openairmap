@@ -16,7 +16,7 @@ export const sources: Sources = {
   communautaire: {
     name: "Autres capteurs communautaires",
     code: "communautaire",
-    activated: false,
+    activated: true,
     isGroup: true,
     supportedTimeSteps: [
       "instantane",
@@ -53,6 +53,18 @@ export const sources: Sources = {
       purpleair: {
         name: "PurpleAir",
         code: "purpleair",
+        activated: false,
+        supportedTimeSteps: [
+          "instantane",
+          "deuxMin",
+          "quartHeure",
+          "heure",
+          "jour",
+        ],
+      },
+      mobileair: {
+        name: "MobileAir",
+        code: "mobileair",
         activated: false,
         supportedTimeSteps: [
           "instantane",

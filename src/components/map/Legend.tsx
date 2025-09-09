@@ -1,5 +1,6 @@
 import React from "react";
 import { pollutants } from "../../constants/pollutants";
+import { QUALITY_COLORS } from "../../constants/qualityColors";
 
 interface LegendProps {
   selectedPollutant: string;
@@ -12,16 +13,8 @@ const Legend: React.FC<LegendProps> = ({
   isSidePanelOpen = false,
   panelSize = "normal",
 }) => {
-  // Couleurs pour chaque seuil
-  const colors = {
-    noData: "#999999",
-    bon: "#4ff0e6",
-    moyen: "#51ccaa",
-    degrade: "#ede663",
-    mauvais: "#ed5e58",
-    tresMauvais: "#881b33",
-    extrMauvais: "#74287d",
-  };
+  // Utiliser les couleurs centralisées
+  const colors = QUALITY_COLORS;
 
   // Obtenir les seuils du polluant sélectionné
   const pollutant = pollutants[selectedPollutant];

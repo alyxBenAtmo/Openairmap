@@ -4,17 +4,16 @@ import {
   ChartControls,
   HistoricalDataPoint,
   SidePanelState,
-  ATMOREF_POLLUTANT_MAPPING,
+  NEBULEAIR_POLLUTANT_MAPPING,
 } from "../../types";
 import { pollutants } from "../../constants/pollutants";
-import { pasDeTemps } from "../../constants/timeSteps";
-import { AtmoRefService } from "../../services/AtmoRefService";
+import { NebuleAirService } from "../../services/NebuleAirService";
 import HistoricalChart from "./HistoricalChart";
 import HistoricalTimeRangeSelector, {
   TimeRange,
 } from "../controls/HistoricalTimeRangeSelector";
 
-interface StationSidePanelProps {
+interface NebuleAirSidePanelProps {
   isOpen: boolean;
   selectedStation: StationInfo | null;
   onClose: () => void;
@@ -26,7 +25,7 @@ interface StationSidePanelProps {
 
 type PanelSize = "normal" | "fullscreen" | "hidden";
 
-const StationSidePanel: React.FC<StationSidePanelProps> = ({
+const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
   isOpen,
   selectedStation,
   onClose,
@@ -58,14 +57,13 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
 
-  const atmoRefService = new AtmoRefService();
+  const nebuleAirService = new NebuleAirService();
 
   // Fonction utilitaire pour vérifier si un polluant est disponible dans la station
   const isPollutantAvailable = (pollutantCode: string): boolean => {
     return Object.entries(selectedStation?.variables || {}).some(
       ([code, variable]) => {
-        const mappedCode = ATMOREF_POLLUTANT_MAPPING[code];
-        return mappedCode === pollutantCode && variable.en_service;
+        return code === pollutantCode && variable.en_service;
       }
     );
   };
@@ -83,9 +81,18 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
 
   // Mettre à jour l'état quand les props changent
   useEffect(() => {
+    console.log("🔄 [NebuleAirSidePanel] useEffect déclenché:", {
+      isOpen,
+      selectedStation: selectedStation?.id,
+    });
+
     if (isOpen && selectedStation) {
       // Déterminer quels polluants sont disponibles dans cette station
       const availablePollutants = getAvailablePollutants();
+      console.log(
+        "📊 [NebuleAirSidePanel] Polluants disponibles:",
+        availablePollutants
+      );
 
       // Sélectionner le polluant initial s'il est disponible, sinon le premier disponible
       const selectedPollutants = availablePollutants.includes(initialPollutant)
@@ -93,6 +100,11 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
         : availablePollutants.length > 0
         ? [availablePollutants[0]]
         : [];
+
+      console.log(
+        "🎯 [NebuleAirSidePanel] Polluants sélectionnés:",
+        selectedPollutants
+      );
 
       setState((prev) => ({
         ...prev,
@@ -112,18 +124,30 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
 
       // Charger les données historiques initiales si des polluants sont disponibles
       if (selectedPollutants.length > 0) {
+        console.log(
+          "🚀 [NebuleAirSidePanel] Démarrage du chargement des données historiques"
+        );
         loadHistoricalData(
           selectedStation,
           selectedPollutants,
           { type: "preset", preset: "24h" },
           "quartHeure"
         );
+      } else {
+        console.log(
+          "⚠️ [NebuleAirSidePanel] Aucun polluant sélectionné, pas de chargement de données"
+        );
       }
     } else {
+      // Fermer le panneau
+      console.log("❌ [NebuleAirSidePanel] Fermeture du panneau");
       setState((prev) => ({
         ...prev,
         isOpen: false,
         selectedStation: null,
+        historicalData: {},
+        loading: false,
+        error: null,
       }));
       setInternalPanelSize("hidden");
     }
@@ -136,25 +160,50 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
       timeRange: TimeRange,
       timeStep: string
     ) => {
-      // Pour l'instant, on ne supporte que AtmoRef
-      // TODO: Ajouter le support pour d'autres sources
+      console.log("🚀 [NebuleAirSidePanel] Début loadHistoricalData:", {
+        station: station.id,
+        pollutants,
+        timeRange,
+        timeStep,
+      });
+
       setState((prev) => ({ ...prev, loading: true, error: null }));
 
       try {
         const { startDate, endDate } = getDateRange(timeRange);
+        console.log("📅 [NebuleAirSidePanel] Période calculée:", {
+          startDate,
+          endDate,
+        });
+
         const newHistoricalData: Record<string, HistoricalDataPoint[]> = {};
 
         // Charger les données pour chaque polluant sélectionné
         for (const pollutant of pollutants) {
-          const data = await atmoRefService.fetchHistoricalData({
-            stationId: station.id,
+          console.log(
+            `🔄 [NebuleAirSidePanel] Chargement pour polluant: ${pollutant}`
+          );
+
+          const data = await nebuleAirService.fetchHistoricalData({
+            sensorId: station.id,
             pollutant,
             timeStep,
             startDate,
             endDate,
           });
+
+          console.log(
+            `📊 [NebuleAirSidePanel] Données reçues pour ${pollutant}:`,
+            data.length,
+            "points"
+          );
           newHistoricalData[pollutant] = data;
         }
+
+        console.log(
+          "✅ [NebuleAirSidePanel] Toutes les données chargées:",
+          newHistoricalData
+        );
 
         setState((prev) => ({
           ...prev,
@@ -163,7 +212,7 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
         }));
       } catch (error) {
         console.error(
-          "Erreur lors du chargement des données historiques:",
+          "❌ [NebuleAirSidePanel] Erreur lors du chargement des données historiques:",
           error
         );
         setState((prev) => ({
@@ -173,7 +222,7 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
         }));
       }
     },
-    [atmoRefService]
+    [nebuleAirService]
   );
 
   const getDateRange = (
@@ -237,9 +286,9 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
       const { startDate, endDate } = getDateRange(
         state.chartControls.timeRange
       );
-      atmoRefService
+      nebuleAirService
         .fetchHistoricalData({
-          stationId: selectedStation.id,
+          sensorId: selectedStation.id,
           pollutant,
           timeStep: state.chartControls.timeStep,
           startDate,
@@ -309,6 +358,12 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
     }
   };
 
+  if (!isOpen || !selectedStation) {
+    return null;
+  }
+
+  const availablePollutants = getAvailablePollutants();
+
   const getPanelClasses = () => {
     const baseClasses =
       "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300";
@@ -335,7 +390,7 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
       <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200 bg-gray-50">
         <div className="flex-1 min-w-0">
           <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-            {selectedStation.name}
+            {selectedStation.name} (NebuleAir)
           </h2>
           <p className="text-xs sm:text-sm text-gray-600 truncate">
             {selectedStation.address}
@@ -440,7 +495,7 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
           {/* Graphique avec contrôles intégrés */}
           <div className="flex-1 min-h-80 sm:min-h-96 md:min-h-[28rem]">
             <h3 className="text-sm font-medium text-gray-700 mb-2 sm:mb-3">
-              Évolution temporelle
+              Évolution temporelle (NebuleAir)
             </h3>
             {state.loading ? (
               <div className="flex items-center justify-center h-80 sm:h-96 md:h-[28rem] bg-gray-50 rounded-lg">
@@ -523,18 +578,8 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
                     <div className="px-2.5 sm:px-3 pb-2.5 sm:pb-3 space-y-1">
                       {Object.entries(pollutants).map(
                         ([pollutantCode, pollutant]) => {
-                          // Trouver si ce polluant est disponible dans la station
-                          const availableVariable = Object.entries(
-                            selectedStation.variables
-                          ).find(([code, variable]) => {
-                            const mappedCode = ATMOREF_POLLUTANT_MAPPING[code];
-                            return (
-                              mappedCode === pollutantCode &&
-                              variable.en_service
-                            );
-                          });
-
-                          const isEnabled = !!availableVariable;
+                          // Vérifier si ce polluant est disponible dans la station
+                          const isEnabled = isPollutantAvailable(pollutantCode);
                           const isSelected =
                             state.chartControls.selectedPollutants.includes(
                               pollutantCode
@@ -605,7 +650,7 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
 
                 {/* Contrôles du graphique - en bas du graphique */}
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                  {/* Contrôles de la période */}
+                  {/* Contrôles de la période - Utilisation du composant réutilisable */}
                   <div className="flex-1 border border-gray-200 rounded-lg p-2.5 sm:p-3">
                     <HistoricalTimeRangeSelector
                       timeRange={state.chartControls.timeRange}
@@ -664,4 +709,4 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
   );
 };
 
-export default StationSidePanel;
+export default NebuleAirSidePanel;

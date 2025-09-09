@@ -39,8 +39,8 @@ export const MARKER_CONFIGS: Record<string, MarkerConfig> = {
     ],
     defaultLevel: "default",
   },
-  nebuleAir: {
-    source: "nebuleAir",
+  nebuleair: {
+    source: "nebuleair",
     basePath: "nebuleAirMarkers/nebuleAir",
     levels: [
       "bon",
@@ -86,6 +86,20 @@ export const MARKER_CONFIGS: Record<string, MarkerConfig> = {
     basePath: "signalAirMarkers",
     levels: ["odeur", "bruit", "brulage", "visuel", "pollen"],
     defaultLevel: "odeur",
+  },
+  mobileair: {
+    source: "mobileair",
+    basePath: "mobileAirMarkers/mobileAir",
+    levels: [
+      "bon",
+      "moyen",
+      "degrade",
+      "mauvais",
+      "tresMauvais",
+      "extrMauvais",
+      "default",
+    ],
+    defaultLevel: "default",
   },
 };
 
