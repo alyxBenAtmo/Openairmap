@@ -4,6 +4,7 @@ import { AtmoMicroService } from "./AtmoMicroService";
 import { NebuleAirService } from "./NebuleAirService";
 import { SignalAirService } from "./SignalAirService";
 import { MobileAirService } from "./MobileAirService";
+import { PurpleAirService } from "./PurpleAirService";
 
 export class DataServiceFactory {
   private static services: Map<string, DataService> = new Map();
@@ -27,6 +28,9 @@ export class DataServiceFactory {
           break;
         case "mobileair":
           service = new MobileAirService();
+          break;
+        case "purpleair":
+          service = new PurpleAirService();
           break;
         default:
           throw new Error(`Service non supporté pour la source: ${sourceCode}`);

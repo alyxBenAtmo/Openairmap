@@ -53,14 +53,8 @@ export const sources: Sources = {
       purpleair: {
         name: "PurpleAir",
         code: "purpleair",
-        activated: false,
-        supportedTimeSteps: [
-          "instantane",
-          "deuxMin",
-          "quartHeure",
-          "heure",
-          "jour",
-        ],
+        activated: true,
+        supportedTimeSteps: ["instantane", "deuxMin"],
       },
       mobileair: {
         name: "MobileAir",

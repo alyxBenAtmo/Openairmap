@@ -53,8 +53,8 @@ export const MARKER_CONFIGS: Record<string, MarkerConfig> = {
     ],
     defaultLevel: "default",
   },
-  purpleAir: {
-    source: "purpleAir",
+  purpleair: {
+    source: "purpleair",
     basePath: "purpleAirMarkers/purpleAir",
     levels: [
       "bon",

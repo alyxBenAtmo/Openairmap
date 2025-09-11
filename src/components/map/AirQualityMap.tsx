@@ -21,6 +21,7 @@ import MobileAirSidePanel from "./MobileAirSidePanel";
 import MobileAirSelectionPanel from "./MobileAirSelectionPanel";
 import MobileAirDetailPanel from "./MobileAirDetailPanel";
 import MobileAirRoutes from "./MobileAirRoutes";
+import PurpleAirPopup from "./PurpleAirPopup";
 
 import { getMarkerPath } from "../../utils";
 import { AtmoRefService } from "../../services/AtmoRefService";
@@ -109,6 +110,22 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   const [mobileAirDetailPanelSize, setMobileAirDetailPanelSize] = useState<
     "normal" | "fullscreen" | "hidden"
   >("normal");
+
+  // État pour la popup PurpleAir
+  const [selectedPurpleAirDevice, setSelectedPurpleAirDevice] = useState<
+    | (MeasurementDevice & {
+        qualityLevel: string;
+        rssi: number;
+        uptime: number;
+        confidence: number;
+        temperature: number;
+        humidity: number;
+        pm1Value: number;
+        pm25Value: number;
+        pm10Value: number;
+      })
+    | null
+  >(null);
   const [selectedMobileAirRoute, setSelectedMobileAirRoute] =
     useState<MobileAirRoute | null>(null);
   const [hoveredMobileAirPoint, setHoveredMobileAirPoint] =
@@ -414,7 +431,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
 
     // Créer un élément HTML personnalisé pour le marqueur
     const div = document.createElement("div");
-    div.className = "custom-marker-container";
+    div.className = `custom-marker-container ${device.source}`;
 
     // Image de base du marqueur
     const img = document.createElement("img");
@@ -571,6 +588,12 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   const handleMarkerClick = async (device: MeasurementDevice) => {
     // Exclure SignalAir
     if (device.source === "signalair") {
+      return;
+    }
+
+    // Gérer PurpleAir avec popup
+    if (device.source === "purpleair") {
+      setSelectedPurpleAirDevice(device as any);
       return;
     }
 
@@ -1073,6 +1096,14 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
             />
           </svg>
         </button>
+      )}
+
+      {/* Popup PurpleAir */}
+      {selectedPurpleAirDevice && (
+        <PurpleAirPopup
+          device={selectedPurpleAirDevice}
+          onClose={() => setSelectedPurpleAirDevice(null)}
+        />
       )}
     </div>
   );
