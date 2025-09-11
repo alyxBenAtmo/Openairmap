@@ -264,7 +264,7 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
 
   const getPanelClasses = () => {
     const baseClasses =
-      "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300";
+      "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300 h-[calc(100vh-70px)]";
 
     switch (currentPanelSize) {
       case "fullscreen":

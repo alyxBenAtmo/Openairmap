@@ -33,7 +33,7 @@ const BaseLayerControl: React.FC<BaseLayerControlProps> = ({
   };
 
   const getLayerIcon = (layerKey: BaseLayerKey) => {
-    if (layerKey === "Satellite") {
+    if (layerKey === "Satellite" || layerKey === "Satellite IGN") {
       return (
         <svg
           className="w-4 h-4"

@@ -469,9 +469,15 @@ export class NebuleAirService extends BaseDataService {
     endDate: string;
   }): Promise<Array<{ timestamp: string; value: number; unit: string }>> {
     try {
+      const callId = Math.random().toString(36).substr(2, 9);
       console.log(
-        "🔍 [NebuleAir] Début fetchHistoricalData avec params:",
-        params
+        `🔍 [NebuleAir] [${callId}] Début fetchHistoricalData avec params:`,
+        {
+          ...params,
+          callId,
+          timestamp: new Date().toISOString(),
+          stackTrace: new Error().stack?.split("\n").slice(1, 4).join("\n"),
+        }
       );
 
       // Vérifier si le polluant est supporté
@@ -484,23 +490,50 @@ export class NebuleAirService extends BaseDataService {
         );
         return [];
       }
-      console.log("✅ [NebuleAir] Polluant supporté:", nebuleAirPollutant);
+      console.log(
+        `✅ [NebuleAir] [${callId}] Polluant supporté:`,
+        nebuleAirPollutant
+      );
 
       // Convertir les dates au format attendu par l'API
       const startDate = new Date(params.startDate);
       const endDate = new Date(params.endDate);
       const now = new Date();
 
-      // Calculer la période relative
+      console.log(`🔍 [NebuleAir] [${callId}] Calcul des dates:`, {
+        startDate: params.startDate,
+        endDate: params.endDate,
+        startDateObj: startDate.toISOString(),
+        endDateObj: endDate.toISOString(),
+        now: now.toISOString(),
+      });
+
+      // Calculer la période relative en heures
       const timeDiffMs = now.getTime() - startDate.getTime();
-      const timeDiffDays = Math.ceil(timeDiffMs / (1000 * 60 * 60 * 24));
+      const timeDiffHours = Math.ceil(timeDiffMs / (1000 * 60 * 60));
+
+      console.log(`🔍 [NebuleAir] [${callId}] Calcul de la période:`, {
+        timeDiffMs,
+        timeDiffHours,
+        timeDiffDays: Math.ceil(timeDiffMs / (1000 * 60 * 60 * 24)),
+      });
 
       // Formater les paramètres start et stop
-      const start = `-${timeDiffDays}d`;
-      const stop =
-        endDate.getTime() >= now.getTime()
-          ? "now"
-          : endDate.toISOString().split("T")[0];
+      let start: string;
+      let stop: string;
+
+      if (timeDiffHours <= 24) {
+        // Pour les périodes ≤ 24h, utiliser le format en heures
+        start = `-${timeDiffHours}h`;
+      } else {
+        // Pour les périodes > 24h, utiliser le format en jours
+        const timeDiffDays = Math.ceil(timeDiffMs / (1000 * 60 * 60 * 24));
+        start = `-${timeDiffDays}d`;
+      }
+
+      // Pour les boutons prédéfinis, toujours utiliser "now" pour stop
+      // (3h, 24h, 7d, 1y) car on veut toujours la période jusqu'au présent
+      stop = "now";
 
       // Convertir le pas de temps au format de l'API
       const freq = this.convertTimeStepToFreq(params.timeStep);
@@ -508,12 +541,18 @@ export class NebuleAirService extends BaseDataService {
       // Construire l'URL pour les données historiques selon l'exemple fourni
       const url = `${this.BASE_URL}/capteurs/dataNebuleAir?capteurID=${params.sensorId}&start=${start}&stop=${stop}&freq=${freq}`;
 
-      console.log("🌐 [NebuleAir] URL construite:", url);
-      console.log("📊 [NebuleAir] Paramètres:", {
+      console.log(`🌐 [NebuleAir] [${callId}] URL construite:`, url);
+      console.log(`📊 [NebuleAir] [${callId}] Paramètres finaux:`, {
+        sensorId: params.sensorId,
+        pollutant: params.pollutant,
+        timeStep: params.timeStep,
+        startDate: params.startDate,
+        endDate: params.endDate,
         start,
-        stop,
+        stop: "now (toujours jusqu'au présent)",
         freq,
         nebuleAirPollutant,
+        timeDiffHours,
       });
 
       const response = await this.makeRequest(url);
@@ -582,14 +621,14 @@ export class NebuleAirService extends BaseDataService {
   // Méthode pour convertir le pas de temps au format de l'API
   private convertTimeStepToFreq(timeStep: string): string {
     const timeStepMapping: Record<string, string> = {
-      instantane: "", // 2 min par défaut si vide
-      deuxMin: "", // 2 min par défaut si vide
+      instantane: "2m", // Scan -> 2 minutes
+      deuxMin: "2m", // ≤2min -> 2 minutes
       quartHeure: "15m", // 15 minutes
       heure: "1h", // 1 heure
       jour: "1d", // 1 jour
     };
 
-    return timeStepMapping[timeStep] || "";
+    return timeStepMapping[timeStep] || "2m"; // Par défaut 2 minutes
   }
 
   // Méthode pour extraire la valeur d'un point de données historique

@@ -43,7 +43,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
         type: "preset",
         preset: "24h",
       },
-      timeStep: "quartHeure",
+      timeStep: "heure",
     },
     historicalData: {},
     loading: false,
@@ -115,8 +115,8 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
         loadHistoricalData(
           selectedStation,
           selectedPollutants,
-          { type: "preset", preset: "24h" },
-          "quartHeure"
+          state.chartControls.timeRange,
+          state.chartControls.timeStep
         );
       }
     } else {
@@ -313,7 +313,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
 
   const getPanelClasses = () => {
     const baseClasses =
-      "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300";
+      "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300 h-[calc(100vh-64px)]";
 
     switch (currentPanelSize) {
       case "fullscreen":
@@ -591,6 +591,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                   <HistoricalChart
                     data={state.historicalData}
                     selectedPollutants={state.chartControls.selectedPollutants}
+                    source="atmoMicro"
                     onHasCorrectedDataChange={handleHasCorrectedDataChange}
                   />
                 </div>

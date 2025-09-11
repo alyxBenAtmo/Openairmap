@@ -44,7 +44,7 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
         type: "preset",
         preset: "24h",
       },
-      timeStep: "quartHeure",
+      timeStep: "heure",
     },
     historicalData: {},
     loading: false,
@@ -115,8 +115,8 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
         loadHistoricalData(
           selectedStation,
           selectedPollutants,
-          { type: "preset", preset: "24h" },
-          "quartHeure"
+          state.chartControls.timeRange,
+          state.chartControls.timeStep
         );
       }
     } else {
@@ -311,7 +311,7 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
 
   const getPanelClasses = () => {
     const baseClasses =
-      "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300";
+      "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300 h-[calc(100vh-64px)]";
 
     switch (currentPanelSize) {
       case "fullscreen":
@@ -600,6 +600,7 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
                   <HistoricalChart
                     data={state.historicalData}
                     selectedPollutants={state.chartControls.selectedPollutants}
+                    source="atmoRef"
                   />
                 </div>
 

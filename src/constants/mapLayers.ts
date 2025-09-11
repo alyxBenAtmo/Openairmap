@@ -7,6 +7,17 @@ export const baseLayers = {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
       pane: "tilePane",
+      minZoom: 1,
+      maxZoom: 19,
+    }
+  ),
+  "Satellite IGN": L.tileLayer(
+    "https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/jpeg&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+    {
+      attribution: '&copy; <a href="https://www.ign.fr/">IGN</a>',
+      pane: "tilePane",
+      minZoom: 1,
+      maxZoom: 19,
     }
   ),
   Satellite: L.tileLayer(
@@ -14,6 +25,8 @@ export const baseLayers = {
     {
       attribution: '&copy; <a href="https://www.esri.com/">Esri</a>',
       pane: "tilePane",
+      minZoom: 1,
+      maxZoom: 19,
     }
   ),
 };

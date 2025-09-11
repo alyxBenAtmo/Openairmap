@@ -54,13 +54,13 @@ interface AirQualityMapProps {
 }
 
 const defaultClusterConfig = {
-  enabled: true,
-  maxClusterRadius: 60,
-  spiderfyOnMaxZoom: true,
-  showCoverageOnHover: true,
-  zoomToBoundsOnClick: true,
-  animate: true,
-  animateAddingMarkers: true,
+  enabled: false, // active/desactive le clustering par defaut
+  maxClusterRadius: 60, // rayon de clustering
+  spiderfyOnMaxZoom: true, // éclatement des clusters au zoom maximum
+  showCoverageOnHover: true, // affichage de la zone du cluster au survol
+  zoomToBoundsOnClick: true, // zoom sur la zone du cluster au clic
+  animate: true, // animations lors du clustering
+  animateAddingMarkers: true, // animations lors de l'ajout de marqueurs
 };
 
 const AirQualityMap: React.FC<AirQualityMapProps> = ({
@@ -838,6 +838,8 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
           doubleClickZoom={true}
           dragging={true}
           touchZoom={true}
+          minZoom={1}
+          maxZoom={19}
         >
           {/* Fond de carte initial */}
           <TileLayer

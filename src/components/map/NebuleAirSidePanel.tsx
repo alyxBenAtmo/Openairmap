@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   StationInfo,
   ChartControls,
@@ -53,6 +53,8 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
   const [internalPanelSize, setInternalPanelSize] =
     useState<PanelSize>("normal");
   const [showPollutantsList, setShowPollutantsList] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const loadingRef = useRef(false);
 
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
@@ -84,6 +86,8 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
     console.log("🔄 [NebuleAirSidePanel] useEffect déclenché:", {
       isOpen,
       selectedStation: selectedStation?.id,
+      initialPollutant,
+      timestamp: new Date().toISOString(),
     });
 
     if (isOpen && selectedStation) {
@@ -123,20 +127,42 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
       setInternalPanelSize("normal");
 
       // Charger les données historiques initiales si des polluants sont disponibles
-      if (selectedPollutants.length > 0) {
+      if (selectedPollutants.length > 0 && !loadingRef.current) {
         console.log(
-          "🚀 [NebuleAirSidePanel] Démarrage du chargement des données historiques"
+          "🚀 [NebuleAirSidePanel] Démarrage du chargement des données historiques",
+          {
+            selectedPollutants,
+            timeRange: state.chartControls.timeRange,
+            timeStep: state.chartControls.timeStep,
+            timestamp: new Date().toISOString(),
+            isLoading,
+            loadingRef: loadingRef.current,
+          }
         );
+        loadingRef.current = true;
+        setIsLoading(true);
+        // Utiliser l'état du composant au lieu de valeurs hardcodées
         loadHistoricalData(
           selectedStation,
           selectedPollutants,
-          { type: "preset", preset: "24h" },
-          "quartHeure"
+          state.chartControls.timeRange,
+          state.chartControls.timeStep
         );
       } else {
-        console.log(
-          "⚠️ [NebuleAirSidePanel] Aucun polluant sélectionné, pas de chargement de données"
-        );
+        if (selectedPollutants.length === 0) {
+          console.log(
+            "⚠️ [NebuleAirSidePanel] Aucun polluant sélectionné, pas de chargement de données"
+          );
+        } else if (loadingRef.current) {
+          console.log(
+            "🚫 [NebuleAirSidePanel] Chargement déjà en cours, ignoré",
+            {
+              selectedPollutants,
+              loadingRef: loadingRef.current,
+              timestamp: new Date().toISOString(),
+            }
+          );
+        }
       }
     } else {
       // Fermer le panneau
@@ -150,8 +176,10 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
         error: null,
       }));
       setInternalPanelSize("hidden");
+      setIsLoading(false);
+      loadingRef.current = false;
     }
-  }, [isOpen, selectedStation, initialPollutant]);
+  }, [isOpen, selectedStation]);
 
   const loadHistoricalData = useCallback(
     async (
@@ -165,6 +193,8 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
         pollutants,
         timeRange,
         timeStep,
+        timestamp: new Date().toISOString(),
+        stackTrace: new Error().stack?.split("\n").slice(1, 4).join("\n"),
       });
 
       setState((prev) => ({ ...prev, loading: true, error: null }));
@@ -210,6 +240,10 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
           historicalData: newHistoricalData,
           loading: false,
         }));
+
+        // Réinitialiser le flag de chargement
+        setIsLoading(false);
+        loadingRef.current = false;
       } catch (error) {
         console.error(
           "❌ [NebuleAirSidePanel] Erreur lors du chargement des données historiques:",
@@ -220,6 +254,10 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
           loading: false,
           error: "Erreur lors du chargement des données historiques",
         }));
+
+        // Réinitialiser le flag de chargement en cas d'erreur
+        setIsLoading(false);
+        loadingRef.current = false;
       }
     },
     [nebuleAirService]
@@ -307,6 +345,12 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
   };
 
   const handleTimeRangeChange = (timeRange: TimeRange) => {
+    console.log("🔄 [NebuleAirSidePanel] handleTimeRangeChange appelé:", {
+      timeRange,
+      timestamp: new Date().toISOString(),
+      stackTrace: new Error().stack?.split("\n").slice(1, 4).join("\n"),
+    });
+
     setState((prev) => ({
       ...prev,
       chartControls: {
@@ -316,6 +360,9 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
     }));
 
     if (selectedStation) {
+      console.log(
+        "🚀 [NebuleAirSidePanel] Appel loadHistoricalData depuis handleTimeRangeChange"
+      );
       loadHistoricalData(
         selectedStation,
         state.chartControls.selectedPollutants,
@@ -326,6 +373,12 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
   };
 
   const handleTimeStepChange = (timeStep: string) => {
+    console.log("🔄 [NebuleAirSidePanel] handleTimeStepChange appelé:", {
+      timeStep,
+      timestamp: new Date().toISOString(),
+      stackTrace: new Error().stack?.split("\n").slice(1, 4).join("\n"),
+    });
+
     setState((prev) => ({
       ...prev,
       chartControls: {
@@ -335,6 +388,9 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
     }));
 
     if (selectedStation) {
+      console.log(
+        "🚀 [NebuleAirSidePanel] Appel loadHistoricalData depuis handleTimeStepChange"
+      );
       loadHistoricalData(
         selectedStation,
         state.chartControls.selectedPollutants,
@@ -366,7 +422,7 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
 
   const getPanelClasses = () => {
     const baseClasses =
-      "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300";
+      "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300 h-[calc(100vh-64px)]";
 
     switch (currentPanelSize) {
       case "fullscreen":
@@ -645,6 +701,7 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                   <HistoricalChart
                     data={state.historicalData}
                     selectedPollutants={state.chartControls.selectedPollutants}
+                    source="nebuleAir"
                   />
                 </div>
 

@@ -15,12 +15,14 @@ import { pollutants, POLLUTANT_COLORS } from "../../constants/pollutants";
 interface HistoricalChartProps {
   data: Record<string, HistoricalDataPoint[]>;
   selectedPollutants: string[];
+  source: string; // Source de données (atmoRef, atmoMicro, etc.)
   onHasCorrectedDataChange?: (hasCorrectedData: boolean) => void;
 }
 
 const HistoricalChart: React.FC<HistoricalChartProps> = ({
   data,
   selectedPollutants,
+  source,
   onHasCorrectedDataChange,
 }) => {
   // Log pour debug
@@ -128,7 +130,12 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
 
             // Valeur brute comme valeur principale si pas de données corrigées
             if (dataPoint.corrected_value === undefined) {
-              point[`${pollutant}_raw`] = dataPoint.value;
+              // Pour AtmoMicro, utiliser _raw, pour toutes les autres sources utiliser la clé principale
+              if (source === "atmoMicro") {
+                point[`${pollutant}_raw`] = dataPoint.value;
+              } else {
+                point[pollutant] = dataPoint.value;
+              }
             }
 
             // Stocker l'unité pour ce polluant
@@ -155,12 +162,14 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   const unitGroups = groupPollutantsByUnit();
   const unitKeys = Object.keys(unitGroups);
 
-  // Détecter si des données corrigées sont disponibles
-  const hasCorrectedData = selectedPollutants.some((pollutant) => {
-    return chartData.some(
-      (point) => point[`${pollutant}_corrected`] !== undefined
-    );
-  });
+  // Détecter si des données corrigées sont disponibles (seulement pour AtmoMicro)
+  const hasCorrectedData =
+    source === "atmoMicro" &&
+    selectedPollutants.some((pollutant) => {
+      return chartData.some(
+        (point) => point[`${pollutant}_corrected`] !== undefined
+      );
+    });
 
   // Notifier le composant parent si des données corrigées sont disponibles
   React.useEffect(() => {
@@ -292,41 +301,76 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
               (point) => point[`${pollutant}_raw`] !== undefined
             );
 
+            // Déterminer le style selon la source
+            const isAtmoRef = source === "atmoRef";
+            const isAtmoMicro = source === "atmoMicro";
+
             return (
               <React.Fragment key={pollutant}>
-                {/* Ligne des données corrigées (trait plein) - priorité par défaut */}
-                {hasCorrectedData && (
+                {isAtmoRef ? (
+                  /* AtmoRef : toujours trait plein (données de référence fiables) */
                   <Line
                     type="monotone"
-                    dataKey={`${pollutant}_corrected`}
+                    dataKey={pollutant}
                     yAxisId={yAxisId}
                     stroke={pollutantColor}
                     strokeWidth={2}
                     strokeDasharray="0" // Trait plein
                     dot={{ r: 3 }}
                     activeDot={{ r: 5 }}
-                    name={pollutantName} // Nom simple par défaut
-                    connectNulls={false}
+                    name={pollutantName}
                   />
-                )}
+                ) : isAtmoMicro ? (
+                  /* AtmoMicro : données corrigées (trait plein) et brutes (trait discontinu) */
+                  <>
+                    {/* Ligne des données corrigées (trait plein) - priorité par défaut */}
+                    {hasCorrectedData && (
+                      <Line
+                        type="monotone"
+                        dataKey={`${pollutant}_corrected`}
+                        yAxisId={yAxisId}
+                        stroke={pollutantColor}
+                        strokeWidth={2}
+                        strokeDasharray="0" // Trait plein
+                        dot={{ r: 3 }}
+                        activeDot={{ r: 5 }}
+                        name={pollutantName} // Nom simple par défaut
+                        connectNulls={false}
+                      />
+                    )}
 
-                {/* Ligne des données brutes (trait discontinu) */}
-                {hasRawData && (
+                    {/* Ligne des données brutes (trait discontinu) */}
+                    {hasRawData && (
+                      <Line
+                        type="monotone"
+                        dataKey={`${pollutant}_raw`}
+                        yAxisId={yAxisId}
+                        stroke={pollutantColor}
+                        strokeWidth={2}
+                        strokeDasharray="5 5" // Trait discontinu
+                        dot={{ r: 2 }}
+                        activeDot={{ r: 4 }}
+                        name={
+                          hasCorrectedData
+                            ? `${pollutantName} (brut)`
+                            : pollutantName
+                        }
+                        connectNulls={false}
+                      />
+                    )}
+                  </>
+                ) : (
+                  /* Autres sources : trait discontinu par défaut */
                   <Line
                     type="monotone"
-                    dataKey={`${pollutant}_raw`}
+                    dataKey={pollutant}
                     yAxisId={yAxisId}
                     stroke={pollutantColor}
                     strokeWidth={2}
                     strokeDasharray="5 5" // Trait discontinu
-                    dot={{ r: 2 }}
-                    activeDot={{ r: 4 }}
-                    name={
-                      hasCorrectedData
-                        ? `${pollutantName} (brut)`
-                        : pollutantName
-                    }
-                    connectNulls={false}
+                    dot={{ r: 3 }}
+                    activeDot={{ r: 5 }}
+                    name={pollutantName}
                   />
                 )}
               </React.Fragment>
