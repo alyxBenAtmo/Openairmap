@@ -12,12 +12,21 @@ import {
 import { pollutants } from "../constants/pollutants";
 
 export class MobileAirService extends BaseDataService {
-  private readonly baseUrl = "/aircarto/capteurs";
+  private readonly baseUrl = this.getApiBaseUrl();
   private sensors: MobileAirSensor[] = [];
   private routes: MobileAirRoute[] = [];
 
   constructor() {
     super("mobileair");
+  }
+
+  private getApiBaseUrl(): string {
+    // En développement, utiliser le proxy Vite
+    if (import.meta.env.DEV) {
+      return "/aircarto/capteurs";
+    }
+    // En production, utiliser l'URL complète de l'API
+    return "https://api.aircarto.fr/capteurs";
   }
 
   async fetchData(params: {
