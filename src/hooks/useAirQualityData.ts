@@ -77,8 +77,17 @@ export const useAirQualityData = ({
         return source;
       });
 
+      console.log("🔍 [HOOK] Mapping des sources:", {
+        selectedSources,
+        mappedSources,
+      });
+
       // Récupérer les services pour chaque source sélectionnée
       const services = DataServiceFactory.getServices(mappedSources);
+      console.log(
+        "🔍 [HOOK] Services récupérés:",
+        services.map((s) => s.constructor.name)
+      );
 
       // Nettoyer les devices des sources non sélectionnées
       setDevices((prevDevices) => {
@@ -161,7 +170,7 @@ export const useAirQualityData = ({
           const data = await service.fetchData({
             pollutant: selectedPollutant,
             timeStep: selectedTimeStep,
-            sources: selectedSources,
+            sources: mappedSources, // Utiliser les sources mappées, pas les sources originales
             signalAirPeriod,
             mobileAirPeriod,
             selectedSensors: selectedMobileAirSensor

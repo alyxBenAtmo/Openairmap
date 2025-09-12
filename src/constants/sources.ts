@@ -41,14 +41,8 @@ export const sources: Sources = {
       sensorCommunity: {
         name: "Sensor.Community",
         code: "sensorCommunity",
-        activated: false,
-        supportedTimeSteps: [
-          "instantane",
-          "deuxMin",
-          "quartHeure",
-          "heure",
-          "jour",
-        ],
+        activated: true,
+        supportedTimeSteps: ["instantane", "deuxMin"],
       },
       purpleair: {
         name: "PurpleAir",

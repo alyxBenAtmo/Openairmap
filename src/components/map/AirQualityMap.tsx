@@ -22,6 +22,7 @@ import MobileAirSelectionPanel from "./MobileAirSelectionPanel";
 import MobileAirDetailPanel from "./MobileAirDetailPanel";
 import MobileAirRoutes from "./MobileAirRoutes";
 import PurpleAirPopup from "./PurpleAirPopup";
+import SensorCommunityPopup from "./SensorCommunityPopup";
 
 import { getMarkerPath } from "../../utils";
 import { AtmoRefService } from "../../services/AtmoRefService";
@@ -126,6 +127,20 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       })
     | null
   >(null);
+
+  // État pour la popup Sensor Community
+  const [selectedSensorCommunityDevice, setSelectedSensorCommunityDevice] =
+    useState<
+      | (MeasurementDevice & {
+          qualityLevel: string;
+          sensorId?: string;
+          manufacturer?: string;
+          sensorType?: string;
+          altitude?: string;
+        })
+      | null
+    >(null);
+
   const [selectedMobileAirRoute, setSelectedMobileAirRoute] =
     useState<MobileAirRoute | null>(null);
   const [hoveredMobileAirPoint, setHoveredMobileAirPoint] =
@@ -594,6 +609,12 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     // Gérer PurpleAir avec popup
     if (device.source === "purpleair") {
       setSelectedPurpleAirDevice(device as any);
+      return;
+    }
+
+    // Gérer Sensor Community avec popup
+    if (device.source === "sensorCommunity") {
+      setSelectedSensorCommunityDevice(device as any);
       return;
     }
 
@@ -1103,6 +1124,14 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
         <PurpleAirPopup
           device={selectedPurpleAirDevice}
           onClose={() => setSelectedPurpleAirDevice(null)}
+        />
+      )}
+
+      {/* Popup Sensor Community */}
+      {selectedSensorCommunityDevice && (
+        <SensorCommunityPopup
+          device={selectedSensorCommunityDevice}
+          onClose={() => setSelectedSensorCommunityDevice(null)}
         />
       )}
     </div>

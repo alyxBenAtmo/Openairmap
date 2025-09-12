@@ -455,3 +455,61 @@ export const MOBILEAIR_TIMESTEP_MAPPING: Record<string, string> = {
   heure: "-18d", // 18 jours pour avoir assez de données
   jour: "-18d", // 18 jours pour avoir assez de données
 };
+
+// Types spécifiques pour Sensor Community
+export interface SensorCommunityDataPoint {
+  sampling_rate: number | null;
+  sensordatavalues: Array<{
+    value: string;
+    id: number;
+    value_type: string;
+  }>;
+  location: {
+    latitude: string;
+    exact_location: number;
+    longitude: string;
+    id: number;
+    indoor: number;
+    country: string;
+    altitude: string;
+  };
+  timestamp: string;
+  id: number;
+  sensor: {
+    pin: string;
+    sensor_type: {
+      manufacturer: string;
+      id: number;
+      name: string;
+    };
+    id: number;
+  };
+}
+
+export interface SensorCommunityResponse {
+  data: SensorCommunityDataPoint[];
+}
+
+// Mapping des polluants Sensor Community vers nos codes
+export const SENSORCOMMUNITY_POLLUTANT_MAPPING: Record<string, string> = {
+  P0: "pm1", // PM1 (particules fines < 1µm)
+  P1: "pm10", // PM10 (particules fines < 10µm)
+  P2: "pm25", // PM2.5 (particules fines < 2.5µm)
+};
+
+// Mapping inverse pour construire les requêtes
+export const SENSORCOMMUNITY_POLLUTANT_REVERSE_MAPPING: Record<string, string> =
+  {
+    pm1: "P0",
+    pm10: "P1",
+    pm25: "P2",
+  };
+
+// Mapping des pas de temps Sensor Community vers les paramètres d'API
+export const SENSORCOMMUNITY_TIMESTEP_MAPPING: Record<string, string> = {
+  instantane: "1min",
+  deuxMin: "2min",
+  quartHeure: "15min",
+  heure: "1h",
+  jour: "1d",
+};
