@@ -162,18 +162,18 @@ src/
 
 Chaque polluant dispose de 6 niveaux de qualité avec des seuils spécifiques :
 
-- **Bon** : Qualité excellente
-- **Moyen** : Qualité acceptable
-- **Dégradé** : Qualité médiocre
-- **Mauvais** : Qualité mauvaise
-- **Très mauvais** : Qualité très mauvaise
-- **Extrêmement mauvais** : Qualité extrêmement mauvaise
+- **Bon**
+- **Moyen**
+- **Dégradé**
+- **Mauvais**
+- **Très mauvais**
+- **Extrêmement mauvais**
 
 ## ⏱️ Gestion du Temps et Auto-Refresh
 
 ### Pas de temps disponibles
 
-- **instantane** : Valeurs instantanées
+- **instantane** : Pas de temps le plus fin de l'appareil
 - **<=2min** : Moyenne sur 2 minutes et moins
 - **quartHeure** : Moyenne sur 15 minutes
 - **heure** : Moyenne horaire (activé par défaut)
