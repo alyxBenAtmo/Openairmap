@@ -122,6 +122,7 @@ src/
   - ✅ Support des polluants PM₁, PM₂.₅, PM₁₀, NO₂ (selon les polluants supportés par les capteurs communautaires NebuleAir Air Carto)
   - ✅ Gestion des site actifs/inactifs
 
+
 - **MobileAir** : Capteurs communautaires mobileAir Air Carto
 
   - ✅ Sélection de capteurs individuels
@@ -131,17 +132,18 @@ src/
   - ✅ Limitation à un capteur à la fois (protection API)
   - ✅ Gestion des périodes personnalisées
 
+- **PurpleAir** : Capteurs communautaires
+  - ✅ Affichage des valeurs dans un marqueurs colorés selon le dépassement de seuil du polluant selectionné
+  - ✅ Popup affichant les mesures instantanés du capteur cliqué et lien vers le site purpleAir pour consultation des données historiques
+  - ✅ Support des polluants PM₁, PM₂.₅, PM₁₀
+  - ✅ Support des pas de temps scan et <= 2min
+
 - **SignalAir** : Signalement citoyenSignalAir
   - ✅ Affichage des signalements sur la carte (odeurs, bruits, brûlages, visuels)
   - ✅ Sélecteur de période personnalisé
   - ✅ Marqueurs spécifiques par type de signalement
 
 ### 🚧 **Sources à implémenter :**
-
-- **PurpleAir** : Capteurs PurpleAir
-
-  - ❌ Service vide (planifié)
-  - ❌ API à intégrer
 
 - **Sensor.Community** : Capteurs communautaires
   - ❌ Service vide (planifié)
@@ -172,7 +174,7 @@ Chaque polluant dispose de 6 niveaux de qualité avec des seuils spécifiques :
 ### Pas de temps disponibles
 
 - **instantane** : Valeurs instantanées
-- **deuxMin** : Moyenne sur 2 minutes
+- **<=2min** : Moyenne sur 2 minutes et moins
 - **quartHeure** : Moyenne sur 15 minutes
 - **heure** : Moyenne horaire (activé par défaut)
 - **jour** : Moyenne journalière
