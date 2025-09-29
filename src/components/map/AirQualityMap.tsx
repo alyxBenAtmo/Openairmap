@@ -13,6 +13,8 @@ import {
 import { baseLayers, BaseLayerKey } from "../../constants/mapLayers";
 import BaseLayerControl from "../controls/BaseLayerControl";
 import ClusterControl from "../controls/ClusterControl";
+import ScaleControl from "../controls/ScaleControl";
+import NorthArrow from "../controls/NorthArrow";
 import Legend from "./Legend";
 import StationSidePanel from "./StationSidePanel";
 import MicroSidePanel from "./MicroSidePanel";
@@ -877,7 +879,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
             minHeight: "100%",
           }}
           ref={mapRef}
-          zoomControl={true}
+          zoomControl={false}
           scrollWheelZoom={true}
           doubleClickZoom={true}
           dragging={true}
@@ -890,6 +892,12 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
           />
+
+          {/* Contrôle d'échelle */}
+          <ScaleControl />
+
+          {/* Flèche du nord */}
+          <NorthArrow />
 
           {/* Marqueurs pour les appareils de mesure */}
           {clusterConfig.enabled ? (
@@ -1051,7 +1059,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
         </MapContainer>
 
         {/* Contrôles de la carte */}
-        <div className="absolute bottom-4 left-4 z-[1000] flex flex-col space-y-2">
+        <div className="absolute bottom-20 left-4 z-[1000] flex flex-col space-y-2">
           {/* Contrôle du clustering */}
           <ClusterControl
             config={clusterConfig}

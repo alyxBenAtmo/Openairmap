@@ -3,6 +3,7 @@ import {
   MeasurementDevice,
   AtmoMicroSite,
   AtmoMicroMeasure,
+  TemporalDataPoint,
   // AtmoMicroSitesResponse,
   // AtmoMicroMeasuresResponse,
   ATMOMICRO_POLLUTANT_MAPPING,
@@ -330,5 +331,223 @@ export class AtmoMicroService extends BaseDataService {
       );
       throw error;
     }
+  }
+
+  // Méthode pour récupérer les données temporelles pour la visualisation historique
+  async fetchTemporalData(params: {
+    pollutant: string;
+    timeStep: string;
+    startDate: string;
+    endDate: string;
+    sites?: string[]; // Sites spécifiques si nécessaire
+  }): Promise<TemporalDataPoint[]> {
+    try {
+      console.log(
+        "🕒 [AtmoMicro] Récupération des données temporelles:",
+        params
+      );
+
+      // Mapping du polluant vers le format AtmoMicro
+      const atmoMicroVariable = this.getAtmoMicroVariable(params.pollutant);
+      if (!atmoMicroVariable) {
+        console.warn(`Polluant ${params.pollutant} non supporté par AtmoMicro`);
+        return [];
+      }
+
+      // Configuration du pas de temps
+      const timeStepConfig = this.getAtmoMicroTimeStepConfig(params.timeStep);
+      if (!timeStepConfig) {
+        console.warn(
+          `Pas de temps ${params.timeStep} non supporté par AtmoMicro`
+        );
+        return [];
+      }
+
+      // OPTIMISATION : Récupérer directement toutes les mesures historiques
+      // sans passer par la récupération des sites
+      const temporalDataPoints = await this.fetchTemporalDataOptimized({
+        variable: atmoMicroVariable,
+        aggregation: timeStepConfig.aggregation,
+        startDate: params.startDate,
+        endDate: params.endDate,
+        pollutant: params.pollutant,
+        sites: params.sites,
+      });
+
+      console.log(
+        `✅ [AtmoMicro] ${temporalDataPoints.length} points temporels récupérés`
+      );
+      return temporalDataPoints;
+    } catch (error) {
+      console.error(
+        "Erreur lors de la récupération des données temporelles AtmoMicro:",
+        error
+      );
+      throw error;
+    }
+  }
+
+  // Méthode optimisée pour récupérer les données temporelles historiques
+  private async fetchTemporalDataOptimized(params: {
+    variable: string;
+    aggregation: string;
+    startDate: string;
+    endDate: string;
+    pollutant: string;
+    sites?: string[];
+  }): Promise<TemporalDataPoint[]> {
+    const { variable, aggregation, startDate, endDate, pollutant, sites } =
+      params;
+
+    // Diviser la période en tranches pour éviter les timeouts
+    const temporalDataPoints: TemporalDataPoint[] = [];
+    const chunkSize = 30; // 30 jours par tranche (plus efficace que 7 jours)
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    // Calculer le nombre de tranches
+    const totalDays = Math.ceil(
+      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const chunks = Math.ceil(totalDays / chunkSize);
+
+    console.log(
+      `📊 [AtmoMicro] Division en ${chunks} tranches de ${chunkSize} jours`
+    );
+
+    // Traiter chaque tranche
+    for (let i = 0; i < chunks; i++) {
+      const chunkStart = new Date(start);
+      chunkStart.setDate(chunkStart.getDate() + i * chunkSize);
+
+      const chunkEnd = new Date(chunkStart);
+      chunkEnd.setDate(chunkEnd.getDate() + chunkSize - 1);
+
+      // S'assurer qu'on ne dépasse pas la date de fin
+      if (chunkEnd > end) {
+        chunkEnd.setTime(end.getTime());
+      }
+
+      console.log(
+        `📅 [AtmoMicro] Traitement tranche ${i + 1}/${chunks}: ${
+          chunkStart.toISOString().split("T")[0]
+        } à ${chunkEnd.toISOString().split("T")[0]}`
+      );
+
+      try {
+        // Construire l'URL optimisée selon votre exemple
+        const url = `${
+          this.BASE_URL
+        }/mesures?debut=${chunkStart.toISOString()}&fin=${chunkEnd.toISOString()}&format=json&download=false&nb_dec=0&variable=${variable}&valeur_brute=false&aggregation=${aggregation}&type_capteur=false`;
+
+        console.log(`🔗 [AtmoMicro] Requête optimisée: ${url}`);
+
+        const response = await this.makeRequest(url);
+
+        if (!response || !Array.isArray(response)) {
+          console.warn(`Aucune donnée pour la tranche ${i + 1}`);
+          continue;
+        }
+
+        // Filtrer par sites si spécifiés
+        const filteredResponse = sites
+          ? response.filter((measure: any) =>
+              sites.includes(measure.id_site.toString())
+            )
+          : response;
+
+        // Grouper les mesures par timestamp
+        const measuresByTimestamp = new Map<string, any[]>();
+
+        filteredResponse.forEach((measure: any) => {
+          const timestamp = measure.time;
+          if (!measuresByTimestamp.has(timestamp)) {
+            measuresByTimestamp.set(timestamp, []);
+          }
+          measuresByTimestamp.get(timestamp)!.push(measure);
+        });
+
+        // Créer les points temporels
+        for (const [timestamp, measures] of measuresByTimestamp) {
+          const devices: MeasurementDevice[] = [];
+          let totalValue = 0;
+          let validValues = 0;
+          const qualityLevels: Record<string, number> = {};
+
+          measures.forEach((measure: any) => {
+            // Utiliser les données directement de la réponse (pas besoin de chercher dans les sites)
+            const displayValue = measure.valeur;
+
+            if (displayValue !== null && !isNaN(displayValue)) {
+              totalValue += displayValue;
+              validValues++;
+            }
+
+            const pollutantConfig = pollutants[pollutant];
+            const qualityLevel = getAirQualityLevel(
+              displayValue,
+              pollutantConfig.thresholds
+            );
+
+            // Compter les niveaux de qualité
+            qualityLevels[qualityLevel] =
+              (qualityLevels[qualityLevel] || 0) + 1;
+
+            devices.push({
+              id: measure.id_site.toString(),
+              name: measure.nom_site, // Nom du site directement dans la réponse
+              latitude: measure.lat, // Coordonnées directement dans la réponse
+              longitude: measure.lon, // Coordonnées directement dans la réponse
+              source: this.sourceCode,
+              pollutant: pollutant,
+              value: displayValue,
+              unit: measure.unite,
+              timestamp: measure.time,
+              status: "active",
+              qualityLevel,
+              address: `${measure.nom_site}`, // Adresse simplifiée
+              departmentId: "", // Pas disponible dans cette API
+              corrected_value: measure.valeur_ref, // Valeur de référence
+              raw_value: displayValue, // Même valeur car pas de valeur brute
+              has_correction: measure.valeur !== measure.valeur_ref,
+            } as MeasurementDevice & {
+              qualityLevel: string;
+              address: string;
+              departmentId: string;
+              corrected_value?: number;
+              raw_value?: number;
+              has_correction?: boolean;
+            });
+          });
+
+          const averageValue = validValues > 0 ? totalValue / validValues : 0;
+
+          temporalDataPoints.push({
+            timestamp,
+            devices,
+            deviceCount: devices.length,
+            averageValue,
+            qualityLevels,
+          });
+        }
+
+        console.log(
+          `✅ [AtmoMicro] Tranche ${i + 1} traitée: ${
+            measuresByTimestamp.size
+          } timestamps`
+        );
+      } catch (error) {
+        console.error(`❌ [AtmoMicro] Erreur tranche ${i + 1}:`, error);
+        // Continuer avec les autres tranches même en cas d'erreur
+      }
+    }
+
+    // Trier les points temporels par timestamp
+    temporalDataPoints.sort(
+      (a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+
+    return temporalDataPoints;
   }
 }

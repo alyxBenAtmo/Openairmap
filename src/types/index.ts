@@ -326,6 +326,68 @@ export interface StatisticsControlProps {
   onToggleVisibility: () => void;
 }
 
+// Types pour la visualisation temporelle
+export interface TemporalVisualizationState {
+  isActive: boolean;
+  startDate: string;
+  endDate: string;
+  currentDate: string;
+  isPlaying: boolean;
+  playbackSpeed: number; // 1x, 2x, 4x, 8x
+  timeStep: string; // Pas de temps pour la navigation
+  data: TemporalDataPoint[];
+  loading: boolean;
+  error: string | null;
+}
+
+export interface TemporalDataPoint {
+  timestamp: string;
+  devices: MeasurementDevice[];
+  // Métadonnées pour l'optimisation
+  deviceCount: number;
+  averageValue: number;
+  qualityLevels: Record<string, number>;
+}
+
+export interface TemporalControls {
+  startDate: string;
+  endDate: string;
+  currentDate: string;
+  isPlaying: boolean;
+  playbackSpeed: number;
+  timeStep: string;
+  onStartDateChange: (date: string) => void;
+  onEndDateChange: (date: string) => void;
+  onCurrentDateChange: (date: string) => void;
+  onPlayPause: () => void;
+  onSpeedChange: (speed: number) => void;
+  onTimeStepChange: (timeStep: string) => void;
+  onReset: () => void;
+}
+
+// Types pour les contrôles de mode historique
+export interface HistoricalModeButtonProps {
+  isActive: boolean;
+  onToggle: () => void;
+}
+
+export interface HistoricalControlPanelProps {
+  isVisible: boolean;
+  onClose: () => void;
+  onToggleHistoricalMode?: () => void;
+  state: TemporalVisualizationState;
+  controls: TemporalControls;
+}
+
+export interface DateRangeSelectorProps {
+  startDate: string;
+  endDate: string;
+  onStartDateChange: (date: string) => void;
+  onEndDateChange: (date: string) => void;
+  maxDateRange: number; // Limite en jours (ex: 365)
+  disabled?: boolean;
+}
+
 // Types spécifiques pour NebuleAir
 export interface NebuleAirSensor {
   sensorId: string;

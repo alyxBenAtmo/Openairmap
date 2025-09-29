@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import AirQualityMap from "./components/map/AirQualityMap";
 import { useAirQualityData } from "./hooks/useAirQualityData";
+import { useTemporalVisualization } from "./hooks/useTemporalVisualization";
 import { pollutants, getDefaultPollutant } from "./constants/pollutants";
 import { pasDeTemps } from "./constants/timeSteps";
 import AutoRefreshControl from "./components/controls/AutoRefreshControl";
@@ -8,6 +9,8 @@ import PollutantDropdown from "./components/controls/PollutantDropdown";
 import SourceDropdown from "./components/controls/SourceDropdown";
 import TimeStepDropdown from "./components/controls/TimeStepDropdown";
 import SignalAirPeriodSelector from "./components/controls/SignalAirPeriodSelector";
+import HistoricalModeButton from "./components/controls/HistoricalModeButton";
+import HistoricalControlPanel from "./components/controls/HistoricalControlPanel";
 
 const App: React.FC = () => {
   // Trouver le pas de temps activé par défaut (calculé une seule fois)
@@ -84,17 +87,72 @@ const App: React.FC = () => {
   // État pour l'auto-refresh
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
 
-  // Hook pour récupérer les données
-  const { devices, reports, loading, error, loadingSources, lastRefresh } =
-    useAirQualityData({
-      selectedPollutant,
-      selectedSources,
-      selectedTimeStep,
-      signalAirPeriod,
-      mobileAirPeriod,
-      selectedMobileAirSensor,
-      autoRefreshEnabled,
-    });
+  // Hook pour la visualisation temporelle
+  const {
+    state: temporalState,
+    controls: temporalControls,
+    toggleHistoricalMode,
+    loadHistoricalData,
+    getCurrentDevices,
+    isHistoricalModeActive,
+    hasHistoricalData,
+    seekToDate,
+    goToPrevious,
+    goToNext,
+    goToStart,
+    goToEnd,
+  } = useTemporalVisualization({
+    selectedPollutant,
+    selectedSources,
+    timeStep: selectedTimeStep,
+  });
+
+  // Hook pour récupérer les données (mode normal)
+  const {
+    devices: normalDevices,
+    reports,
+    loading,
+    error,
+    loadingSources,
+    lastRefresh,
+  } = useAirQualityData({
+    selectedPollutant,
+    selectedSources,
+    selectedTimeStep,
+    signalAirPeriod,
+    mobileAirPeriod,
+    selectedMobileAirSensor,
+    autoRefreshEnabled: autoRefreshEnabled && !isHistoricalModeActive, // Désactiver l'auto-refresh en mode historique
+  });
+
+  // Déterminer quelles données utiliser selon le mode
+  const devices = isHistoricalModeActive ? getCurrentDevices() : normalDevices;
+
+  // Fonction pour gérer le chargement des données historiques
+  const handleLoadHistoricalData = () => {
+    if (temporalState.startDate && temporalState.endDate) {
+      loadHistoricalData();
+    }
+  };
+
+  // Effet pour charger automatiquement les données quand les dates changent en mode historique
+  useEffect(() => {
+    if (
+      isHistoricalModeActive &&
+      temporalState.startDate &&
+      temporalState.endDate &&
+      !temporalState.loading &&
+      temporalState.data.length === 0
+    ) {
+      // Ne pas charger automatiquement, laisser l'utilisateur décider
+    }
+  }, [
+    isHistoricalModeActive,
+    temporalState.startDate,
+    temporalState.endDate,
+    temporalState.loading,
+    temporalState.data.length,
+  ]);
 
   const mapCenter: [number, number] = [43.7102, 7.262]; // Nice
   const mapZoom = 9;
@@ -136,10 +194,16 @@ const App: React.FC = () => {
               isVisible={selectedSources.includes("signalair")}
             />
 
+            {/* Bouton mode historique */}
+            <HistoricalModeButton
+              isActive={isHistoricalModeActive}
+              onToggle={toggleHistoricalMode}
+            />
+
             {/* Contrôle auto-refresh */}
             <div className="text-xs text-gray-600 space-x-4 border-l border-gray-300 pl-4">
               <AutoRefreshControl
-                enabled={autoRefreshEnabled}
+                enabled={autoRefreshEnabled && !isHistoricalModeActive}
                 onToggle={setAutoRefreshEnabled}
                 lastRefresh={lastRefresh}
                 loading={loading}
@@ -205,8 +269,21 @@ const App: React.FC = () => {
           zoom={mapZoom}
           selectedPollutant={selectedPollutant}
           selectedSources={selectedSources}
-          loading={loading}
+          loading={loading || temporalState.loading}
           onMobileAirSensorSelected={handleMobileAirSensorSelected}
+        />
+
+        {/* Panel de contrôle historique */}
+        <HistoricalControlPanel
+          isVisible={isHistoricalModeActive}
+          onClose={() => {}} // Ne pas fermer le mode historique, juste masquer le panel
+          onToggleHistoricalMode={toggleHistoricalMode} // Bouton pour désactiver le mode
+          state={temporalState}
+          controls={temporalControls}
+          onLoadData={handleLoadHistoricalData}
+          onSeekToDate={seekToDate}
+          onGoToPrevious={goToPrevious}
+          onGoToNext={goToNext}
         />
 
         {/* Informations de la carte (nombre d'appareils et de signalements) */}

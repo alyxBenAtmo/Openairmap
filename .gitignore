@@ -28,9 +28,31 @@ dist-ssr
 
 #test
 coverage/
+__mocks__/
+__tests__/
+__playwright__/
+playwright-report/
+tests/
+test-results/
+.github/
+jest.config.js
+vitest.config.ts
+playwright.config.ts
+setupTests.ts
+tsconfig.test.json
+
+
 
 #docs
 docs/
+NOTE.md
+E2E_TESTS_SUMMARY.md
+PRESENTATION_TESTS.md
+RAPPORT_TESTS.md
+RAPPORT_TECHNIQUE.md
+RESUME_EXECUTIF.md
+TESTING.md
+PLAN_FONCTIONNALITE_DONNEES_PASSEES.md
 
 #Note personnelle
 note.txt
