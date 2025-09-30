@@ -486,19 +486,19 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
         moyen: "#000000",
         degrade: "#000000",
         mauvais: "#000000", // Noir au lieu de blanc pour les marqueurs rouges
-        tresMauvais: "#000000", // Noir au lieu de blanc pour les marqueurs rouges
-        extrMauvais: "#000000",
+        tresMauvais: "#F2F2F2", // Noir au lieu de blanc pour les marqueurs rouges
+        extrMauvais: "#F2F2F2",
         default: "#666666",
       };
 
       valueText.style.color = textColors[qualityLevel] || "#000000";
 
-      // // Ajouter un contour blanc pour améliorer la lisibilité
-      // if (qualityLevel !== "default") {
-      //   // Contour plus subtil pour éviter l'effet de "paté"
-      //   valueText.style.textShadow =
-      //     "1px 1px 2px rgba(255,255,255,0.8), -1px -1px 2px rgba(255,255,255,0.8)";
-      // }
+      // Ajouter un contour blanc pour améliorer la lisibilité
+      if (qualityLevel == "extrMauvais" || qualityLevel == "tresMauvais") {
+        // Contour plus subtil pour éviter l'effet de "paté"
+        valueText.style.textShadow =
+          "1px 1px 2px rgba(0, 0, 0, 0.8), -1px -1px 2px rgba(0, 0, 0, 0.8)";
+      }
 
       // Indicateur de valeur corrigée pour AtmoMicro
       if (device.source === "atmoMicro" && device.has_correction) {
