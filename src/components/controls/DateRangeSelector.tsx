@@ -49,14 +49,6 @@ const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
     setErrors(newErrors);
   }, [startDate, endDate, maxDateRange]);
 
-  const handleStartDateChange = (value: string) => {
-    onStartDateChange(value);
-  };
-
-  const handleEndDateChange = (value: string) => {
-    onEndDateChange(value);
-  };
-
   // Calculer la date maximale (aujourd'hui)
   const today = new Date().toISOString().split("T")[0];
 
@@ -84,7 +76,7 @@ const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
             id="start-date"
             type="date"
             value={startDate}
-            onChange={(e) => handleStartDateChange(e.target.value)}
+            onChange={(e) => onStartDateChange(e.target.value)}
             min={minDateString}
             max={today}
             disabled={disabled}
@@ -115,7 +107,7 @@ const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
             id="end-date"
             type="date"
             value={endDate}
-            onChange={(e) => handleEndDateChange(e.target.value)}
+            onChange={(e) => onEndDateChange(e.target.value)}
             min={startDate || minDateString}
             max={today}
             disabled={disabled}
@@ -173,4 +165,3 @@ const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
 };
 
 export default DateRangeSelector;
-

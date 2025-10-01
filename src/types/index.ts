@@ -373,7 +373,6 @@ export interface HistoricalModeButtonProps {
 
 export interface HistoricalControlPanelProps {
   isVisible: boolean;
-  onClose: () => void;
   onToggleHistoricalMode?: () => void;
   state: TemporalVisualizationState;
   controls: TemporalControls;

@@ -14,7 +14,6 @@ const HistoricalControlPanel: React.FC<
   }
 > = ({
   isVisible,
-  onClose,
   state,
   controls,
   onLoadData,
@@ -56,12 +55,21 @@ const HistoricalControlPanel: React.FC<
 
   if (!isVisible) return null;
 
-  const handleLoadData = () => {
-    if (state.startDate && state.endDate && !state.loading && onLoadData) {
-      onLoadData();
+  // Déterminer la période maximale en fonction du pas de temps
+  const getMaxDateRange = () => {
+    // Si le pas de temps est "15 minutes", limiter à 7 jours
+    if (state.timeStep === "qh") {
+      return 7;
     }
+    // Si le pas de temps est "heure", limiter à 30 jours
+    if (state.timeStep === "h") {
+      return 30;
+    }
+    // Pour les autres pas de temps, garder 365 jours
+    return 365;
   };
 
+  const maxDateRange = getMaxDateRange();
   const isDataReady = state.startDate && state.endDate && !state.loading;
   const hasError = state.error !== null;
 
@@ -189,6 +197,18 @@ const HistoricalControlPanel: React.FC<
                       Les marqueurs actuels seront remplacés par les données de
                       la période sélectionnée.
                     </p>
+                    {state.timeStep === "qh" && (
+                      <p className="text-blue-700 mt-1 italic">
+                        ⏱️ Période maximale limitée à 7 jours pour le pas de
+                        temps 15 minutes
+                      </p>
+                    )}
+                    {state.timeStep === "h" && (
+                      <p className="text-blue-700 mt-1 italic">
+                        ⏱️ Période maximale limitée à 30 jours pour le pas de
+                        temps horaire
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -199,7 +219,7 @@ const HistoricalControlPanel: React.FC<
                 endDate={state.endDate}
                 onStartDateChange={controls.onStartDateChange}
                 onEndDateChange={controls.onEndDateChange}
-                maxDateRange={365}
+                maxDateRange={maxDateRange}
                 disabled={state.loading}
               />
 
@@ -255,7 +275,7 @@ const HistoricalControlPanel: React.FC<
               <div className="flex space-x-2">
                 <button
                   type="button"
-                  onClick={handleLoadData}
+                  onClick={() => isDataReady && onLoadData?.()}
                   disabled={!isDataReady || state.loading}
                   className={`
                 flex-1 px-4 py-2 rounded-md font-medium text-sm transition-colors

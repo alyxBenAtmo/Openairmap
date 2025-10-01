@@ -58,7 +58,7 @@
   pointer-events: none;
   user-select: none;
   z-index: 10;
-  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.9);
+  /* text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.9); */
   /* Centrage plus précis */
   display: flex;
   align-items: center;

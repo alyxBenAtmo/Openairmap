@@ -5,6 +5,7 @@ import {
   TemporalDataPoint,
 } from "../types";
 import { AtmoMicroService } from "../services/AtmoMicroService";
+import { AtmoRefService } from "../services/AtmoRefService";
 
 interface UseTemporalVisualizationProps {
   selectedPollutant: string;
@@ -34,6 +35,29 @@ export const useTemporalVisualization = ({
   // Références pour la gestion des intervalles
   const playbackIntervalRef = useRef<number | null>(null);
   const atmoMicroService = useRef(new AtmoMicroService());
+  const atmoRefService = useRef(new AtmoRefService());
+
+  // Synchroniser le timeStep du state avec le timeStep des props
+  // et réinitialiser les données si elles sont déjà chargées (car elles ne correspondent plus au nouveau pas de temps)
+  useEffect(() => {
+    setState((prev) => {
+      // Si des données sont déjà chargées et que le timeStep change, les réinitialiser
+      if (prev.data.length > 0 && prev.timeStep !== timeStep) {
+        return {
+          ...prev,
+          timeStep: timeStep,
+          data: [],
+          currentDate: "",
+          isPlaying: false,
+          error: null,
+        };
+      }
+      return {
+        ...prev,
+        timeStep: timeStep,
+      };
+    });
+  }, [timeStep]);
 
   // Fonction pour activer/désactiver le mode historique
   const toggleHistoricalMode = useCallback(() => {
@@ -59,11 +83,17 @@ export const useTemporalVisualization = ({
       return;
     }
 
-    // Vérifier que AtmoMicro est sélectionné
-    if (!selectedSources.includes("atmoMicro")) {
+    // Vérifier qu'au moins une source supportée est sélectionnée
+    const supportedSources = ["atmoMicro", "atmoRef"];
+    const hasSupportedSource = selectedSources.some((source) =>
+      supportedSources.includes(source)
+    );
+
+    if (!hasSupportedSource) {
       setState((prev) => ({
         ...prev,
-        error: "Le mode historique n'est disponible que pour AtmoMicro",
+        error:
+          "Le mode historique n'est disponible que pour AtmoMicro et AtmoRef",
         loading: false,
       }));
       return;
@@ -72,35 +102,97 @@ export const useTemporalVisualization = ({
     setState((prev) => ({ ...prev, loading: true, error: null }));
 
     try {
-      console.log("🕒 [HOOK] Chargement des données historiques...", {
-        startDate: state.startDate,
-        endDate: state.endDate,
-        pollutant: selectedPollutant,
-        timeStep: state.timeStep,
+      // Charger les données de toutes les sources sélectionnées en parallèle
+      const promises: Promise<TemporalDataPoint[]>[] = [];
+
+      if (selectedSources.includes("atmoMicro")) {
+        promises.push(
+          atmoMicroService.current.fetchTemporalData({
+            pollutant: selectedPollutant,
+            timeStep: state.timeStep,
+            startDate: state.startDate,
+            endDate: state.endDate,
+          })
+        );
+      }
+
+      if (selectedSources.includes("atmoRef")) {
+        promises.push(
+          atmoRefService.current.fetchTemporalData({
+            pollutant: selectedPollutant,
+            timeStep: state.timeStep,
+            startDate: state.startDate,
+            endDate: state.endDate,
+          })
+        );
+      }
+
+      const results = await Promise.all(promises);
+
+      // Fusionner toutes les données temporelles en groupant par timestamp
+      const temporalDataMap = new Map<string, TemporalDataPoint>();
+      const TOLERANCE_MS = 5 * 60 * 1000; // 5 minutes
+
+      results.forEach((temporalData) => {
+        temporalData.forEach((point) => {
+          // Chercher un timestamp existant proche
+          const targetTime = new Date(point.timestamp).getTime();
+          let existingTimestamp: string | null = null;
+
+          for (const [timestamp] of temporalDataMap) {
+            const timeDiff = Math.abs(
+              new Date(timestamp).getTime() - targetTime
+            );
+            if (timeDiff <= TOLERANCE_MS) {
+              existingTimestamp = timestamp;
+              break;
+            }
+          }
+
+          if (existingTimestamp) {
+            const existingPoint = temporalDataMap.get(existingTimestamp)!;
+
+            // Fusionner les devices et métadonnées
+            existingPoint.devices.push(...point.devices);
+            existingPoint.deviceCount += point.deviceCount;
+
+            // Fusionner les niveaux de qualité
+            Object.entries(point.qualityLevels).forEach(([level, count]) => {
+              existingPoint.qualityLevels[level] =
+                (existingPoint.qualityLevels[level] || 0) + count;
+            });
+
+            // Recalculer la valeur moyenne
+            const totalValue = existingPoint.devices.reduce(
+              (sum, device) => sum + (device.value || 0),
+              0
+            );
+            existingPoint.averageValue =
+              totalValue / existingPoint.devices.length;
+          } else {
+            // Créer un nouveau point temporel
+            temporalDataMap.set(point.timestamp, { ...point });
+          }
+        });
       });
 
-      const temporalData = await atmoMicroService.current.fetchTemporalData({
-        pollutant: selectedPollutant,
-        timeStep: state.timeStep,
-        startDate: state.startDate,
-        endDate: state.endDate,
-      });
-
-      console.log(`✅ [HOOK] ${temporalData.length} points temporels chargés`);
+      // Convertir en tableau et trier par timestamp
+      const allTemporalData = Array.from(temporalDataMap.values()).sort(
+        (a, b) =>
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
 
       setState((prev) => ({
         ...prev,
-        data: temporalData,
+        data: allTemporalData,
         currentDate:
-          temporalData.length > 0 ? temporalData[0].timestamp : prev.startDate,
+          allTemporalData.length > 0
+            ? allTemporalData[0].timestamp
+            : prev.startDate,
         loading: false,
         error: null,
       }));
     } catch (error) {
-      console.error(
-        "❌ [HOOK] Erreur lors du chargement des données historiques:",
-        error
-      );
       setState((prev) => ({
         ...prev,
         loading: false,
@@ -121,10 +213,7 @@ export const useTemporalVisualization = ({
 
   // Fonction pour démarrer/arrêter la lecture
   const togglePlayback = useCallback(() => {
-    if (state.data.length === 0) {
-      console.warn("Aucune donnée temporelle disponible pour la lecture");
-      return;
-    }
+    if (state.data.length === 0) return;
 
     setState((prev) => ({
       ...prev,
@@ -263,26 +352,6 @@ export const useTemporalVisualization = ({
     }
   }, [state.data, state.currentDate]);
 
-  // Fonction pour aller au début
-  const goToStart = useCallback(() => {
-    if (state.data.length > 0) {
-      setState((prev) => ({
-        ...prev,
-        currentDate: prev.data[0].timestamp,
-      }));
-    }
-  }, [state.data]);
-
-  // Fonction pour aller à la fin
-  const goToEnd = useCallback(() => {
-    if (state.data.length > 0) {
-      setState((prev) => ({
-        ...prev,
-        currentDate: prev.data[prev.data.length - 1].timestamp,
-      }));
-    }
-  }, [state.data]);
-
   // Nettoyage à la destruction du composant
   useEffect(() => {
     return () => {
@@ -347,8 +416,6 @@ export const useTemporalVisualization = ({
     seekToDate,
     goToPrevious,
     goToNext,
-    goToStart,
-    goToEnd,
 
     // Utilitaires
     isHistoricalModeActive: state.isActive,

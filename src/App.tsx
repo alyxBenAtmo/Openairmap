@@ -276,8 +276,7 @@ const App: React.FC = () => {
         {/* Panel de contrôle historique */}
         <HistoricalControlPanel
           isVisible={isHistoricalModeActive}
-          onClose={() => {}} // Ne pas fermer le mode historique, juste masquer le panel
-          onToggleHistoricalMode={toggleHistoricalMode} // Bouton pour désactiver le mode
+          onToggleHistoricalMode={toggleHistoricalMode}
           state={temporalState}
           controls={temporalControls}
           onLoadData={handleLoadHistoricalData}
