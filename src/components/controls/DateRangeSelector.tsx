@@ -52,10 +52,9 @@ const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
   // Calculer la date maximale (aujourd'hui)
   const today = new Date().toISOString().split("T")[0];
 
-  // Calculer la date minimale (maxDateRange jours avant aujourd'hui)
-  const minDate = new Date();
-  minDate.setDate(minDate.getDate() - maxDateRange);
-  const minDateString = minDate.toISOString().split("T")[0];
+  // La date minimale n'est plus limitée par maxDateRange
+  // L'utilisateur peut remonter dans le temps autant qu'il le souhaite
+  const minDateString = "1900-01-01"; // Date très ancienne pour permettre de remonter loin
 
   return (
     <div className="space-y-4">
@@ -158,7 +157,7 @@ const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
 
       {/* Limitation de période */}
       <div className="text-xs text-gray-500">
-        Période maximale : {maxDateRange} jours
+        Durée maximale de la période : {maxDateRange} jours
       </div>
     </div>
   );
