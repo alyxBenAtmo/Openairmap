@@ -5,6 +5,7 @@ import {
   NebuleAirMetadataResponse,
   NEBULEAIR_POLLUTANT_MAPPING,
   NEBULEAIR_TIMESTEP_MAPPING,
+  TemporalDataPoint,
 } from "../types";
 import { getAirQualityLevel } from "../utils";
 import { pollutants } from "../constants/pollutants";
@@ -650,5 +651,193 @@ export class NebuleAirService extends BaseDataService {
 
     const numericValue = parseFloat(value);
     return isNaN(numericValue) ? null : numericValue;
+  }
+
+  // Méthode pour récupérer les données temporelles pour la visualisation historique
+  async fetchTemporalData(params: {
+    pollutant: string;
+    timeStep: string;
+    startDate: string;
+    endDate: string;
+    selectedSensors?: string[];
+  }): Promise<TemporalDataPoint[]> {
+    try {
+      console.log(
+        "🕒 [NebuleAir] Récupération des données temporelles:",
+        params
+      );
+
+      // Vérifier si le polluant est supporté par NebuleAir
+      const nebuleAirPollutant = this.getNebuleAirPollutantName(
+        params.pollutant
+      );
+      if (!nebuleAirPollutant) {
+        console.warn(`Polluant ${params.pollutant} non supporté par NebuleAir`);
+        return [];
+      }
+
+      // Convertir le pas de temps au format de l'API
+      const freq = this.convertTimeStepToFreq(params.timeStep);
+
+      // Formater les dates au format ISO pour l'API
+      const startDate = new Date(params.startDate).toISOString();
+      const endDate = new Date(params.endDate).toISOString();
+
+      // Construire l'URL pour récupérer toutes les données des capteurs
+      const url = `${
+        this.BASE_URL
+      }/capteurs/dataNebuleAirAll?start=${encodeURIComponent(
+        startDate
+      )}&end=${encodeURIComponent(endDate)}&freq=${freq}&format=JSON`;
+
+      console.log(`🌐 [NebuleAir] URL construite:`, url);
+
+      const response = await this.makeRequest(url);
+      console.log("📥 [NebuleAir] Réponse reçue:", response);
+
+      // L'API retourne un objet avec les capteurs comme clés
+      if (!response || typeof response !== "object") {
+        console.warn(
+          "❌ [NebuleAir] Format de réponse temporelle non reconnu:",
+          response
+        );
+        return [];
+      }
+
+      // Récupérer les métadonnées des capteurs pour avoir les coordonnées
+      const sensorsMetadata = await this.fetchSensorsData();
+      const sensorsMap = new Map<string, NebuleAirSensor>();
+      sensorsMetadata.forEach((sensor) => {
+        sensorsMap.set(sensor.sensorId, sensor);
+      });
+
+      // Transformer les données en TemporalDataPoint
+      const temporalDataPoints: TemporalDataPoint[] = [];
+      const timestampMap = new Map<string, MeasurementDevice[]>();
+
+      // Parcourir tous les capteurs dans la réponse
+      for (const [sensorId, sensorData] of Object.entries(response)) {
+        // Vérifier si ce capteur doit être inclus
+        if (
+          params.selectedSensors &&
+          !params.selectedSensors.includes(sensorId)
+        ) {
+          continue;
+        }
+
+        // Récupérer les métadonnées du capteur
+        const sensorMetadata = sensorsMap.get(sensorId);
+        if (!sensorMetadata || !sensorMetadata.displayMap) {
+          continue;
+        }
+
+        // Vérifier les coordonnées
+        const lat = parseFloat(sensorMetadata.latitude);
+        const lon = parseFloat(sensorMetadata.longitude);
+        if (isNaN(lat) || isNaN(lon) || lat === 0 || lon === 0) {
+          continue;
+        }
+
+        // Parcourir les données temporelles du capteur
+        if (Array.isArray(sensorData)) {
+          sensorData.forEach((dataPoint: any) => {
+            const timestamp = dataPoint.time || dataPoint.timestamp;
+            if (!timestamp) return;
+
+            // Extraire la valeur selon le polluant
+            const value = this.extractHistoricalValue(
+              dataPoint,
+              nebuleAirPollutant
+            );
+            if (value === null || value === -1) return;
+
+            // Créer le device de mesure
+            const device: MeasurementDevice = {
+              id: sensorId,
+              name: `NebuleAir ${sensorId}`,
+              latitude: lat,
+              longitude: lon,
+              source: this.sourceCode,
+              pollutant: params.pollutant,
+              value: value,
+              unit: "µg/m³",
+              timestamp: timestamp,
+              status: "active",
+              qualityLevel: this.getQualityLevel(value, params.pollutant),
+            } as MeasurementDevice & { qualityLevel: string };
+
+            // Grouper par timestamp
+            if (!timestampMap.has(timestamp)) {
+              timestampMap.set(timestamp, []);
+            }
+            timestampMap.get(timestamp)!.push(device);
+          });
+        }
+      }
+
+      // Convertir en TemporalDataPoint
+      for (const [timestamp, devices] of timestampMap.entries()) {
+        if (devices.length === 0) continue;
+
+        // Calculer les métadonnées
+        const values = devices.map((d) => d.value);
+        const averageValue =
+          values.reduce((sum, val) => sum + val, 0) / values.length;
+
+        const qualityLevels: Record<string, number> = {};
+        devices.forEach((device) => {
+          const qualityLevel = (device as any).qualityLevel || "default";
+          qualityLevels[qualityLevel] = (qualityLevels[qualityLevel] || 0) + 1;
+        });
+
+        temporalDataPoints.push({
+          timestamp,
+          devices,
+          deviceCount: devices.length,
+          averageValue,
+          qualityLevels,
+        });
+      }
+
+      // Trier par timestamp
+      temporalDataPoints.sort(
+        (a, b) =>
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+
+      console.log(`✅ [NebuleAir] Données temporelles récupérées:`, {
+        totalPoints: temporalDataPoints.length,
+        totalDevices: temporalDataPoints.reduce(
+          (sum, point) => sum + point.deviceCount,
+          0
+        ),
+        timeRange: {
+          start: temporalDataPoints[0]?.timestamp,
+          end: temporalDataPoints[temporalDataPoints.length - 1]?.timestamp,
+        },
+      });
+
+      return temporalDataPoints;
+    } catch (error) {
+      console.error(
+        "❌ [NebuleAir] Erreur lors de la récupération des données temporelles:",
+        error
+      );
+      throw error;
+    }
+  }
+
+  // Méthode utilitaire pour calculer le niveau de qualité
+  private getQualityLevel(value: number, pollutant: string): string {
+    const pollutantConfig = pollutants[pollutant];
+    if (!pollutantConfig) return "default";
+
+    const thresholds = pollutantConfig.thresholds;
+    if (value <= thresholds.bon.max) return "bon";
+    if (value <= thresholds.moyen.max) return "moyen";
+    if (value <= thresholds.degrade.max) return "degrade";
+    if (value <= thresholds.mauvais.max) return "mauvais";
+    if (value <= thresholds.tresMauvais.max) return "tresMauvais";
+    return "extrMauvais";
   }
 }

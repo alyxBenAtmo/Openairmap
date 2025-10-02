@@ -6,6 +6,7 @@ import {
 } from "../types";
 import { AtmoMicroService } from "../services/AtmoMicroService";
 import { AtmoRefService } from "../services/AtmoRefService";
+import { NebuleAirService } from "../services/NebuleAirService";
 
 interface UseTemporalVisualizationProps {
   selectedPollutant: string;
@@ -36,6 +37,7 @@ export const useTemporalVisualization = ({
   const playbackIntervalRef = useRef<number | null>(null);
   const atmoMicroService = useRef(new AtmoMicroService());
   const atmoRefService = useRef(new AtmoRefService());
+  const nebuleAirService = useRef(new NebuleAirService());
 
   // Synchroniser le timeStep du state avec le timeStep des props
   // et réinitialiser les données si elles sont déjà chargées (car elles ne correspondent plus au nouveau pas de temps)
@@ -84,7 +86,11 @@ export const useTemporalVisualization = ({
     }
 
     // Vérifier qu'au moins une source supportée est sélectionnée
-    const supportedSources = ["atmoMicro", "atmoRef"];
+    const supportedSources = [
+      "atmoMicro",
+      "atmoRef",
+      "communautaire.nebuleair",
+    ];
     const hasSupportedSource = selectedSources.some((source) =>
       supportedSources.includes(source)
     );
@@ -93,7 +99,7 @@ export const useTemporalVisualization = ({
       setState((prev) => ({
         ...prev,
         error:
-          "Le mode historique n'est disponible que pour AtmoMicro et AtmoRef",
+          "Le mode historique n'est disponible que pour AtmoMicro, AtmoRef et NebuleAir",
         loading: false,
       }));
       return;
@@ -119,6 +125,17 @@ export const useTemporalVisualization = ({
       if (selectedSources.includes("atmoRef")) {
         promises.push(
           atmoRefService.current.fetchTemporalData({
+            pollutant: selectedPollutant,
+            timeStep: state.timeStep,
+            startDate: state.startDate,
+            endDate: state.endDate,
+          })
+        );
+      }
+
+      if (selectedSources.includes("communautaire.nebuleair")) {
+        promises.push(
+          nebuleAirService.current.fetchTemporalData({
             pollutant: selectedPollutant,
             timeStep: state.timeStep,
             startDate: state.startDate,
