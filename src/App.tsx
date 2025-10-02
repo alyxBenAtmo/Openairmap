@@ -99,8 +99,6 @@ const App: React.FC = () => {
     seekToDate,
     goToPrevious,
     goToNext,
-    goToStart,
-    goToEnd,
   } = useTemporalVisualization({
     selectedPollutant,
     selectedSources,
