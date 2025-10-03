@@ -44,8 +44,7 @@ tsconfig.test.json
 
 
 #docs
-docs/
-NOTE.md
+docs/test/
 E2E_TESTS_SUMMARY.md
 PRESENTATION_TESTS.md
 RAPPORT_TESTS.md
