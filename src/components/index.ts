@@ -3,7 +3,6 @@ export { default as DropdownSelector } from "./controls/DropdownSelector";
 export { default as PollutantDropdown } from "./controls/PollutantDropdown";
 export { default as SourceDropdown } from "./controls/SourceDropdown";
 export { default as TimeStepDropdown } from "./controls/TimeStepDropdown";
-export { default as TimePeriodDisplay } from "./controls/TimePeriodDisplay";
 export { default as SignalAirPeriodSelector } from "./controls/SignalAirPeriodSelector";
 export { default as HistoricalModeButton } from "./controls/HistoricalModeButton";
 export { default as HistoricalControlPanel } from "./controls/HistoricalControlPanel";

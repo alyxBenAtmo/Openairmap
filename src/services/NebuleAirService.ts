@@ -12,6 +12,9 @@ import { pollutants } from "../constants/pollutants";
 
 export class NebuleAirService extends BaseDataService {
   private readonly BASE_URL = "/aircarto";
+  private sensorsMetadataCache: NebuleAirSensor[] | null = null;
+  private lastMetadataFetch: number = 0;
+  private readonly METADATA_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
   constructor() {
     super("nebuleair");
@@ -660,6 +663,7 @@ export class NebuleAirService extends BaseDataService {
     startDate: string;
     endDate: string;
     selectedSensors?: string[];
+    sensorsMetadata?: NebuleAirSensor[]; // Métadonnées des capteurs (optionnel)
   }): Promise<TemporalDataPoint[]> {
     try {
       console.log(
@@ -705,7 +709,18 @@ export class NebuleAirService extends BaseDataService {
       }
 
       // Récupérer les métadonnées des capteurs pour avoir les coordonnées
-      const sensorsMetadata = await this.fetchSensorsData();
+      // Utiliser les métadonnées fournies en paramètre ou le cache
+      let sensorsMetadata: NebuleAirSensor[];
+      if (params.sensorsMetadata) {
+        sensorsMetadata = params.sensorsMetadata;
+        console.log(
+          "✅ [NebuleAir] Utilisation des métadonnées fournies en paramètre"
+        );
+      } else {
+        sensorsMetadata = await this.getCachedSensorsMetadata();
+        console.log("✅ [NebuleAir] Utilisation des métadonnées en cache");
+      }
+
       const sensorsMap = new Map<string, NebuleAirSensor>();
       sensorsMetadata.forEach((sensor) => {
         sensorsMap.set(sensor.sensorId, sensor);
@@ -839,5 +854,28 @@ export class NebuleAirService extends BaseDataService {
     if (value <= thresholds.mauvais.max) return "mauvais";
     if (value <= thresholds.tresMauvais.max) return "tresMauvais";
     return "extrMauvais";
+  }
+
+  // Méthode pour récupérer les métadonnées avec cache
+  private async getCachedSensorsMetadata(): Promise<NebuleAirSensor[]> {
+    const now = Date.now();
+
+    // Vérifier si le cache est valide
+    if (
+      this.sensorsMetadataCache &&
+      now - this.lastMetadataFetch < this.METADATA_CACHE_DURATION
+    ) {
+      console.log("📦 [NebuleAir] Utilisation du cache des métadonnées");
+      return this.sensorsMetadataCache;
+    }
+
+    // Récupérer les métadonnées et mettre à jour le cache
+    console.log(
+      "🔄 [NebuleAir] Récupération des métadonnées (cache expiré ou vide)"
+    );
+    this.sensorsMetadataCache = await this.fetchSensorsData();
+    this.lastMetadataFetch = now;
+
+    return this.sensorsMetadataCache;
   }
 }

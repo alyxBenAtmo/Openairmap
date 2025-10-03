@@ -122,7 +122,6 @@ src/
   - ✅ Support des polluants PM₁, PM₂.₅, PM₁₀, NO₂ (selon les polluants supportés par les capteurs communautaires NebuleAir Air Carto)
   - ✅ Gestion des site actifs/inactifs
 
-
 - **MobileAir** : Capteurs communautaires mobileAir Air Carto
 
   - ✅ Sélection de capteurs individuels
@@ -133,6 +132,7 @@ src/
   - ✅ Gestion des périodes personnalisées
 
 - **PurpleAir** : Capteurs communautaires
+
   - ✅ Affichage des valeurs dans un marqueurs colorés selon le dépassement de seuil du polluant selectionné
   - ✅ Popup affichant les mesures instantanés du capteur cliqué et lien vers le site purpleAir pour consultation des données historiques
   - ✅ Support des polluants PM₁, PM₂.₅, PM₁₀
@@ -143,20 +143,14 @@ src/
   - ✅ Sélecteur de période personnalisé
   - ✅ Marqueurs spécifiques par type de signalement
 
-### 🚧 **Sources à implémenter :**
-
-- **Sensor.Community** : Capteurs communautaires
-  - ❌ Service vide (planifié)
-  - ❌ API à intégrer
-
-## 🎨 Polluants supportés
+## 🎨 Polluants supportés par l'application
 
 - **PM₁** : Particules fines ≤ 1 µm
 - **PM₂.₅** : Particules fines ≤ 2.5 µm (activé par défaut)
 - **PM₁₀** : Particules fines ≤ 10 µm
 - **NO₂** : Dioxyde d'azote
-- **O₃** : Ozone
-- **SO₂** : Dioxyde de soufre
+- **O₃** : Ozone (Disponible uniquement pour les stations de référence atmoSud)
+- **SO₂** : Dioxyde de soufre (Disponible uniquement pour les stations de référence atmoSud)
 
 ### Seuils de qualité de l'air
 
@@ -596,15 +590,6 @@ const { devices, reports, loading, error, loadingSources } = useAirQualityData({
 
 1. Cliquez sur l'icône de clustering en bas à gauche de la carte
 2. Cochez "Activer le clustering" pour activer le regroupement automatique
-3. Ajustez le rayon de clustering selon vos préférences
-
-### Personnalisation des options
-
-- **Rayon de clustering** : Détermine la distance à laquelle les marqueurs se regroupent
-- **Spiderfy au zoom maximum** : Éclate les clusters quand vous zoomez au maximum
-- **Affichage de la zone** : Montre la zone couverte par un cluster au survol
-- **Zoom sur la zone** : Zoom automatique sur la zone du cluster au clic
-- **Animations** : Active les transitions fluides pour une meilleure UX
 
 ### Avantages du clustering
 

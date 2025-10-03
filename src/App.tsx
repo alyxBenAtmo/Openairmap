@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import AirQualityMap from "./components/map/AirQualityMap";
 import { useAirQualityData } from "./hooks/useAirQualityData";
 import { useTemporalVisualization } from "./hooks/useTemporalVisualization";
+import { useDomainConfig } from "./hooks/useDomainConfig";
 import { pollutants, getDefaultPollutant } from "./constants/pollutants";
 import { pasDeTemps } from "./constants/timeSteps";
 import AutoRefreshControl from "./components/controls/AutoRefreshControl";
@@ -13,6 +14,9 @@ import HistoricalModeButton from "./components/controls/HistoricalModeButton";
 import HistoricalControlPanel from "./components/controls/HistoricalControlPanel";
 
 const App: React.FC = () => {
+  // Configuration basée sur le domaine
+  const domainConfig = useDomainConfig();
+
   // Trouver le pas de temps activé par défaut (calculé une seule fois)
   const defaultTimeStep = useMemo(() => {
     const defaultTimeStep = Object.entries(pasDeTemps).find(
@@ -84,8 +88,8 @@ const App: React.FC = () => {
     }
   }, [selectedSources, selectedMobileAirSensor]);
 
-  // État pour l'auto-refresh
-  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  // État pour l'auto-refresh - désactivé par défaut
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
 
   // Hook pour la visualisation temporelle
   const {
@@ -152,8 +156,9 @@ const App: React.FC = () => {
     temporalState.data.length,
   ]);
 
-  const mapCenter: [number, number] = [43.7102, 7.262]; // Nice
-  const mapZoom = 9;
+  // Configuration de la carte basée sur le domaine
+  const mapCenter = domainConfig.mapCenter;
+  const mapZoom = domainConfig.mapZoom;
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -162,10 +167,12 @@ const App: React.FC = () => {
         <div className="flex items-center justify-between">
           {/* Titre et logo groupés à gauche */}
           <div className="flex items-center space-x-3">
-            <h1 className="text-lg font-semibold text-blue-600">OpenAirMap</h1>
+            <h1 className="text-lg font-semibold text-blue-600">
+              {domainConfig.title}
+            </h1>
             <img
-              src="./logo_atmosud_inspirer_ok_web.png"
-              alt="OpenAirMap logo"
+              src={domainConfig.logo}
+              alt={`${domainConfig.organization} logo`}
               className="h-10"
             />
           </div>
