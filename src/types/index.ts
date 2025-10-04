@@ -239,6 +239,25 @@ export interface SidePanelState {
   error: string | null;
 }
 
+// Types pour le mode comparaison
+export interface ComparisonState {
+  isComparisonMode: boolean;
+  comparedStations: StationInfo[];
+  comparisonData: Record<string, Record<string, HistoricalDataPoint[]>>;
+  selectedPollutant: string;
+  timeRange: {
+    type: "preset" | "custom";
+    preset?: "3h" | "24h" | "7d" | "1y";
+    custom?: {
+      startDate: string;
+      endDate: string;
+    };
+  };
+  timeStep: string;
+  loading: boolean;
+  error: string | null;
+}
+
 // Types spécifiques pour AtmoMicro
 export interface AtmoMicroSite {
   id_site: number;

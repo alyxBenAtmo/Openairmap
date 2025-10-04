@@ -21,6 +21,8 @@ interface MicroSidePanelProps {
   onSizeChange?: (size: "normal" | "fullscreen" | "hidden") => void;
   initialPollutant: string;
   panelSize?: "normal" | "fullscreen" | "hidden";
+  onComparisonModeToggle?: () => void;
+  isComparisonMode?: boolean;
 }
 
 type PanelSize = "normal" | "fullscreen" | "hidden";
@@ -33,6 +35,8 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
   onSizeChange,
   initialPollutant,
   panelSize: externalPanelSize,
+  onComparisonModeToggle,
+  isComparisonMode = false,
 }) => {
   const [state, setState] = useState<SidePanelState>({
     isOpen: false,
@@ -345,6 +349,36 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
 
         {/* Contrôles de taille du panel - masqués sur mobile */}
         <div className="hidden sm:flex items-center space-x-1 sm:space-x-2 mr-2">
+          {/* Bouton mode comparaison */}
+          {onComparisonModeToggle && (
+            <button
+              onClick={onComparisonModeToggle}
+              className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
+                isComparisonMode
+                  ? "bg-green-100 text-green-600"
+                  : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+              }`}
+              title={
+                isComparisonMode
+                  ? "Désactiver le mode comparaison"
+                  : "Activer le mode comparaison"
+              }
+            >
+              <svg
+                className="w-3.5 h-3.5 sm:w-4 sm:h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
+              </svg>
+            </button>
+          )}
           <button
             onClick={() => handlePanelSizeChange("normal")}
             className={`p-1.5 sm:p-2 rounded-lg transition-colors ${

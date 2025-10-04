@@ -9,6 +9,7 @@ import {
   SignalAirProperties,
   MobileAirRoute,
   MobileAirDataPoint,
+  ComparisonState,
 } from "../../types";
 import { baseLayers, BaseLayerKey } from "../../constants/mapLayers";
 import BaseLayerControl from "../controls/BaseLayerControl";
@@ -19,6 +20,7 @@ import Legend from "./Legend";
 import StationSidePanel from "./StationSidePanel";
 import MicroSidePanel from "./MicroSidePanel";
 import NebuleAirSidePanel from "./NebuleAirSidePanel";
+import ComparisonSidePanel from "./ComparisonSidePanel";
 import MobileAirSidePanel from "./MobileAirSidePanel";
 import MobileAirSelectionPanel from "./MobileAirSelectionPanel";
 import MobileAirDetailPanel from "./MobileAirDetailPanel";
@@ -101,6 +103,21 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     "normal" | "fullscreen" | "hidden"
   >("normal");
   const [clusterConfig, setClusterConfig] = useState(defaultClusterConfig);
+
+  // États pour le mode comparaison
+  const [comparisonState, setComparisonState] = useState<ComparisonState>({
+    isComparisonMode: false,
+    comparedStations: [],
+    comparisonData: {},
+    selectedPollutant: selectedPollutant,
+    timeRange: {
+      type: "preset",
+      preset: "24h",
+    },
+    timeStep: "heure",
+    loading: false,
+    error: null,
+  });
 
   // États pour MobileAir
   const [mobileAirRoutes, setMobileAirRoutes] = useState<MobileAirRoute[]>([]);
@@ -620,7 +637,15 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       return;
     }
 
-    // Supporter AtmoRef, AtmoMicro et NebuleAir
+    // En mode comparaison, gérer AtmoRef et AtmoMicro uniquement
+    if (comparisonState.isComparisonMode) {
+      if (device.source === "atmoRef" || device.source === "atmoMicro") {
+        await handleAddStationToComparison(device);
+      }
+      return;
+    }
+
+    // Supporter AtmoRef, AtmoMicro et NebuleAir en mode normal
     if (
       device.source !== "atmoRef" &&
       device.source !== "atmoMicro" &&
@@ -670,12 +695,207 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     setIsSidePanelOpen(false);
     setSelectedStation(null);
     setPanelSize("normal");
+    // Réinitialiser le mode comparaison à la fermeture
+    setComparisonState((prev) => ({
+      ...prev,
+      isComparisonMode: false,
+      comparedStations: [],
+      comparisonData: {},
+    }));
   };
 
   const handleSidePanelSizeChange = (
     newSize: "normal" | "fullscreen" | "hidden"
   ) => {
     setPanelSize(newSize);
+  };
+
+  // Fonctions pour le mode comparaison
+  const handleComparisonModeToggle = () => {
+    setComparisonState((prev) => ({
+      ...prev,
+      isComparisonMode: !prev.isComparisonMode,
+      // Si on active le mode comparaison, ajouter la station actuelle comme première
+      comparedStations:
+        !prev.isComparisonMode && selectedStation
+          ? [selectedStation]
+          : prev.comparedStations,
+    }));
+  };
+
+  const handleAddStationToComparison = async (device: MeasurementDevice) => {
+    // Vérifier les limites (max 5 stations)
+    if (comparisonState.comparedStations.length >= 5) {
+      console.warn("Maximum 5 stations autorisées en comparaison");
+      return;
+    }
+
+    // Vérifier que la station n'est pas déjà dans la liste
+    const isAlreadyAdded = comparisonState.comparedStations.some(
+      (station) => station.id === device.id
+    );
+    if (isAlreadyAdded) {
+      console.warn("Station déjà ajoutée à la comparaison");
+      return;
+    }
+
+    try {
+      let variables: Record<
+        string,
+        { label: string; code_iso: string; en_service: boolean }
+      > = {};
+
+      // Récupérer les informations détaillées selon la source
+      if (device.source === "atmoRef") {
+        const atmoRefService = new AtmoRefService();
+        variables = await atmoRefService.fetchStationVariables(device.id);
+      } else if (device.source === "atmoMicro") {
+        const atmoMicroService = new AtmoMicroService();
+        variables = await atmoMicroService.fetchSiteVariables(device.id);
+      }
+
+      const stationInfo: StationInfo = {
+        id: device.id,
+        name: device.name,
+        address: device.address || "",
+        departmentId: device.departmentId || "",
+        source: device.source,
+        variables,
+      };
+
+      setComparisonState((prev) => ({
+        ...prev,
+        comparedStations: [...prev.comparedStations, stationInfo],
+      }));
+    } catch (error) {
+      console.error(
+        "Erreur lors de l'ajout de la station à la comparaison:",
+        error
+      );
+    }
+  };
+
+  const handleRemoveStationFromComparison = (stationId: string) => {
+    setComparisonState((prev) => ({
+      ...prev,
+      comparedStations: prev.comparedStations.filter(
+        (station) => station.id !== stationId
+      ),
+      // Supprimer aussi les données de cette station
+      comparisonData: Object.fromEntries(
+        Object.entries(prev.comparisonData).map(([pollutant, stationsData]) => [
+          pollutant,
+          Object.fromEntries(
+            Object.entries(stationsData).filter(([id]) => id !== stationId)
+          ),
+        ])
+      ),
+    }));
+  };
+
+  // Fonction pour charger les données de comparaison
+  const handleLoadComparisonData = async (
+    stations: StationInfo[],
+    pollutant: string,
+    timeRange: any,
+    timeStep: string
+  ) => {
+    setComparisonState((prev) => ({ ...prev, loading: true, error: null }));
+
+    try {
+      const { startDate, endDate } = getDateRange(timeRange);
+      const newComparisonData: Record<string, Record<string, any[]>> = {};
+
+      // Charger les données pour chaque station
+      for (const station of stations) {
+        let stationData: any[] = [];
+
+        if (station.source === "atmoRef") {
+          const atmoRefService = new AtmoRefService();
+          stationData = await atmoRefService.fetchHistoricalData({
+            stationId: station.id,
+            pollutant,
+            timeStep,
+            startDate,
+            endDate,
+          });
+        } else if (station.source === "atmoMicro") {
+          const atmoMicroService = new AtmoMicroService();
+          stationData = await atmoMicroService.fetchHistoricalData({
+            siteId: station.id,
+            pollutant,
+            timeStep,
+            startDate,
+            endDate,
+          });
+        }
+
+        if (!newComparisonData[pollutant]) {
+          newComparisonData[pollutant] = {};
+        }
+        newComparisonData[pollutant][station.id] = stationData;
+      }
+
+      setComparisonState((prev) => ({
+        ...prev,
+        comparisonData: newComparisonData,
+        selectedPollutant: pollutant,
+        timeRange,
+        timeStep,
+        loading: false,
+      }));
+    } catch (error) {
+      console.error(
+        "Erreur lors du chargement des données de comparaison:",
+        error
+      );
+      setComparisonState((prev) => ({
+        ...prev,
+        loading: false,
+        error: "Erreur lors du chargement des données de comparaison",
+      }));
+    }
+  };
+
+  // Fonction utilitaire pour calculer les dates (réutilisée depuis les autres panels)
+  const getDateRange = (
+    timeRange: any
+  ): { startDate: string; endDate: string } => {
+    const now = new Date();
+    const endDate = now.toISOString();
+
+    // Si c'est une plage personnalisée, utiliser les dates fournies
+    if (timeRange.type === "custom" && timeRange.custom) {
+      return {
+        startDate: new Date(timeRange.custom.startDate).toISOString(),
+        endDate: new Date(timeRange.custom.endDate + "T23:59:59").toISOString(),
+      };
+    }
+
+    // Sinon, utiliser les périodes prédéfinies
+    let startDate: Date;
+
+    switch (timeRange.preset) {
+      case "3h":
+        startDate = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+        break;
+      case "24h":
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case "7d":
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case "1y":
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    }
+
+    return {
+      startDate: startDate.toISOString(),
+      endDate,
+    };
   };
 
   // Callbacks pour MobileAir
@@ -801,44 +1021,67 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
 
   return (
     <div className="w-full h-full flex">
+      {/* Side Panel - Comparaison */}
+      {comparisonState.isComparisonMode &&
+        comparisonState.comparedStations.length > 0 && (
+          <ComparisonSidePanel
+            isOpen={true}
+            comparisonState={comparisonState}
+            onClose={handleCloseSidePanel}
+            onHidden={() => handleSidePanelSizeChange("hidden")}
+            onSizeChange={handleSidePanelSizeChange}
+            panelSize={panelSize}
+            onRemoveStation={handleRemoveStationFromComparison}
+            onComparisonModeToggle={handleComparisonModeToggle}
+            onLoadComparisonData={handleLoadComparisonData}
+          />
+        )}
+
       {/* Side Panel - AtmoRef */}
-      {selectedStation?.source === "atmoRef" && (
-        <StationSidePanel
-          isOpen={isSidePanelOpen}
-          selectedStation={selectedStation}
-          onClose={handleCloseSidePanel}
-          onHidden={() => handleSidePanelSizeChange("hidden")}
-          onSizeChange={handleSidePanelSizeChange}
-          panelSize={panelSize}
-          initialPollutant={selectedPollutant}
-        />
-      )}
+      {!comparisonState.isComparisonMode &&
+        selectedStation?.source === "atmoRef" && (
+          <StationSidePanel
+            isOpen={isSidePanelOpen}
+            selectedStation={selectedStation}
+            onClose={handleCloseSidePanel}
+            onHidden={() => handleSidePanelSizeChange("hidden")}
+            onSizeChange={handleSidePanelSizeChange}
+            panelSize={panelSize}
+            initialPollutant={selectedPollutant}
+            onComparisonModeToggle={handleComparisonModeToggle}
+            isComparisonMode={comparisonState.isComparisonMode}
+          />
+        )}
 
       {/* Side Panel - AtmoMicro */}
-      {selectedStation?.source === "atmoMicro" && (
-        <MicroSidePanel
-          isOpen={isSidePanelOpen}
-          selectedStation={selectedStation}
-          onClose={handleCloseSidePanel}
-          onHidden={() => handleSidePanelSizeChange("hidden")}
-          onSizeChange={handleSidePanelSizeChange}
-          panelSize={panelSize}
-          initialPollutant={selectedPollutant}
-        />
-      )}
+      {!comparisonState.isComparisonMode &&
+        selectedStation?.source === "atmoMicro" && (
+          <MicroSidePanel
+            isOpen={isSidePanelOpen}
+            selectedStation={selectedStation}
+            onClose={handleCloseSidePanel}
+            onHidden={() => handleSidePanelSizeChange("hidden")}
+            onSizeChange={handleSidePanelSizeChange}
+            panelSize={panelSize}
+            initialPollutant={selectedPollutant}
+            onComparisonModeToggle={handleComparisonModeToggle}
+            isComparisonMode={comparisonState.isComparisonMode}
+          />
+        )}
 
       {/* Side Panel - NebuleAir */}
-      {selectedStation?.source === "nebuleair" && (
-        <NebuleAirSidePanel
-          isOpen={isSidePanelOpen}
-          selectedStation={selectedStation}
-          onClose={handleCloseSidePanel}
-          onHidden={() => handleSidePanelSizeChange("hidden")}
-          onSizeChange={handleSidePanelSizeChange}
-          panelSize={panelSize}
-          initialPollutant={selectedPollutant}
-        />
-      )}
+      {!comparisonState.isComparisonMode &&
+        selectedStation?.source === "nebuleair" && (
+          <NebuleAirSidePanel
+            isOpen={isSidePanelOpen}
+            selectedStation={selectedStation}
+            onClose={handleCloseSidePanel}
+            onHidden={() => handleSidePanelSizeChange("hidden")}
+            onSizeChange={handleSidePanelSizeChange}
+            panelSize={panelSize}
+            initialPollutant={selectedPollutant}
+          />
+        )}
 
       {/* Side Panel - MobileAir Selection (droite) */}
       <MobileAirSelectionPanel

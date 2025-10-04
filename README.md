@@ -11,33 +11,27 @@ Une application React modulaire et responsive pour afficher des appareils de mes
 - **Marqueurs colorés** selon la valeur des mesures avec affichage des valeurs
 - **Contrôle du fond de carte** : Basculement entre carte standard et satellite
 - **Légende dynamique** : Affichage des seuils selon le polluant sélectionné
-- **Zoom et navigation** optimisés pour l'exploration des données
 
 ### 🎛️ **Contrôles Intégrés**
 
 - **Sélection du polluant** : Un polluant actif à la fois sur la carte
-- **Sélection des sources** : Plusieurs sources possibles
+- **Sélection des sources** : Plusieurs sources possibles différenciées par différents marqueurs
 - **Sélection du pas de temps** : Un pas de temps actif à la fois
 - **Sélecteurs de période** : Périodes personnalisées pour SignalAir et MobileAir
 - **Auto-refresh intelligent** : Rafraîchissement automatique adaptatif
-- **Contrôle du clustering** : Possibilité d'activer/desactiver le clustering
 
 ### 📊 **Side Panels Spécialisés**
 
-- **AtmoRef Panel** : Graphiques historiques complets
-- **AtmoMicro Panel** : Graphiques historiques complets
-- **NebuleAir Panel** : Graphiques historiques complets
-- **MobileAir Panels** : Sélection et visualisation des capteurs mobiles
-- **Périodes personnalisées** : 3h, 24h, 7j, 1an + sélecteur de dates
+- **MobileAir Panels** : Sélection d'un capteur et visualisation des différentes sessions de mesure de capteurs mobiles
+- **Périodes personnalisées** : 3h, 24h, 7j, 1an + sélecteur de dates personnalisées
 - **Redimensionnement** : Normal, plein écran, masqué
 
 ### 🔄 **Gestion des Données**
 
 - **Architecture modulaire** avec services séparés pour chaque source
-- **Auto-refresh adaptatif** selon le pas de temps sélectionné
+- **Auto-refresh adaptatif** selon le pas de temps sélectionné et les sources actives
 - **Indicateurs de correction** pour les données AtmoMicro
 - **Gestion des statuts** : Actif, inactif, en cours de chargement
-- **Cache intelligent** pour optimiser les performances
 - **Gestion d'erreurs** robuste avec fallbacks
 
 ### 🎨 **Interface Utilisateur**
@@ -46,7 +40,6 @@ Une application React modulaire et responsive pour afficher des appareils de mes
 - **Interface moderne** avec Tailwind CSS
 - **Contrôles intégrés** dans l'en-tête pour maximiser l'espace carte
 - **Barre de progression** et indicateurs de chargement par source
-- **Animations fluides** et transitions pour une meilleure UX
 - **États visuels clairs** : Sélectionné, partiellement sélectionné, non sélectionné
 
 ## 📁 Architecture du projet
@@ -81,9 +74,13 @@ src/
 │   ├── NebuleAirService.ts
 │   ├── SignalAirService.ts
 │   ├── MobileAirService.ts
+│   ├── PurpleAirService.ts
+│   ├── SensorCommunityService.ts
 │   └── DataServiceFactory.ts
 ├── hooks/             # Hooks personnalisés
 │   └── useAirQualityData.ts
+│   ├── useTemporalVisualization.ts
+│   └── useDomainConfig.ts
 ├── constants/         # Constantes
 │   ├── pollutants.ts
 │   ├── sources.ts
@@ -138,6 +135,13 @@ src/
   - ✅ Support des polluants PM₁, PM₂.₅, PM₁₀
   - ✅ Support des pas de temps scan et <= 2min
 
+- **SensorCommunity** : Capteurs communautaires SensorCommunity
+
+  - ✅ Affichage des valeurs dans un marqueurs colorés selon le dépassement de seuil du polluant selectionné
+  - ✅ Popup affichant le grafana des dernières mesures du capteur cliqué
+  - ✅ Support des polluants PM₁, PM₂.₅, PM₁₀
+  - ✅ Support des pas de temps instantané et <= 2min
+
 - **SignalAir** : Signalement citoyenSignalAir
   - ✅ Affichage des signalements sur la carte (odeurs, bruits, brûlages, visuels)
   - ✅ Sélecteur de période personnalisé
@@ -180,9 +184,8 @@ L'application dispose d'un système d'auto-refresh intelligent qui s'adapte auto
 #### **Fonctionnalités de l'Auto-Refresh**
 
 - **Activation/Désactivation** : Toggle pour contrôler le rafraîchissement automatique
-- **Adaptation au pas de temps** : Fréquence de rafraîchissement adaptée au type de données
+- **Adaptation** : Fréquence de rafraîchissement adaptée au pas de temps et aux sources actives
 - **Indicateur de période** : Affichage de la période de données actuellement affichée
-- **Dernier rafraîchissement** : Horodatage du dernier chargement des données
 - **Indicateurs visuels** : États visuels clairs (actif, inactif, en cours de chargement)
 
 #### **Périodes de Données Affichées**
@@ -202,7 +205,7 @@ L'application dispose d'un système d'auto-refresh intelligent qui s'adapte auto
 ## 🗺️ Fonds de carte
 
 - **Carte standard** : Fond CARTO clair avec OpenStreetMap
-- **Satellite** : Imagerie satellite ESRI
+- **Satellite IGN** : Imagerie satellite IGN
 
 ## 🔗 Clustering des marqueurs
 
@@ -227,7 +230,7 @@ L'application dispose d'un système d'auto-refresh intelligent qui s'adapte auto
 
 #### **AtmoRef Side Panel**
 
-- **Affichage des informations de station** : Détails complets de la station sélectionnée
+- **Affichage des informations de station** : Détails complets de la station sélectionnée (à venir)
 - **Graphiques historiques** : Visualisation des données sur différentes périodes
 - **Sélection de polluants** : Choix des polluants à afficher dans les graphiques
 - **Contrôles de période** : Sélection de la période d'analyse (3h, 24h, 7j, 1an)
@@ -247,22 +250,20 @@ L'application dispose d'un système d'auto-refresh intelligent qui s'adapte auto
 - **Graphiques historiques** : Visualisation des données des capteurs communautaires
 - **Sélection de polluants** : Choix des polluants disponibles
 - **Contrôles de période** : Sélection de la période d'analyse
-- **Gestion des capteurs** : Affichage des informations des capteurs communautaires
+- **Gestion des capteurs** : Affichage des informations des capteurs communautaires (à venir)
 
 #### **MobileAir Side Panels**
 
-- **Panel de sélection** : Choix des capteurs mobiles disponibles
-- **Panel de visualisation** : Affichage des parcours et données des capteurs sélectionnés
-- **Sélection de période** : Périodes prédéfinies et personnalisées
-- **Limitation intelligente** : Un seul capteur à la fois pour protéger l'API
 - **Gestion des statuts** : Affichage du statut de connexion des capteurs
+- **Panel de sélection** : Choix des capteurs mobiles disponibles
+- **Limitation** : Un seul capteur à la fois pour protéger l'API
+- **Sélection de période** : Périodes prédéfinies et personnalisées
+- **Panel de visualisation** : Affichage des parcours et données des capteurs sélectionnés
 
 ### Contrôles Communs des Side Panels
 
 - **Sélection de polluants** : Checkboxes pour choisir les polluants à afficher
-- **Périodes prédéfinies** : Boutons pour 3h, 24h, 7 jours, 1 an
 - **Périodes personnalisées** : Sélecteur de dates pour les analyses sur mesure
-- **Pas de temps** : Sélection de la granularité des données
 - **Redimensionnement** : Boutons pour changer la taille du panel (normal, plein écran, masqué)
 - **Réouverture** : Boutons flottants pour rouvrir les panels masqués
 
@@ -280,18 +281,32 @@ L'interface principale dispose d'un en-tête compact contenant tous les contrôl
   - **Période SignalAir** : Sélecteur de dates (visible si SignalAir est actif)
 - **Indicateurs d'information** : Affichage des sélections actuelles séparés par une bordure verticale
 - **Barre de progression** : Indicateur de chargement discret en bas de l'en-tête
+- **Mode historique** : Bouton pour basculer entre mode historique et mode actuel
+
+### Contrôles du mode historique
+
+- **Sélecteur de dates** : Sélecteur de dates pour les analyses sur mesure
+- **Bouton de chargement** : Bouton pour charger les données historiques
+- **Bouton de désactivation** : Bouton pour désactiver le mode historique
+- **Bouton de réduction** : Bouton pour réduire le panel de contrôle
+- **Bouton de fermeture** : Bouton pour fermer le panel de contrôle
+- **Panel de contrôle** : Panel de contrôle pour paramétrer le mode historique
+  - **Timeline** : Timeline pour visualiser les données historiques
+  - **Bouton de contrôle** : Bouton pour contrôler la lecture de la timeline
+- **Bouton de réouverture** : Bouton pour réouvrir le panel masqué
 
 ### Contrôles de carte
 
 - **Contrôle du clustering** : Icône en bas à gauche pour paramétrer le clustering
-- **Contrôle fond de carte** : Icône en bas à gauche pour basculer entre carte et satellite
+- **Contrôle fond de carte** : Icône en bas à gauche pour basculer entre fond de carte standard et fond de carte satellite
 - **Légende** : Affichage des seuils en bas au centre avec tooltips au hover
-- **Informations de la carte** : Compteur d'appareils et signalements en bas à droite
-- **Indicateur de chargement** : Affichage discret des sources en cours de chargement
+- **Informations de la carte** : Compteur de nombre d'appareils et de signalements affichés sur la carte en bas à droite
+- **Indicateur de chargement** : Affichage discret des sources en cours de chargement en haut à droite
 
 ### Marqueurs et affichage
 
 - **Marqueurs colorés** : Couleurs selon les seuils de qualité de l'air
+- **Formes des marqueurs** : Différentes formes selon le type de source de données
 - **Affichage des valeurs** : Valeurs numériques directement sur les marqueurs
 - **Indicateurs de correction** : Badge bleu pour les données AtmoMicro corrigées
 - **Marqueurs SignalAir** : Icônes spécifiques par type de signalement
@@ -304,7 +319,6 @@ L'interface principale dispose d'un en-tête compact contenant tous les contrôl
 - **Sélection multiple intelligente** : Groupes de sources avec états partiels
 - **États visuels clairs** : Sélectionné, partiellement sélectionné, non sélectionné
 - **Responsive design** : Adapté à tous les écrans
-- **Animations fluides** : Transitions et hover effects
 - **Indicateurs de chargement** : Affichage discret des états de chargement
 - **Clustering intelligent** : Amélioration de la lisibilité avec de nombreux marqueurs
 
@@ -526,98 +540,29 @@ npm run lint         # Vérification ESLint
 - Réinstallez : `npm install`
 - Si problème persiste : `npm install --legacy-peer-deps`
 
-### 📱 Accès mobile
-
-L'application est responsive et fonctionne sur mobile :
-
-- Accédez à `http://[votre-ip]:5173` depuis votre appareil mobile
-- Remplacez `[votre-ip]` par l'adresse IP de votre ordinateur
-- Les deux appareils doivent être sur le même réseau
-
-## 🏗️ Structure modulaire
-
-### Services de données
-
-Chaque source de données a son propre service qui hérite de `BaseDataService` :
-
-```typescript
-export class AtmoRefService extends BaseDataService {
-  async fetchData(params) {
-    // Logique spécifique à AtmoRef
-  }
-
-  async fetchHistoricalData(params) {
-    // Données historiques pour le side panel
-  }
-}
-```
-
-### Composants de contrôle
-
-Les menus sont organisés en composants réutilisables avec interface horizontale :
-
-- `PollutantDropdown` : Sélection du polluant avec label et bouton alignés
-- `SourceDropdown` : Sélection multiple des sources avec hiérarchie et groupes
-- `TimeStepDropdown` : Sélection du pas de temps
-- `SignalAirPeriodSelector` : Sélecteur de période pour SignalAir
-- `TimePeriodDisplay` : Affichage de la période actuelle
-- `BaseLayerControl` : Contrôle du fond de carte avec icônes
-- `ClusterControl` : Contrôle du clustering des marqueurs
-
-### Hook personnalisé
-
-`useAirQualityData` gère la récupération et l'état des données :
-
-```typescript
-const { devices, reports, loading, error, loadingSources } = useAirQualityData({
-  selectedPollutant,
-  selectedSources,
-  selectedTimeStep,
-  signalAirPeriod,
-});
-```
-
-### Constantes centralisées
-
-- `pollutants.ts` : Définition des polluants avec seuils
-- `sources.ts` : Configuration des sources de données
-- `timeSteps.ts` : Définition des pas de temps
-- `mapLayers.ts` : Configuration des fonds de carte
-
-## 📊 Utilisation du clustering
-
-### Activation du clustering
-
-1. Cliquez sur l'icône de clustering en bas à gauche de la carte
-2. Cochez "Activer le clustering" pour activer le regroupement automatique
-
-### Avantages du clustering
-
-- **Performance améliorée** : Moins de marqueurs à rendre simultanément
-- **Lisibilité accrue** : Regroupement logique des points proches
-- **Navigation facilitée** : Zoom automatique sur les zones d'intérêt
-- **Interface responsive** : Adaptation automatique selon le niveau de zoom
-
 ## 📊 Utilisation des Side Panels
 
 ### Side Panel AtmoRef
 
 1. Cliquez sur un marqueur AtmoRef sur la carte
-2. Le side panel s'ouvre automatiquement avec les informations de la station
-3. Les graphiques historiques se chargent pour la période par défaut (24h)
+2. Le side panel s'ouvre automatiquement avec les informations de la station (à venir)
+3. Les graphiques historiques se chargent au pas de temps horaire sur une période de 24h par défaut
+4. Sélectionnez les polluants disponibles pour la station
+5. Choix du pas de temps et de la période parmi les périodes prédéfinies ou personnalisées
 
 ### Side Panel AtmoMicro
 
 1. Cliquez sur un marqueur AtmoMicro sur la carte
-2. Le side panel s'ouvre avec les données des microcapteurs
-3. Sélectionnez les polluants disponibles dans la station
-4. Visualisez les données corrigées et non corrigées
+2. Les graphiques historiques se chargent au pas de temps horaire sur une période de 24h par défaut
+3. Sélectionnez les polluants disponibles pour le microcapteur
+4. Choix du pas de temps et de la période parmi les périodes prédéfinies ou personnalisées
 
 ### Side Panel NebuleAir
 
 1. Cliquez sur un marqueur NebuleAir sur la carte
-2. Le side panel s'ouvre avec les données des capteurs communautaires
-3. Analysez les tendances des capteurs citoyens
+2. Les graphiques historiques se chargent au pas de temps quart-horaire sur une période de 24h par défaut
+3. Sélectionnez les polluants disponibles pour le microcapteur
+4. Choix du pas de temps et de la période parmi les périodes prédéfinies ou personnalisées
 
 ### Side Panels MobileAir
 
@@ -649,9 +594,9 @@ const { devices, reports, loading, error, loadingSources } = useAirQualityData({
 
 - **Données historiques** : Visualisation des tendances sur différentes périodes
 - **Multi-polluants** : Affichage simultané de plusieurs polluants
+- **Mode comparaison** : Affichage simultané de plusieurs stations
 - **Zoom et navigation** : Interactions avec les graphiques pour explorer les données
-- **Gestion des statuts** : Indicateurs de connexion et d'activité des capteurs
-- **Export** : Possibilité d'exporter les données (à implémenter)
+- **Export** : Possibilité d'exporter les données (à venir)
 
 ## 🔧 Dépendances principales
 
@@ -681,59 +626,4 @@ const { devices, reports, loading, error, loadingSources } = useAirQualityData({
 ### **Développement et Tests**
 
 - **ESLint 9.29.0** : Linter JavaScript/TypeScript
-- **Jest 30.1.3** : Framework de tests
-- **@testing-library/react 16.3.0** : Utilitaires de test React
-- **@testing-library/jest-dom 6.8.0** : Matchers Jest pour DOM
-- **@testing-library/user-event 14.6.1** : Simulation d'événements utilisateur
-- **ts-jest 29.4.1** : Préprocesseur TypeScript pour Jest
-
-## 📝 Notes de développement
-
-### Compatibilité
-
-- Compatible avec React 19 et react-leaflet v5
-- Utilisation de `--legacy-peer-deps` pour certaines dépendances
-- Support complet de TypeScript
-
-### Performance
-
-- Clustering automatique pour optimiser les performances
-- Chargement différé des données
-- Gestion intelligente des états de chargement
-- Optimisation du rendu des marqueurs
-- Cache des données SignalAir pour éviter les appels répétés
-
-### Extensibilité
-
-- Architecture modulaire pour faciliter l'ajout de nouvelles sources
-- Services séparés pour chaque type de données
-- Composants réutilisables
-- Configuration centralisée
-
-## 🚧 Fonctionnalités en développement
-
-### ✅ **Récemment implémentées**
-
-- **Side Panel AtmoMicro** : Graphiques historiques pour les microcapteurs ✅
-- **Side Panel NebuleAir** : Visualisation des capteurs communautaires ✅
-- **Side Panels MobileAir** : Sélection et visualisation des capteurs mobiles ✅
-- **Auto-refresh intelligent** : Rafraîchissement automatique adaptatif ✅
-- **Gestion des périodes personnalisées** : Sélecteurs de dates avancés ✅
-- **Contrôles de redimensionnement** : Panels normal, plein écran, masqué ✅
-
-### 🚧 **À implémenter prochainement**
-
-- **PurpleAir** : Intégration des capteurs PurpleAir
-- **Sensor.Community** : Intégration des capteurs communautaires
-- **Panel statistique** : Statistiques des appareils affichés sur la carte
-- **Export de données** : Export CSV/JSON/PNG/PDF des données affichées
-
-### 🔮 **Améliorations prévues**
-
-- **Filtres avancés** : Filtrage par qualité de l'air, distance, etc.
-- **Comparaison de sources** : Analyse comparative entre différents appareils de mesure dans un même panel
-- **Possibilité de remonté dans le temps** : Possibilité de remonter dans le temps pour voir les épisodes de pollution passés sur la carte
-
-## 📝 Licence
-
-Ce projet est sous licence MIT.
+- **Tests** : (à venir)
