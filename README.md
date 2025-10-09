@@ -25,6 +25,10 @@ Une application React modulaire et responsive pour afficher des appareils de mes
 - **MobileAir Panels** : Sélection d'un capteur et visualisation des différentes sessions de mesure de capteurs mobiles
 - **Périodes personnalisées** : 3h, 24h, 7j, 1an + sélecteur de dates personnalisées
 - **Redimensionnement** : Normal, plein écran, masqué
+- **🆕 Intercomparaison Multi-Sources** : Comparaison de jusqu'à 5 stations (AtmoRef/AtmoMicro) sur un même graphique
+  - Détection automatique des polluants communs
+  - Gestion des résolutions temporelles différentes (mode Scan)
+  - Documentation technique : `docs/features/INTERCOMPARAISON_TECHNIQUE.md`
 
 ### 🔄 **Gestion des Données**
 
@@ -563,6 +567,63 @@ npm run lint         # Vérification ESLint
 2. Les graphiques historiques se chargent au pas de temps quart-horaire sur une période de 24h par défaut
 3. Sélectionnez les polluants disponibles pour le microcapteur
 4. Choix du pas de temps et de la période parmi les périodes prédéfinies ou personnalisées
+
+### 🆕 Mode Intercomparaison (AtmoRef / AtmoMicro)
+
+Le mode intercomparaison permet de **comparer jusqu'à 5 stations** (AtmoRef et/ou AtmoMicro) sur un même graphique.
+
+#### **Activation du mode comparaison**
+
+1. Cliquez sur une station AtmoRef ou AtmoMicro
+2. Dans le side panel, cliquez sur l'**icône de graphique** (en haut à droite)
+3. Le mode comparaison s'active et la station actuelle devient la première station comparée
+
+#### **Ajout de stations à la comparaison**
+
+1. Une fois en mode comparaison, **cliquez sur d'autres marqueurs** AtmoRef ou AtmoMicro
+2. Chaque clic ajoute la station à la comparaison (maximum 5)
+3. Les stations s'affichent dans la liste "Stations sélectionnées"
+4. Vous pouvez supprimer une station avec le bouton **×**
+
+#### **Utilisation du graphique de comparaison**
+
+1. **Sélection du polluant** : Le dropdown affiche uniquement les polluants disponibles dans **toutes** les stations
+
+   - Exemple : Si vous comparez 3 stations qui mesurent PM2.5 et PM10, seuls ces 2 polluants seront disponibles
+   - Sélectionnez un polluant à comparer (un seul à la fois)
+
+2. **Graphique** : Affiche une courbe par station avec des couleurs différentes
+
+   - Bleu, Rouge, Vert, Orange, Violet, Rose
+   - Légende : "Nom de la station - Polluant"
+   - Type de station : "Station de référence" (AtmoRef) ou "Microcapteur" (AtmoMicro)
+
+3. **Contrôles temporels** :
+   - **Période** : 3h, 24h, 7j, 1an, ou personnalisée
+   - **Pas de temps** : Scan, 15min, 1h, 1j
+
+#### **Mode Scan - Résolutions variables**
+
+⚠️ **Important** : En mode Scan, les résolutions temporelles diffèrent :
+
+- **AtmoRef** : Mesure toutes les **15 minutes** (résolution fixe)
+- **AtmoMicro** : Mesure toutes les **1 à 5 minutes** selon le modèle de capteur
+
+💡 Un bandeau informatif bleu s'affiche automatiquement en mode Scan pour expliquer cette différence.
+
+#### **Limitations**
+
+- **Maximum 5 stations** comparables simultanément
+- **Un seul polluant** affiché à la fois (celui disponible dans toutes les stations)
+- **Sources supportées** : AtmoRef et AtmoMicro uniquement
+
+#### **Désactivation du mode comparaison**
+
+1. Cliquez sur **"Désactiver comparaison"** dans le panel
+2. Ou fermez le panel de comparaison
+3. Le mode normal se réactive
+
+📚 **Documentation technique complète** : `docs/features/INTERCOMPARAISON_TECHNIQUE.md`
 
 ### Side Panels MobileAir
 

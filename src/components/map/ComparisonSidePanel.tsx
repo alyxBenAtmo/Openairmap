@@ -60,6 +60,7 @@ const ComparisonSidePanel: React.FC<ComparisonSidePanelProps> = ({
           // Mapping des codes selon la source
           let mappedCode = code;
           if (station.source === "atmoRef") {
+            // Pour AtmoRef, les clés sont des codes numériques ("01", "03", etc.)
             const atmoRefMapping: Record<string, string> = {
               "01": "so2",
               "03": "no2",
@@ -69,17 +70,10 @@ const ComparisonSidePanel: React.FC<ComparisonSidePanelProps> = ({
               "68": "pm1",
             };
             mappedCode = atmoRefMapping[code] || code;
-          } else if (station.source === "atmoMicro") {
-            const atmoMicroMapping: Record<string, string> = {
-              "PM2.5": "pm25",
-              PM10: "pm10",
-              PM1: "pm1",
-              NO2: "no2",
-              O3: "o3",
-              SO2: "so2",
-            };
-            mappedCode = atmoMicroMapping[code] || code;
           }
+          // Pour AtmoMicro, les clés sont déjà normalisées ("pm25", "pm10", etc.)
+          // Pas besoin de mapping supplémentaire
+
           return mappedCode === pollutantCode && variable.en_service;
         }
       );
@@ -329,8 +323,10 @@ const ComparisonSidePanel: React.FC<ComparisonSidePanelProps> = ({
                       {station.name}
                     </p>
                     <p className="text-xs text-gray-500 truncate">
-                      {station.source === "atmoRef" ? "AtmoRef" : "AtmoMicro"} -{" "}
-                      {station.address}
+                      {station.source === "atmoRef"
+                        ? "Station de référence"
+                        : "Microcapteur"}{" "}
+                      - {station.address}
                     </p>
                   </div>
                   <button

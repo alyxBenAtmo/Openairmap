@@ -71,15 +71,38 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   const groupPollutantsByUnit = () => {
     const unitGroups: Record<string, string[]> = {};
 
-    selectedPollutants.forEach((pollutant) => {
-      if (data[pollutant] && data[pollutant].length > 0) {
-        const unit = encodeUnit(data[pollutant][0].unit);
-        if (!unitGroups[unit]) {
-          unitGroups[unit] = [];
+    // Mode comparaison : les données sont groupées par station ID
+    if (source === "comparison" && stations.length > 0) {
+      // En mode comparaison, on a un seul polluant et plusieurs stations
+      // Toutes les stations mesurent le même polluant, donc une seule unité
+      const pollutant = selectedPollutants[0];
+
+      // Trouver la première station avec des données pour récupérer l'unité
+      for (const station of stations) {
+        if (data[station.id] && data[station.id].length > 0) {
+          const unit = encodeUnit(data[station.id][0].unit);
+          if (!unitGroups[unit]) {
+            unitGroups[unit] = [];
+          }
+          // Ajouter le polluant (pas la station) dans le groupe d'unité
+          if (!unitGroups[unit].includes(pollutant)) {
+            unitGroups[unit].push(pollutant);
+          }
+          break; // On a trouvé l'unité, pas besoin de continuer
         }
-        unitGroups[unit].push(pollutant);
       }
-    });
+    } else {
+      // Mode normal : les données sont groupées par polluant
+      selectedPollutants.forEach((pollutant) => {
+        if (data[pollutant] && data[pollutant].length > 0) {
+          const unit = encodeUnit(data[pollutant][0].unit);
+          if (!unitGroups[unit]) {
+            unitGroups[unit] = [];
+          }
+          unitGroups[unit].push(pollutant);
+        }
+      });
+    }
 
     return unitGroups;
   };
@@ -90,55 +113,64 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
 
     // Mode comparaison : données par station
     if (source === "comparison" && stations.length > 0) {
-      const allTimestamps = new Set<string>();
+      const allTimestamps = new Map<number, string>(); // Map timestamp numérique -> string original
       const pollutant = selectedPollutants[0]; // Un seul polluant en mode comparaison
 
       // Récupérer tous les timestamps uniques de toutes les stations
+      // Utiliser le timestamp numérique comme clé pour normaliser
       stations.forEach((station) => {
         if (data[station.id]) {
           data[station.id].forEach((point) => {
-            allTimestamps.add(point.timestamp);
+            const timestampMs = new Date(point.timestamp).getTime();
+            if (!allTimestamps.has(timestampMs)) {
+              allTimestamps.set(timestampMs, point.timestamp);
+            }
           });
         }
       });
 
-      // Trier les timestamps
-      const sortedTimestamps = Array.from(allTimestamps).sort();
+      // Trier les timestamps numériques
+      const sortedTimestamps = Array.from(allTimestamps.entries()).sort(
+        (a, b) => a[0] - b[0]
+      );
 
       // Créer les points de données
-      const transformedData = sortedTimestamps.map((timestamp) => {
-        const point: any = {
-          timestamp: new Date(timestamp).toLocaleString("fr-FR", {
-            month: "short",
-            day: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          rawTimestamp: timestamp,
-        };
+      const transformedData = sortedTimestamps.map(
+        ([timestampMs, originalTimestamp]) => {
+          const point: any = {
+            timestamp: new Date(timestampMs).toLocaleString("fr-FR", {
+              month: "short",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            rawTimestamp: timestampMs,
+          };
 
-        // Ajouter les valeurs pour chaque station
-        stations.forEach((station) => {
-          if (data[station.id]) {
-            const dataPoint = data[station.id].find(
-              (p) => p.timestamp === timestamp
-            );
-            if (dataPoint) {
-              // Utiliser l'ID de la station comme clé
-              point[station.id] = dataPoint.value;
+          // Ajouter les valeurs pour chaque station
+          stations.forEach((station) => {
+            if (data[station.id]) {
+              // Comparer les timestamps en millisecondes au lieu de strings
+              const dataPoint = data[station.id].find(
+                (p) => new Date(p.timestamp).getTime() === timestampMs
+              );
+              if (dataPoint) {
+                // Utiliser l'ID de la station comme clé
+                point[station.id] = dataPoint.value;
 
-              // Stocker l'unité pour cette station
-              let unit = dataPoint.unit;
-              if (!unit && pollutants[pollutant]) {
-                unit = pollutants[pollutant].unit;
+                // Stocker l'unité pour cette station
+                let unit = dataPoint.unit;
+                if (!unit && pollutants[pollutant]) {
+                  unit = pollutants[pollutant].unit;
+                }
+                point[`${station.id}_unit`] = unit;
               }
-              point[`${station.id}_unit`] = unit;
             }
-          }
-        });
+          });
 
-        return point;
-      });
+          return point;
+        }
+      );
 
       return transformedData;
     }
@@ -243,6 +275,25 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     hasCorrectedData,
     chartData: chartData.slice(0, 3), // Log des 3 premiers points
   });
+
+  // Log spécifique pour le mode comparaison
+  if (source === "comparison" && stations.length > 0) {
+    console.log(
+      "🔍 [HistoricalChart] Mode comparaison - Analyse des données:",
+      {
+        totalPoints: chartData.length,
+        stations: stations.map((s) => s.id),
+        sampleData: chartData.slice(0, 5),
+        // Compter les points avec des valeurs pour chaque station
+        stationDataCount: stations.reduce((acc, station) => {
+          acc[station.id] = chartData.filter(
+            (p) => p[station.id] !== undefined
+          ).length;
+          return acc;
+        }, {} as Record<string, number>),
+      }
+    );
+  }
 
   // Afficher un message si aucune donnée n'est disponible
   if (chartData.length === 0) {
@@ -388,7 +439,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
                   dot={{ r: 3 }}
                   activeDot={{ r: 5 }}
                   name={`${station.name} - ${pollutantName}`}
-                  connectNulls={false}
+                  connectNulls={true} // Relier les points malgré les gaps (résolutions différentes)
                 />
               );
             })
