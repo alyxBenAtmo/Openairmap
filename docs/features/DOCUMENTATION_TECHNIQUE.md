@@ -251,13 +251,13 @@ export interface DataService {
 
 ### Services disponibles
 
-1. **AtmoRefService** : Données de référence AtmoSud
-2. **AtmoMicroService** : Données micro-capteurs AtmoSud
-3. **NebuleAirService** : Données communautaires NebuleAir
-4. **PurpleAirService** : Données capteurs PurpleAir
-5. **SensorCommunityService** : Données Sensor.Community
-6. **SignalAirService** : Signalements citoyens
-7. **MobileAirService** : Données capteurs mobiles
+1. **AtmoRefService**
+2. **AtmoMicroService**
+3. **NebuleAirService**
+4. **PurpleAirService**
+5. **SensorCommunityService**
+6. **SignalAirService**
+7. **MobileAirService**
 
 ## Flux de données
 
