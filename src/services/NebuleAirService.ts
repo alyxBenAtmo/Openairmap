@@ -622,6 +622,24 @@ export class NebuleAirService extends BaseDataService {
     }
   }
 
+  // Fonction pour formater les dates selon les besoins du mode historique
+  private formatDateForHistoricalMode(
+    dateString: string,
+    isEndDate: boolean = false
+  ): string {
+    const date = new Date(dateString);
+
+    if (isEndDate) {
+      // Date de fin : toujours à 23:59:59 UTC
+      date.setUTCHours(23, 59, 59, 999);
+    } else {
+      // Date de début : toujours à 00:00:00 UTC
+      date.setUTCHours(0, 0, 0, 0);
+    }
+
+    return date.toISOString();
+  }
+
   // Méthode pour convertir le pas de temps au format de l'API
   private convertTimeStepToFreq(timeStep: string): string {
     const timeStepMapping: Record<string, string> = {
@@ -684,8 +702,11 @@ export class NebuleAirService extends BaseDataService {
       const freq = this.convertTimeStepToFreq(params.timeStep);
 
       // Formater les dates au format ISO pour l'API
-      const startDate = new Date(params.startDate).toISOString();
-      const endDate = new Date(params.endDate).toISOString();
+      const startDate = this.formatDateForHistoricalMode(
+        params.startDate,
+        false
+      );
+      const endDate = this.formatDateForHistoricalMode(params.endDate, true);
 
       // Construire l'URL pour récupérer toutes les données des capteurs
       const url = `${

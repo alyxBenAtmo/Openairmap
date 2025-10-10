@@ -309,13 +309,14 @@ export class AtmoMicroService extends BaseDataService {
       }
 
       // Formater les dates pour AtmoMicro (format YYYY-MM-DDTHH:mm:ss.sssZ)
-      const formatDateForAtmoMicro = (dateString: string): string => {
-        const date = new Date(dateString);
-        return date.toISOString();
-      };
-
-      const formattedStartDate = formatDateForAtmoMicro(params.startDate);
-      const formattedEndDate = formatDateForAtmoMicro(params.endDate);
+      const formattedStartDate = this.formatDateForHistoricalMode(
+        params.startDate,
+        false
+      );
+      const formattedEndDate = this.formatDateForHistoricalMode(
+        params.endDate,
+        true
+      );
 
       // Construire l'URL pour les données historiques avec les bons paramètres
       const url = `${this.BASE_URL}/mesures?id_site=${params.siteId}&format=json&download=false&nb_dec=1&valeur_brute=true&variable=${atmoMicroVariable}&type_capteur=true&aggregation=${timeStepConfig.aggregation}&debut=${formattedStartDate}&fin=${formattedEndDate}`;
@@ -408,6 +409,24 @@ export class AtmoMicroService extends BaseDataService {
     }
   }
 
+  // Fonction pour formater les dates selon les besoins du mode historique
+  private formatDateForHistoricalMode(
+    dateString: string,
+    isEndDate: boolean = false
+  ): string {
+    const date = new Date(dateString);
+
+    if (isEndDate) {
+      // Date de fin : toujours à 23:59:59 UTC
+      date.setUTCHours(23, 59, 59, 999);
+    } else {
+      // Date de début : toujours à 00:00:00 UTC
+      date.setUTCHours(0, 0, 0, 0);
+    }
+
+    return date.toISOString();
+  }
+
   // Méthode optimisée pour récupérer les données temporelles historiques
   private async fetchTemporalDataOptimized(params: {
     variable: string;
@@ -424,7 +443,9 @@ export class AtmoMicroService extends BaseDataService {
     const temporalDataPoints: TemporalDataPoint[] = [];
     const chunkSize = 30; // 30 jours par tranche (plus efficace que 7 jours)
     const start = new Date(startDate);
+    start.setUTCHours(0, 0, 0, 0);
     const end = new Date(endDate);
+    end.setUTCHours(23, 59, 59, 999);
 
     // Calculer le nombre de tranches
     const totalDays = Math.ceil(
@@ -456,10 +477,19 @@ export class AtmoMicroService extends BaseDataService {
       );
 
       try {
+        // Ajuster les heures pour chaque tranche
+        const formattedChunkStart = this.formatDateForHistoricalMode(
+          chunkStart.toISOString(),
+          false
+        );
+        // Pour la date de fin de la tranche, vérifier si c'est la dernière tranche
+        const isLastChunk = i === chunks - 1;
+        const formattedChunkEnd = isLastChunk
+          ? this.formatDateForHistoricalMode(chunkEnd.toISOString(), true)
+          : chunkEnd.toISOString();
+
         // Construire l'URL optimisée selon votre exemple
-        const url = `${
-          this.BASE_URL
-        }/mesures?debut=${chunkStart.toISOString()}&fin=${chunkEnd.toISOString()}&format=json&download=false&nb_dec=0&variable=${variable}&valeur_brute=false&aggregation=${aggregation}&type_capteur=false`;
+        const url = `${this.BASE_URL}/mesures?debut=${formattedChunkStart}&fin=${formattedChunkEnd}&format=json&download=false&nb_dec=0&variable=${variable}&valeur_brute=false&aggregation=${aggregation}&type_capteur=false`;
 
         console.log(`🔗 [AtmoMicro] Requête optimisée: ${url}`);
 

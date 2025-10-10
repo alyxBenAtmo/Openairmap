@@ -59,12 +59,10 @@ const HistoricalControlPanel: React.FC<
   const getMaxDateRange = () => {
     // Si le pas de temps est "15 minutes", limiter à 7 jours
     if (state.timeStep === "quartHeure") {
-      console.log("state.timeStep", state.timeStep);
       return 7;
     }
     // Si le pas de temps est "heure", limiter à 30 jours
     if (state.timeStep === "heure") {
-      console.log("state.timeStep", state.timeStep);
       return 30;
     }
     // Pour les autres pas de temps, garder 365 jours

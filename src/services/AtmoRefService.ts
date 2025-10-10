@@ -202,8 +202,18 @@ export class AtmoRefService extends BaseDataService {
         return [];
       }
 
+      // Formater les dates pour le mode historique
+      const formattedStartDate = this.formatDateForHistoricalMode(
+        params.startDate,
+        false
+      );
+      const formattedEndDate = this.formatDateForHistoricalMode(
+        params.endDate,
+        true
+      );
+
       // Construire l'URL pour les données historiques avec le bon endpoint
-      const url = `${this.BASE_URL}/stations/mesures?format=json&station_id=${params.stationId}&nom_polluant=${atmoRefPollutantName}&temporalite=${timeStepConfig.temporalite}&download=false&metadata=true&date_debut=${params.startDate}&date_fin=${params.endDate}`;
+      const url = `${this.BASE_URL}/stations/mesures?format=json&station_id=${params.stationId}&nom_polluant=${atmoRefPollutantName}&temporalite=${timeStepConfig.temporalite}&download=false&metadata=true&date_debut=${formattedStartDate}&date_fin=${formattedEndDate}`;
 
       const response = await this.makeRequest(url);
 
@@ -303,7 +313,9 @@ export class AtmoRefService extends BaseDataService {
       // Diviser la période en chunks de 30 jours pour éviter les timeouts
       const chunkSize = 30; // 30 jours
       const start = new Date(params.startDate);
+      start.setUTCHours(0, 0, 0, 0);
       const end = new Date(params.endDate);
+      end.setUTCHours(23, 59, 59, 999);
       const temporalData: TemporalDataPoint[] = [];
 
       // Calculer le nombre de chunks
@@ -374,6 +386,24 @@ export class AtmoRefService extends BaseDataService {
     }
   }
 
+  // Fonction pour formater les dates selon les besoins du mode historique
+  private formatDateForHistoricalMode(
+    dateString: string,
+    isEndDate: boolean = false
+  ): string {
+    const date = new Date(dateString);
+
+    if (isEndDate) {
+      // Date de fin : toujours à 23:59:59 UTC
+      date.setUTCHours(23, 59, 59, 999);
+    } else {
+      // Date de début : toujours à 00:00:00 UTC
+      date.setUTCHours(0, 0, 0, 0);
+    }
+
+    return date.toISOString();
+  }
+
   private async fetchTemporalDataChunk(
     pollutantName: string,
     temporalite: string,
@@ -382,12 +412,19 @@ export class AtmoRefService extends BaseDataService {
     stationsMap: Map<string, AtmoRefStation>,
     pollutant: string
   ): Promise<TemporalDataPoint[]> {
+    // Formater les dates pour le mode historique
+    const formattedStartDate = this.formatDateForHistoricalMode(
+      startDate,
+      false
+    );
+    const formattedEndDate = this.formatDateForHistoricalMode(endDate, true);
+
     const url = `${
       this.BASE_URL
     }/stations/mesures?nom_polluant=${pollutantName}&date_debut=${encodeURIComponent(
-      startDate
+      formattedStartDate
     )}&date_fin=${encodeURIComponent(
-      endDate
+      formattedEndDate
     )}&temporalite=${temporalite}&metadata=false&only_validate_values=true&format=json&download=false`;
 
     try {
