@@ -240,13 +240,12 @@ export class AtmoMicroService extends BaseDataService {
     Record<string, { label: string; code_iso: string; en_service: boolean }>
   > {
     try {
-      // Récupérer tous les sites pour trouver celui qui nous intéresse
-      const url = `${this.BASE_URL}/sites?format=json&actifs=2880`;
+      // Récupérer uniquement le site demandé avec le paramètre id_site
+      const url = `${this.BASE_URL}/sites?format=json&actifs=2880&id_site=${siteId}`;
       const sites = await this.makeRequest(url);
 
-      const site = sites.find(
-        (s: AtmoMicroSite) => s.id_site.toString() === siteId
-      );
+      // L'API devrait retourner un tableau avec un seul élément
+      const site = Array.isArray(sites) && sites.length > 0 ? sites[0] : null;
       if (!site) {
         console.warn(`Site ${siteId} non trouvé`);
         return {};
@@ -280,6 +279,43 @@ export class AtmoMicroService extends BaseDataService {
         error
       );
       throw error;
+    }
+  }
+
+  // Méthode pour récupérer le pas de temps par défaut d'un capteur
+  async fetchSensorTimeStep(
+    siteId: string,
+    pollutant: string
+  ): Promise<number | null> {
+    try {
+      // Mapping du polluant vers le format AtmoMicro
+      const atmoMicroVariable = this.getAtmoMicroVariable(pollutant);
+      if (!atmoMicroVariable) {
+        console.warn(`Polluant ${pollutant} non supporté par AtmoMicro`);
+        return null;
+      }
+
+      // Récupérer les dernières mesures pour ce site et ce polluant
+      const url = `${this.BASE_URL}/mesures/dernieres?id_site=${siteId}&format=json&download=false&nb_dec=0&variable=${atmoMicroVariable}&valeur_brute=false&type_capteur=false&detail_position=false`;
+      const response = await this.makeRequest(url);
+
+      // Vérifier si on a une réponse valide
+      if (!response || !Array.isArray(response) || response.length === 0) {
+        console.warn(`Aucune mesure trouvée pour le site ${siteId}`);
+        return null;
+      }
+
+      // Extraire le pas de temps (en secondes) de la première mesure
+      const firstMeasure = response[0];
+      const timeStep = firstMeasure.pas_de_temps;
+
+      return typeof timeStep === "number" ? timeStep : null;
+    } catch (error) {
+      console.error(
+        "Erreur lors de la récupération du pas de temps du capteur:",
+        error
+      );
+      return null;
     }
   }
 

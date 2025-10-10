@@ -58,6 +58,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
     useState<PanelSize>("normal");
   const [showPollutantsList, setShowPollutantsList] = useState(false);
   const [hasCorrectedData, setHasCorrectedData] = useState(false);
+  const [sensorTimeStep, setSensorTimeStep] = useState<number | null>(null);
 
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
@@ -114,8 +115,22 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
       setInternalPanelSize("normal");
       setHasCorrectedData(false);
 
-      // Charger les données historiques initiales si des polluants sont disponibles
+      // Charger le pas de temps par défaut du capteur
       if (selectedPollutants.length > 0) {
+        atmoMicroService
+          .fetchSensorTimeStep(selectedStation.id, selectedPollutants[0])
+          .then((timeStep) => {
+            setSensorTimeStep(timeStep);
+          })
+          .catch((error) => {
+            console.error(
+              "Erreur lors de la récupération du pas de temps:",
+              error
+            );
+            setSensorTimeStep(null);
+          });
+
+        // Charger les données historiques initiales
         loadHistoricalData(
           selectedStation,
           selectedPollutants,
@@ -315,6 +330,24 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
     setHasCorrectedData(hasCorrected);
   };
 
+  // Fonction pour formater le pas de temps en secondes vers un format lisible
+  const formatTimeStep = (seconds: number | null): string => {
+    if (seconds === null) return "Scan";
+
+    if (seconds < 60) {
+      return `scan:${seconds}s`;
+    } else if (seconds < 3600) {
+      const minutes = Math.round(seconds / 60);
+      return `scan ${minutes}min`;
+    } else if (seconds < 86400) {
+      const hours = Math.round(seconds / 3600);
+      return `scan:${hours}h`;
+    } else {
+      const days = Math.round(seconds / 86400);
+      return `scan:${days}j`;
+    }
+  };
+
   const getPanelClasses = () => {
     const baseClasses =
       "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300 h-[calc(100vh-64px)]";
@@ -334,6 +367,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
   if (!isOpen || !selectedStation) {
     return null;
   }
+  console.log(selectedStation);
   return (
     <div className={getPanelClasses()}>
       {/* Header */}
@@ -676,7 +710,9 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                               : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                           }`}
                         >
-                          {label}
+                          {key === "instantane" && sensorTimeStep !== null
+                            ? formatTimeStep(sensorTimeStep)
+                            : label}
                         </button>
                       ))}
                     </div>

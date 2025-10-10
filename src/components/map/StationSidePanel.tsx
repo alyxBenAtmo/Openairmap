@@ -670,21 +670,24 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
                     </div>
                     <div className="grid grid-cols-4 gap-1">
                       {[
-                        { key: "instantane", label: "Scan" },
-                        { key: "quartHeure", label: "15min" },
-                        { key: "heure", label: "1h" },
-                        { key: "jour", label: "1j" },
-                      ].map(({ key, label }) => (
+                        { key: "instantane", label: "Scan", disabled: true },
+                        { key: "quartHeure", label: "15min", disabled: false },
+                        { key: "heure", label: "1h", disabled: false },
+                        { key: "jour", label: "1j", disabled: false },
+                      ].map(({ key, label, disabled }) => (
                         <button
                           key={key}
-                          onClick={() => handleTimeStepChange(key)}
+                          onClick={() => !disabled && handleTimeStepChange(key)}
+                          disabled={disabled}
                           className={`px-1.5 py-1 text-xs rounded-md transition-all duration-200 ${
-                            state.chartControls.timeStep === key
+                            disabled
+                              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                              : state.chartControls.timeStep === key
                               ? "bg-blue-600 text-white shadow-sm"
                               : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                           }`}
                         >
-                          {label}
+                          {key === "instantane" ? "scan : 15min" : label}
                         </button>
                       ))}
                     </div>
