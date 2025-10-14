@@ -267,7 +267,27 @@ const MobileAirSidePanel: React.FC<MobileAirSidePanelProps> = ({
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+                d="M9 4H5a2 2 0 00-2 2v4m0 4v4a2 2 0 002 2h4m4-16h4a2 2 0 012 2v4m0 4v4a2 2 0 01-2 2h-4"
+              />
+            </svg>
+          </button>
+
+          <button
+            onClick={() => handlePanelSizeChange("hidden")}
+            className="p-1.5 sm:p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            title="Masquer"
+          >
+            <svg
+              className="w-3.5 h-3.5 sm:w-4 sm:h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
               />
             </svg>
           </button>
@@ -291,27 +311,7 @@ const MobileAirSidePanel: React.FC<MobileAirSidePanelProps> = ({
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
-              />
-            </svg>
-          </button>
-
-          <button
-            onClick={() => handlePanelSizeChange("hidden")}
-            className="p-1.5 sm:p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-            title="Masquer"
-          >
-            <svg
-              className="w-3.5 h-3.5 sm:w-4 sm:h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
+                d="M13 5l7 7-7 7M5 5l7 7-7 7"
               />
             </svg>
           </button>
