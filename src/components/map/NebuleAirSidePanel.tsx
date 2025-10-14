@@ -271,9 +271,14 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
 
     // Si c'est une plage personnalisée, utiliser les dates fournies
     if (timeRange.type === "custom" && timeRange.custom) {
+      // Créer les dates en heure LOCALE (sans Z), puis convertir en UTC
+      // Cela permet d'avoir 00:00-23:59 en heure locale, pas en UTC
+      const startDate = new Date(timeRange.custom.startDate + "T00:00:00");
+      const endDate = new Date(timeRange.custom.endDate + "T23:59:59.999");
+
       return {
-        startDate: new Date(timeRange.custom.startDate).toISOString(),
-        endDate: new Date(timeRange.custom.endDate + "T23:59:59").toISOString(),
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
       };
     }
 

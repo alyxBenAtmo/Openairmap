@@ -66,26 +66,23 @@ const HistoricalTimeRangeSelector: React.FC<
   const handleCustomDateChange = (type: "start" | "end", value: string) => {
     if (type === "start") {
       setCustomStartDate(value);
-      if (customEndDate) {
-        onTimeRangeChange({
-          type: "custom",
-          custom: {
-            startDate: value,
-            endDate: customEndDate,
-          },
-        });
-      }
     } else {
       setCustomEndDate(value);
-      if (customStartDate) {
-        onTimeRangeChange({
-          type: "custom",
-          custom: {
-            startDate: customStartDate,
-            endDate: value,
-          },
-        });
-      }
+    }
+    // Ne pas charger automatiquement les données
+    // L'utilisateur devra cliquer sur "Charger les données"
+  };
+
+  const handleLoadCustomRange = () => {
+    if (customStartDate && customEndDate) {
+      onTimeRangeChange({
+        type: "custom",
+        custom: {
+          startDate: customStartDate,
+          endDate: customEndDate,
+        },
+      });
+      setIsCustomOpen(false);
     }
   };
 
@@ -104,6 +101,7 @@ const HistoricalTimeRangeSelector: React.FC<
     setCustomStartDate(startDateStr);
     setCustomEndDate(endDateStr);
 
+    // Charger immédiatement pour les sélections rapides
     onTimeRangeChange({
       type: "custom",
       custom: {
@@ -111,6 +109,7 @@ const HistoricalTimeRangeSelector: React.FC<
         endDate: endDateStr,
       },
     });
+    setIsCustomOpen(false);
   };
 
   const getDisplayText = () => {
@@ -309,6 +308,20 @@ const HistoricalTimeRangeSelector: React.FC<
                   />
                 </div>
               </div>
+
+              {/* Bouton Charger les données */}
+              <button
+                type="button"
+                onClick={handleLoadCustomRange}
+                disabled={!customStartDate || !customEndDate}
+                className={`w-full mt-3 px-3 py-2 text-xs font-medium rounded-md transition-all duration-200 ${
+                  customStartDate && customEndDate
+                    ? "bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                }`}
+              >
+                Charger les données
+              </button>
             </div>
           </div>
         </div>
