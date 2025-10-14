@@ -100,8 +100,12 @@ export class AtmoMicroService extends BaseDataService {
               measure.valeur !== null &&
               measure.valeur_brute !== null &&
               measure.valeur !== measure.valeur_brute;
-            correctedValue = hasCorrection ? measure.valeur : undefined;
-            rawValue = measure.valeur_brute;
+            correctedValue =
+              hasCorrection && measure.valeur !== null
+                ? measure.valeur
+                : undefined;
+            rawValue =
+              measure.valeur_brute !== null ? measure.valeur_brute : undefined;
           } else {
             // Pour horaire et autres : utiliser valeur comme avant
             hasCorrection =
@@ -109,8 +113,12 @@ export class AtmoMicroService extends BaseDataService {
               measure.valeur !== measure.valeur_brute;
             displayValue =
               measure.valeur !== null ? measure.valeur : measure.valeur_brute;
-            correctedValue = hasCorrection ? measure.valeur : undefined;
-            rawValue = measure.valeur_brute;
+            correctedValue =
+              hasCorrection && measure.valeur !== null
+                ? measure.valeur
+                : undefined;
+            rawValue =
+              measure.valeur_brute !== null ? measure.valeur_brute : undefined;
           }
 
           const qualityLevel = getAirQualityLevel(
@@ -234,11 +242,13 @@ export class AtmoMicroService extends BaseDataService {
   }
 
   // Méthode pour récupérer les variables disponibles d'un site
-  async fetchSiteVariables(
-    siteId: string
-  ): Promise<
-    Record<string, { label: string; code_iso: string; en_service: boolean }>
-  > {
+  async fetchSiteVariables(siteId: string): Promise<{
+    variables: Record<
+      string,
+      { label: string; code_iso: string; en_service: boolean }
+    >;
+    sensorModel?: string;
+  }> {
     try {
       // Récupérer uniquement le site demandé avec le paramètre id_site
       const url = `${this.BASE_URL}/sites?format=json&actifs=2880&id_site=${siteId}`;
@@ -248,7 +258,7 @@ export class AtmoMicroService extends BaseDataService {
       const site = Array.isArray(sites) && sites.length > 0 ? sites[0] : null;
       if (!site) {
         console.warn(`Site ${siteId} non trouvé`);
-        return {};
+        return { variables: {} };
       }
 
       // Parser la chaîne de variables (ex: "PM10, PM2.5, Air Pres., Air Temp., Air Hum., PM1")
@@ -272,7 +282,13 @@ export class AtmoMicroService extends BaseDataService {
         }
       }
 
-      return availableVariables;
+      // Récupérer le modèle du capteur
+      const sensorModel = site.modele_capteur || undefined;
+
+      return {
+        variables: availableVariables,
+        sensorModel,
+      };
     } catch (error) {
       console.error(
         "Erreur lors de la récupération des variables du site:",

@@ -8,6 +8,7 @@ import {
 } from "../../types";
 import { pollutants } from "../../constants/pollutants";
 import { AtmoMicroService } from "../../services/AtmoMicroService";
+import { getSensorModelImage } from "../../constants/sensorModels";
 import HistoricalChart from "./HistoricalChart";
 import HistoricalTimeRangeSelector, {
   TimeRange,
@@ -511,6 +512,88 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
       {/* Contenu - masqué quand currentPanelSize === 'hidden' */}
       {currentPanelSize !== "hidden" && (
         <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4 sm:space-y-6">
+          {/* Section Informations et Photo du capteur */}
+          {selectedStation && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+              {/* Photo du capteur */}
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                {getSensorModelImage(selectedStation.sensorModel) ? (
+                  <div className="relative w-full aspect-video">
+                    <img
+                      src={getSensorModelImage(selectedStation.sensorModel)!}
+                      alt={`Capteur ${
+                        selectedStation.sensorModel || "AtmoMicro"
+                      }`}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Masquer l'image si elle ne se charge pas
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
+                    />
+                    {selectedStation.sensorModel && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                        <p className="text-white text-xs sm:text-sm font-medium">
+                          Modèle : {selectedStation.sensorModel}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="w-full aspect-video bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
+                    <div className="text-center">
+                      <svg
+                        className="w-12 h-12 text-blue-400 mx-auto mb-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
+                        />
+                      </svg>
+                      <p className="text-blue-600 text-xs font-medium">
+                        {selectedStation.sensorModel || "Microcapteur AtmoSud"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Encart Informations (vide pour l'instant) */}
+              <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                  <svg
+                    className="w-4 h-4 text-blue-600 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  Informations
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 mr-2"></div>
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-600">
+                        Informations supplémentaires à venir
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Graphique avec contrôles intégrés */}
           <div className="flex-1 min-h-80 sm:min-h-96 md:min-h-[28rem]">
             <h3 className="text-sm font-medium text-gray-700 mb-2 sm:mb-3">

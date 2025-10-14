@@ -661,12 +661,16 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       > = {};
 
       // Récupérer les informations détaillées selon la source
+      let sensorModel: string | undefined;
+
       if (device.source === "atmoRef") {
         const atmoRefService = new AtmoRefService();
         variables = await atmoRefService.fetchStationVariables(device.id);
       } else if (device.source === "atmoMicro") {
         const atmoMicroService = new AtmoMicroService();
-        variables = await atmoMicroService.fetchSiteVariables(device.id);
+        const siteInfo = await atmoMicroService.fetchSiteVariables(device.id);
+        variables = siteInfo.variables;
+        sensorModel = siteInfo.sensorModel;
       } else if (device.source === "nebuleair") {
         const nebuleAirService = new NebuleAirService();
         variables = await nebuleAirService.fetchSiteVariables(device.id);
@@ -679,6 +683,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
         departmentId: device.departmentId || "",
         source: device.source,
         variables,
+        sensorModel,
       };
 
       setSelectedStation(stationInfo);
@@ -746,12 +751,16 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       > = {};
 
       // Récupérer les informations détaillées selon la source
+      let sensorModel: string | undefined;
+
       if (device.source === "atmoRef") {
         const atmoRefService = new AtmoRefService();
         variables = await atmoRefService.fetchStationVariables(device.id);
       } else if (device.source === "atmoMicro") {
         const atmoMicroService = new AtmoMicroService();
-        variables = await atmoMicroService.fetchSiteVariables(device.id);
+        const siteInfo = await atmoMicroService.fetchSiteVariables(device.id);
+        variables = siteInfo.variables;
+        sensorModel = siteInfo.sensorModel;
       }
 
       const stationInfo: StationInfo = {
@@ -761,6 +770,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
         departmentId: device.departmentId || "",
         source: device.source,
         variables,
+        sensorModel,
       };
 
       setComparisonState((prev) => ({
@@ -1142,10 +1152,13 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
           />
 
           {/* Contrôle d'échelle */}
-          <ScaleControl />
+          <ScaleControl
+            isSidePanelOpen={isSidePanelOpen}
+            panelSize={panelSize}
+          />
 
           {/* Flèche du nord */}
-          <NorthArrow />
+          <NorthArrow isSidePanelOpen={isSidePanelOpen} panelSize={panelSize} />
 
           {/* Marqueurs pour les appareils de mesure */}
           {clusterConfig.enabled ? (
@@ -1307,7 +1320,13 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
         </MapContainer>
 
         {/* Contrôles de la carte */}
-        <div className="absolute bottom-20 left-4 z-[1000] flex flex-col space-y-2">
+        <div
+          className={`absolute bottom-20 left-4 z-[1000] flex flex-col space-y-2 transition-all duration-300 ${
+            isSidePanelOpen && panelSize !== "hidden"
+              ? "hidden md:flex"
+              : "flex"
+          }`}
+        >
           {/* Contrôle du clustering */}
           <ClusterControl
             config={clusterConfig}
@@ -1327,6 +1346,24 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
           isSidePanelOpen={isSidePanelOpen}
           panelSize={panelSize}
         />
+
+        {/* Informations de la carte (nombre d'appareils et de signalements) */}
+        <div
+          className={`absolute bottom-4 right-4 bg-white px-3 py-2 rounded-md shadow-lg z-[1000] transition-all duration-300 ${
+            isSidePanelOpen && panelSize !== "hidden"
+              ? "hidden md:block"
+              : "block"
+          }`}
+        >
+          <p className="text-xs text-gray-600">
+            {devices.length} appareil{devices.length > 1 ? "s" : ""}
+            {reports.length > 0 && (
+              <span className="ml-2">
+                • {reports.length} signalement{reports.length > 1 ? "s" : ""}
+              </span>
+            )}
+          </p>
+        </div>
       </div>
 
       {/* Bouton pour rouvrir le panel masqué */}

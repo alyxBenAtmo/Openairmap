@@ -2,11 +2,20 @@ import React, { useEffect } from "react";
 import { useMap } from "react-leaflet";
 import L from "leaflet";
 
+interface ScaleControlProps {
+  isSidePanelOpen?: boolean;
+  panelSize?: "normal" | "fullscreen" | "hidden";
+}
+
 /**
  * Composant pour afficher une échelle qui s'ajuste automatiquement selon le zoom
  * Utilise le contrôle d'échelle natif de Leaflet
+ * Se cache sur mobile quand le side panel est ouvert
  */
-const ScaleControl: React.FC = () => {
+const ScaleControl: React.FC<ScaleControlProps> = ({
+  isSidePanelOpen = false,
+  panelSize = "normal",
+}) => {
   const map = useMap();
 
   useEffect(() => {
@@ -26,6 +35,22 @@ const ScaleControl: React.FC = () => {
       scaleControl.remove();
     };
   }, [map]);
+
+  // Effet pour gérer la visibilité selon l'état du side panel
+  useEffect(() => {
+    // Attendre que le contrôle soit ajouté au DOM
+    setTimeout(() => {
+      const scaleElement = document.querySelector(".leaflet-control-scale");
+      if (scaleElement) {
+        // Sur mobile, cacher l'échelle quand le side panel est ouvert
+        if (isSidePanelOpen && panelSize !== "hidden") {
+          scaleElement.classList.add("hidden", "md:block");
+        } else {
+          scaleElement.classList.remove("hidden", "md:block");
+        }
+      }
+    }, 100);
+  }, [isSidePanelOpen, panelSize]);
 
   // Ce composant ne rend rien directement
   return null;

@@ -112,6 +112,17 @@
   position: relative !important;
 }
 
+/* Styles plus compacts pour mobile */
+@media (max-width: 768px) {
+  .leaflet-control-scale {
+    font-size: 10px !important;
+    padding: 4px 6px !important;
+    margin: 0 0 6px 6px !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 6px !important;
+  }
+}
+
 .leaflet-control-scale:hover {
   background: rgba(255, 255, 255, 0.95) !important;
   border-color: #3b82f6 !important;
@@ -129,6 +140,15 @@
   line-height: 1.2 !important;
   margin: 0 !important;
   padding: 2px 4px !important;
+}
+
+/* Version compacte pour mobile */
+@media (max-width: 768px) {
+  .leaflet-control-scale-line {
+    border: 1px solid #3b82f6 !important;
+    padding: 1px 3px !important;
+    font-size: 9px !important;
+  }
 }
 
 /* S'assurer que l'échelle est au-dessus de tous les autres contrôles */
@@ -155,6 +175,15 @@
   position: relative !important;
 }
 
+/* Version compacte pour mobile */
+@media (max-width: 768px) {
+  .north-arrow-container {
+    padding: 5px !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 6px !important;
+  }
+}
+
 .north-arrow-container:hover {
   background: rgba(255, 255, 255, 0.95) !important;
   border-color: #3b82f6 !important;
@@ -171,6 +200,18 @@
   margin-bottom: 2px !important;
 }
 
+/* Version compacte pour mobile */
+@media (max-width: 768px) {
+  .north-arrow {
+    margin-bottom: 1px !important;
+  }
+
+  .north-arrow svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+}
+
 .north-arrow-text {
   color: #374151 !important;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
@@ -180,4 +221,11 @@
   text-align: center !important;
   line-height: 1 !important;
   user-select: none !important;
+}
+
+/* Version compacte pour mobile */
+@media (max-width: 768px) {
+  .north-arrow-text {
+    font-size: 10px !important;
+  }
 }

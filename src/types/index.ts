@@ -215,6 +215,7 @@ export interface StationInfo {
   departmentId: string;
   source: string;
   variables: Record<string, StationVariable>;
+  sensorModel?: string; // Modèle du capteur (pour AtmoMicro)
 }
 
 export interface ChartControls {

@@ -12,6 +12,7 @@ import TimeStepDropdown from "./components/controls/TimeStepDropdown";
 import SignalAirPeriodSelector from "./components/controls/SignalAirPeriodSelector";
 import HistoricalModeButton from "./components/controls/HistoricalModeButton";
 import HistoricalControlPanel from "./components/controls/HistoricalControlPanel";
+import MobileMenuBurger from "./components/controls/MobileMenuBurger";
 
 const App: React.FC = () => {
   // Configuration basée sur le domaine
@@ -166,19 +167,37 @@ const App: React.FC = () => {
       <header className="bg-white border-b border-gray-200 px-4 py-3 shadow-sm z-[1000]">
         <div className="flex items-center justify-between">
           {/* Titre et logo groupés à gauche */}
-          <div className="flex items-center space-x-3">
-            <h1 className="text-lg font-semibold text-blue-600">
+          <div className="flex items-center space-x-2 md:space-x-3">
+            <h1 className="text-sm md:text-lg font-semibold text-blue-600 truncate">
               {domainConfig.title}
             </h1>
             <img
               src={domainConfig.logo}
               alt={`${domainConfig.organization} logo`}
-              className="h-10"
+              className="h-8 md:h-10"
             />
           </div>
 
-          {/* Contrôles intégrés dans l'en-tête */}
-          <div className="flex items-center space-x-4">
+          {/* Menu burger sur mobile */}
+          <MobileMenuBurger
+            selectedPollutant={selectedPollutant}
+            onPollutantChange={setSelectedPollutant}
+            selectedSources={selectedSources}
+            onSourceChange={setSelectedSources}
+            selectedTimeStep={selectedTimeStep}
+            onTimeStepChange={setSelectedTimeStep}
+            signalAirPeriod={signalAirPeriod}
+            onSignalAirPeriodChange={handleSignalAirPeriodChange}
+            isHistoricalModeActive={isHistoricalModeActive}
+            onToggleHistoricalMode={toggleHistoricalMode}
+            autoRefreshEnabled={autoRefreshEnabled}
+            onToggleAutoRefresh={setAutoRefreshEnabled}
+            lastRefresh={lastRefresh}
+            loading={loading}
+          />
+
+          {/* Contrôles intégrés dans l'en-tête - Desktop uniquement */}
+          <div className="hidden md:flex items-center space-x-4">
             <PollutantDropdown
               selectedPollutant={selectedPollutant}
               onPollutantChange={setSelectedPollutant}
@@ -289,18 +308,6 @@ const App: React.FC = () => {
           onGoToPrevious={goToPrevious}
           onGoToNext={goToNext}
         />
-
-        {/* Informations de la carte (nombre d'appareils et de signalements) */}
-        <div className="absolute bottom-4 right-4 bg-white px-3 py-2 rounded-md shadow-lg z-[1000]">
-          <p className="text-xs text-gray-600">
-            {devices.length} appareil{devices.length > 1 ? "s" : ""}
-            {reports.length > 0 && (
-              <span className="ml-2">
-                • {reports.length} signalement{reports.length > 1 ? "s" : ""}
-              </span>
-            )}
-          </p>
-        </div>
       </main>
     </div>
   );
