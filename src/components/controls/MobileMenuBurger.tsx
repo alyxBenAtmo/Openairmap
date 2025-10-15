@@ -63,7 +63,7 @@ const MobileMenuBurger: React.FC<MobileMenuBurgerProps> = ({
   }, [isOpen]);
 
   return (
-    <div className="relative md:hidden" ref={menuRef}>
+    <div className="relative lg:hidden" ref={menuRef}>
       {/* Bouton burger */}
       <button
         onClick={() => setIsOpen(!isOpen)}
@@ -96,7 +96,7 @@ const MobileMenuBurger: React.FC<MobileMenuBurgerProps> = ({
 
       {/* Menu déroulant */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-screen max-w-sm bg-white rounded-lg shadow-xl border border-gray-200 z-[2000] max-h-[80vh] overflow-y-auto">
+        <div className="absolute right-0 top-full mt-2 w-screen max-w-sm sm:max-w-md bg-white rounded-lg shadow-xl border border-gray-200 z-[2000] max-h-[80vh] overflow-y-auto">
           <div className="p-4 space-y-4">
             {/* Titre */}
             <div className="border-b border-gray-200 pb-2">

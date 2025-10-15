@@ -18,6 +18,7 @@ interface HistoricalChartProps {
   source: string; // Source de données (atmoRef, atmoMicro, comparison, etc.)
   onHasCorrectedDataChange?: (hasCorrectedData: boolean) => void;
   stations?: any[]; // Stations pour le mode comparaison
+  showRawData?: boolean; // Contrôler l'affichage des données brutes
 }
 
 const HistoricalChart: React.FC<HistoricalChartProps> = ({
@@ -26,6 +27,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   source,
   onHasCorrectedDataChange,
   stations = [],
+  showRawData = true,
 }) => {
   // Log pour debug
   console.log("📊 [HistoricalChart] Props reçues:", {
@@ -501,8 +503,8 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
                           />
                         )}
 
-                        {/* Ligne des données brutes (trait discontinu) */}
-                        {hasRawData && (
+                        {/* Ligne des données brutes (trait discontinu) - affichée seulement si showRawData est true */}
+                        {hasRawData && showRawData && (
                           <Line
                             type="monotone"
                             dataKey={`${pollutant}_raw`}

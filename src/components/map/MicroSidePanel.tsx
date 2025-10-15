@@ -59,6 +59,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
     useState<PanelSize>("normal");
   const [showPollutantsList, setShowPollutantsList] = useState(false);
   const [hasCorrectedData, setHasCorrectedData] = useState(false);
+  const [showRawData, setShowRawData] = useState(true);
   const [sensorTimeStep, setSensorTimeStep] = useState<number | null>(null);
 
   // Utiliser la taille externe si fournie, sinon la taille interne
@@ -115,6 +116,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
       // Réinitialiser la taille du panel
       setInternalPanelSize("normal");
       setHasCorrectedData(false);
+      setShowRawData(true); // Réinitialiser l'affichage des données brutes
 
       // Charger le pas de temps par défaut du capteur
       if (selectedPollutants.length > 0) {
@@ -365,8 +367,8 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
         return `${baseClasses} w-0 overflow-hidden`;
       case "normal":
       default:
-        // Responsive: plein écran sur mobile, largeur fixe plus large sur desktop
-        return `${baseClasses} w-full sm:w-[500px] md:w-[650px] lg:w-[700px]`;
+        // Responsive: plein écran sur mobile, largeur réduite pour les petits écrans en paysage
+        return `${baseClasses} w-full sm:w-[350px] md:w-[450px] lg:w-[600px] xl:w-[650px]`;
     }
   };
 
@@ -512,95 +514,13 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
       {/* Contenu - masqué quand currentPanelSize === 'hidden' */}
       {currentPanelSize !== "hidden" && (
         <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4 sm:space-y-6">
-          {/* Section Informations et Photo du capteur */}
-          {selectedStation && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-              {/* Photo du capteur */}
-              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                {getSensorModelImage(selectedStation.sensorModel) ? (
-                  <div className="relative w-full aspect-video">
-                    <img
-                      src={getSensorModelImage(selectedStation.sensorModel)!}
-                      alt={`Capteur ${
-                        selectedStation.sensorModel || "AtmoMicro"
-                      }`}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        // Masquer l'image si elle ne se charge pas
-                        (e.target as HTMLImageElement).style.display = "none";
-                      }}
-                    />
-                    {selectedStation.sensorModel && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                        <p className="text-white text-xs sm:text-sm font-medium">
-                          Modèle : {selectedStation.sensorModel}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="w-full aspect-video bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
-                    <div className="text-center">
-                      <svg
-                        className="w-12 h-12 text-blue-400 mx-auto mb-2"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
-                        />
-                      </svg>
-                      <p className="text-blue-600 text-xs font-medium">
-                        {selectedStation.sensorModel || "Microcapteur AtmoSud"}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Encart Informations (vide pour l'instant) */}
-              <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
-                  <svg
-                    className="w-4 h-4 text-blue-600 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  Informations
-                </h3>
-                <div className="space-y-2">
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 mr-2"></div>
-                    <div className="flex-1">
-                      <p className="text-xs text-gray-600">
-                        Informations supplémentaires à venir
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Graphique avec contrôles intégrés */}
-          <div className="flex-1 min-h-80 sm:min-h-96 md:min-h-[28rem]">
+          <div className="flex-1 min-h-72 sm:min-h-80 md:min-h-96">
             <h3 className="text-sm font-medium text-gray-700 mb-2 sm:mb-3">
               Évolution temporelle (AtmoMicro)
             </h3>
             {state.loading ? (
-              <div className="flex items-center justify-center h-80 sm:h-96 md:h-[28rem] bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-center h-72 sm:h-80 md:h-96 bg-gray-50 rounded-lg">
                 <div className="flex flex-col items-center space-y-2">
                   <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600"></div>
                   <span className="text-xs sm:text-sm text-gray-500">
@@ -609,7 +529,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                 </div>
               </div>
             ) : state.error ? (
-              <div className="flex items-center justify-center h-80 sm:h-96 md:h-[28rem] bg-red-50 rounded-lg">
+              <div className="flex items-center justify-center h-72 sm:h-80 md:h-96 bg-red-50 rounded-lg">
                 <div className="text-center">
                   <svg
                     className="w-6 h-6 sm:w-8 sm:h-8 text-red-400 mx-auto mb-2"
@@ -742,13 +662,64 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                   )}
                 </div>
 
+                {/* Contrôle d'affichage des données brutes - seulement si des données corrigées sont disponibles */}
+                {hasCorrectedData && (
+                  <div className="border border-gray-200 rounded-lg mb-3 sm:mb-4">
+                    <div className="p-2.5 sm:p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <svg
+                            className="w-4 h-4 text-gray-600 flex-shrink-0"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                            />
+                          </svg>
+                          <span className="text-sm font-medium text-gray-700">
+                            Affichage des données
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <span className="text-xs text-gray-500">
+                            Données brutes
+                          </span>
+                          <button
+                            onClick={() => setShowRawData(!showRawData)}
+                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                              showRawData ? "bg-blue-600" : "bg-gray-200"
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                                showRawData ? "translate-x-5" : "translate-x-1"
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {showRawData
+                          ? "Affichage des données corrigées (trait plein) et brutes (trait discontinu)"
+                          : "Affichage des données corrigées"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Graphique */}
-                <div className="h-80 sm:h-96 md:h-[28rem] mb-3 sm:mb-4">
+                <div className="h-72 sm:h-80 md:h-96 mb-3 sm:mb-4">
                   <HistoricalChart
                     data={state.historicalData}
                     selectedPollutants={state.chartControls.selectedPollutants}
                     source="atmoMicro"
                     onHasCorrectedDataChange={handleHasCorrectedDataChange}
+                    showRawData={showRawData}
                   />
                 </div>
 
@@ -809,6 +780,88 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
               </div>
             )}
           </div>
+
+          {/* Section Informations et Photo du capteur */}
+          {selectedStation && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+              {/* Photo du capteur */}
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                {getSensorModelImage(selectedStation.sensorModel) ? (
+                  <div className="relative w-full aspect-video">
+                    <img
+                      src={getSensorModelImage(selectedStation.sensorModel)!}
+                      alt={`Capteur ${
+                        selectedStation.sensorModel || "AtmoMicro"
+                      }`}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Masquer l'image si elle ne se charge pas
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
+                    />
+                    {selectedStation.sensorModel && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                        <p className="text-white text-xs sm:text-sm font-medium">
+                          Modèle : {selectedStation.sensorModel}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="w-full aspect-video bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
+                    <div className="text-center">
+                      <svg
+                        className="w-12 h-12 text-blue-400 mx-auto mb-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
+                        />
+                      </svg>
+                      <p className="text-blue-600 text-xs font-medium">
+                        {selectedStation.sensorModel || "Microcapteur AtmoSud"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Encart Informations (vide pour l'instant) */}
+              <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                  <svg
+                    className="w-4 h-4 text-blue-600 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  Informations
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 mr-2"></div>
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-600">
+                        Informations supplémentaires à venir
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

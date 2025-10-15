@@ -30,3 +30,4 @@ export const getSensorModelImage = (
 
   return null;
 };
+

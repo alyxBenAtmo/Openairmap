@@ -229,7 +229,8 @@ const MobileAirSidePanel: React.FC<MobileAirSidePanelProps> = ({
         return `${baseClasses} w-0 overflow-hidden`;
       case "normal":
       default:
-        return `${baseClasses} w-full sm:w-[500px] md:w-[650px] lg:w-[700px]`;
+        // Responsive: plein écran sur mobile, largeur réduite pour les petits écrans en paysage
+        return `${baseClasses} w-full sm:w-[300px] md:w-[350px] lg:w-[400px] xl:w-[450px]`;
     }
   };
 

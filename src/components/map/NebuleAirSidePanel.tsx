@@ -436,8 +436,8 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
         return `${baseClasses} w-0 overflow-hidden`;
       case "normal":
       default:
-        // Responsive: plein écran sur mobile, largeur fixe plus large sur desktop
-        return `${baseClasses} w-full sm:w-[500px] md:w-[650px] lg:w-[700px]`;
+        // Responsive: plein écran sur mobile, largeur réduite pour les petits écrans en paysage
+        return `${baseClasses} w-full sm:w-[300px] md:w-[350px] lg:w-[400px] xl:w-[450px]`;
     }
   };
 

@@ -229,3 +229,45 @@
     font-size: 10px !important;
   }
 }
+
+/* Styles pour l'encart d'attribution de Leaflet */
+.leaflet-control-attribution {
+  position: fixed !important;
+  bottom: 4px !important;
+  right: 4px !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  border-radius: 4px !important;
+  padding: 2px 6px !important;
+  font-size: 11px !important;
+  color: #666 !important;
+  z-index: 1000 !important;
+  transition: none !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Ajustement pour les petits écrans en mode paysage */
+@media (max-width: 1024px) and (orientation: landscape) {
+  .leaflet-control-attribution {
+    bottom: 2px !important;
+    right: 2px !important;
+    font-size: 10px !important;
+    padding: 1px 4px !important;
+  }
+}
+
+/* Version compacte pour mobile */
+@media (max-width: 768px) {
+  .leaflet-control-attribution {
+    bottom: 2px !important;
+    right: 2px !important;
+    font-size: 10px !important;
+    padding: 1px 4px !important;
+  }
+}
+
+/* S'assurer que l'attribution reste fixe même avec les side panels */
+.leaflet-control-attribution:hover {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(0, 0, 0, 0.2) !important;
+}

@@ -197,7 +197,7 @@ const App: React.FC = () => {
           />
 
           {/* Contrôles intégrés dans l'en-tête - Desktop uniquement */}
-          <div className="hidden md:flex items-center space-x-4">
+          <div className="hidden lg:flex items-center space-x-4">
             <PollutantDropdown
               selectedPollutant={selectedPollutant}
               onPollutantChange={setSelectedPollutant}

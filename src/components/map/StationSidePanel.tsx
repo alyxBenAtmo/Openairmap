@@ -329,8 +329,8 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
         return `${baseClasses} w-0 overflow-hidden`;
       case "normal":
       default:
-        // Responsive: plein écran sur mobile, largeur fixe plus large sur desktop
-        return `${baseClasses} w-full sm:w-[500px] md:w-[650px] lg:w-[700px]`;
+        // Responsive: plein écran sur mobile, largeur réduite pour les petits écrans en paysage
+        return `${baseClasses} w-full sm:w-[350px] md:w-[450px] lg:w-[600px] xl:w-[650px]`;
     }
   };
 

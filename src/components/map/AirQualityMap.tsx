@@ -1349,11 +1349,11 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
 
         {/* Informations de la carte (nombre d'appareils et de signalements) */}
         <div
-          className={`absolute bottom-4 right-4 bg-white px-3 py-2 rounded-md shadow-lg z-[1000] transition-all duration-300 ${
+          className={`absolute ${
             isSidePanelOpen && panelSize !== "hidden"
-              ? "hidden md:block"
-              : "block"
-          }`}
+              ? "bottom-8 right-4 hidden md:block"
+              : "bottom-6 right-4 block"
+          } bg-white px-3 py-1 rounded-md shadow-lg z-[1000] transition-all duration-300`}
         >
           <p className="text-xs text-gray-600">
             {devices.length} appareil{devices.length > 1 ? "s" : ""}
