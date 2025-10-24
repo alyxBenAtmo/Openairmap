@@ -61,6 +61,8 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
   const [hasCorrectedData, setHasCorrectedData] = useState(false);
   const [showRawData, setShowRawData] = useState(true);
   const [sensorTimeStep, setSensorTimeStep] = useState<number | null>(null);
+  const [showMobileComparisonInfo, setShowMobileComparisonInfo] =
+    useState(false);
 
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
@@ -368,7 +370,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
       case "normal":
       default:
         // Responsive: plein écran sur mobile, largeur réduite pour les petits écrans en paysage
-        return `${baseClasses} w-full sm:w-[350px] md:w-[450px] lg:w-[600px] xl:w-[650px]`;
+        return `${baseClasses} w-full sm:w-[320px] md:w-[400px] lg:w-[600px] xl:w-[650px]`;
     }
   };
 
@@ -379,7 +381,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
   return (
     <div className={getPanelClasses()}>
       {/* Header */}
-      <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200 bg-gray-50">
+      <div className="flex items-center justify-between p-2 sm:p-3 md:p-4 border-b border-gray-200 bg-gray-50">
         <div className="flex-1 min-w-0">
           <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
             {selectedStation.name} (AtmoMicro)
@@ -490,6 +492,31 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
           </button>
         </div>
 
+        {/* Bouton mode comparaison pour mobile - visible uniquement sur mobile */}
+        {onComparisonModeToggle && (
+          <div className="sm:hidden">
+            <button
+              onClick={() => setShowMobileComparisonInfo(true)}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors mr-2"
+              title="Mode comparaison"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
+              </svg>
+            </button>
+          </div>
+        )}
+
         <button
           onClick={onClose}
           className="text-gray-400 hover:text-gray-600 transition-colors p-1.5 sm:p-1 rounded-full hover:bg-gray-200 ml-2"
@@ -511,16 +538,66 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
         </button>
       </div>
 
+      {/* Message informatif pour le mode comparaison sur mobile */}
+      {showMobileComparisonInfo && (
+        <div className="sm:hidden bg-blue-50 border-l-4 border-blue-400 p-3 mx-3 mt-2 rounded-md">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg
+                className="w-5 h-5 text-blue-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+            <div className="ml-3 flex-1">
+              <p className="text-sm text-blue-700">
+                <strong>Mode comparaison :</strong> Pour accéder au mode
+                comparaison, veuillez tourner votre appareil en mode paysage.
+              </p>
+            </div>
+            <div className="ml-3 flex-shrink-0">
+              <button
+                onClick={() => setShowMobileComparisonInfo(false)}
+                className="text-blue-400 hover:text-blue-600 transition-colors"
+                title="Fermer"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Contenu - masqué quand currentPanelSize === 'hidden' */}
       {currentPanelSize !== "hidden" && (
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4 sm:space-y-6">
+        <div className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 space-y-3 sm:space-y-4 md:space-y-6">
           {/* Graphique avec contrôles intégrés */}
-          <div className="flex-1 min-h-72 sm:min-h-80 md:min-h-96">
+          <div className="flex-1 min-h-64 sm:min-h-72 md:min-h-80 lg:min-h-96">
             <h3 className="text-sm font-medium text-gray-700 mb-2 sm:mb-3">
               Évolution temporelle (AtmoMicro)
             </h3>
             {state.loading ? (
-              <div className="flex items-center justify-center h-72 sm:h-80 md:h-96 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-center h-64 sm:h-72 md:h-80 lg:h-96 bg-gray-50 rounded-lg">
                 <div className="flex flex-col items-center space-y-2">
                   <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600"></div>
                   <span className="text-xs sm:text-sm text-gray-500">
@@ -529,7 +606,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                 </div>
               </div>
             ) : state.error ? (
-              <div className="flex items-center justify-center h-72 sm:h-80 md:h-96 bg-red-50 rounded-lg">
+              <div className="flex items-center justify-center h-64 sm:h-72 md:h-80 lg:h-96 bg-red-50 rounded-lg">
                 <div className="text-center">
                   <svg
                     className="w-6 h-6 sm:w-8 sm:h-8 text-red-400 mx-auto mb-2"
@@ -713,7 +790,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                 )}
 
                 {/* Graphique */}
-                <div className="h-72 sm:h-80 md:h-96 mb-3 sm:mb-4">
+                <div className="h-64 sm:h-72 md:h-80 lg:h-96 mb-2 sm:mb-3 md:mb-4">
                   <HistoricalChart
                     data={state.historicalData}
                     selectedPollutants={state.chartControls.selectedPollutants}
@@ -724,9 +801,9 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                 </div>
 
                 {/* Contrôles du graphique - en bas du graphique */}
-                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 md:gap-4">
                   {/* Contrôles de la période - Utilisation du composant réutilisable */}
-                  <div className="flex-1 border border-gray-200 rounded-lg p-2.5 sm:p-3">
+                  <div className="flex-1 border border-gray-200 rounded-lg p-2 sm:p-2.5 md:p-3">
                     <HistoricalTimeRangeSelector
                       timeRange={state.chartControls.timeRange}
                       onTimeRangeChange={handleTimeRangeChange}
@@ -734,7 +811,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                   </div>
 
                   {/* Contrôles du pas de temps */}
-                  <div className="flex-1 border border-gray-200 rounded-lg p-2.5 sm:p-3">
+                  <div className="flex-1 border border-gray-200 rounded-lg p-2 sm:p-2.5 md:p-3">
                     <div className="flex items-center space-x-2 mb-2.5 sm:mb-3">
                       <svg
                         className="w-4 h-4 text-gray-600 flex-shrink-0"
@@ -755,11 +832,19 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                     </div>
                     <div className="grid grid-cols-4 gap-1">
                       {[
-                        { key: "instantane", label: "Scan" },
-                        { key: "quartHeure", label: "15min" },
-                        { key: "heure", label: "1h" },
-                        { key: "jour", label: "1j" },
-                      ].map(({ key, label }) => (
+                        {
+                          key: "instantane",
+                          label: "Scan",
+                          shortLabel: "Scan",
+                        },
+                        {
+                          key: "quartHeure",
+                          label: "15min",
+                          shortLabel: "15m",
+                        },
+                        { key: "heure", label: "1h", shortLabel: "1h" },
+                        { key: "jour", label: "1j", shortLabel: "1j" },
+                      ].map(({ key, label, shortLabel }) => (
                         <button
                           key={key}
                           onClick={() => handleTimeStepChange(key)}
@@ -768,10 +853,22 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                               ? "bg-blue-600 text-white shadow-sm"
                               : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                           }`}
+                          title={
+                            key === "instantane" && sensorTimeStep !== null
+                              ? formatTimeStep(sensorTimeStep)
+                              : label
+                          }
                         >
-                          {key === "instantane" && sensorTimeStep !== null
-                            ? formatTimeStep(sensorTimeStep)
-                            : label}
+                          <span className="time-step-button-full">
+                            {key === "instantane" && sensorTimeStep !== null
+                              ? formatTimeStep(sensorTimeStep)
+                              : label}
+                          </span>
+                          <span className="time-step-button-short">
+                            {key === "instantane" && sensorTimeStep !== null
+                              ? formatTimeStep(sensorTimeStep)
+                              : shortLabel}
+                          </span>
                         </button>
                       ))}
                     </div>

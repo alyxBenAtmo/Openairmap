@@ -183,7 +183,7 @@ const ComparisonSidePanel: React.FC<ComparisonSidePanelProps> = ({
       case "normal":
       default:
         // Responsive: plein écran sur mobile, largeur réduite pour les petits écrans en paysage
-        return `${baseClasses} w-full sm:w-[300px] md:w-[350px] lg:w-[400px] xl:w-[450px]`;
+        return `${baseClasses} w-full sm:w-[320px] md:w-[400px] lg:w-[600px] xl:w-[650px]`;
     }
   };
 

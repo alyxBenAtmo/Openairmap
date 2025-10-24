@@ -67,7 +67,7 @@ const ClusterControl: React.FC<ClusterControlProps> = ({
             </h3>
 
             {/* Activation du clustering */}
-            <div className="mb-2">
+            <div className="mb-3">
               <label className="flex items-center space-x-2">
                 <input
                   type="checkbox"

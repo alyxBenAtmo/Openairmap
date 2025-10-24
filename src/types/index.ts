@@ -319,6 +319,13 @@ export interface ClusterConfig {
   animateAddingMarkers: boolean;
 }
 
+// Types pour le spiderfier indépendant
+export interface SpiderfyConfig {
+  enabled: boolean;
+  autoSpiderfy: boolean;
+  autoSpiderfyZoomThreshold: number;
+}
+
 // Types pour les statistiques
 export interface MapStatistics {
   totalDevices: number;

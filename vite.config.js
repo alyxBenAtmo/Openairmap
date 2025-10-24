@@ -7,6 +7,12 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     port: 5173,
+    allowedHosts: [
+      "crista-unlockable-vivan.ngrok-free.dev",
+      "localhost",
+      "127.0.0.1",
+      ".ngrok-free.dev",
+    ],
     proxy: {
       "/signalair": {
         target: "https://www.signalair.eu",

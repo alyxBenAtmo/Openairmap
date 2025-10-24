@@ -77,17 +77,17 @@ export const useAirQualityData = ({
         return source;
       });
 
-      console.log("🔍 [HOOK] Mapping des sources:", {
-        selectedSources,
-        mappedSources,
-      });
+      // console.log("🔍 [HOOK] Mapping des sources:", {
+      //   selectedSources,
+      //   mappedSources,
+      // });
 
       // Récupérer les services pour chaque source sélectionnée
       const services = DataServiceFactory.getServices(mappedSources);
-      console.log(
-        "🔍 [HOOK] Services récupérés:",
-        services.map((s) => s.constructor.name)
-      );
+      // console.log(
+      //   "🔍 [HOOK] Services récupérés:",
+      //   services.map((s) => s.constructor.name)
+      // );
 
       // Nettoyer les devices des sources non sélectionnées
       setDevices((prevDevices) => {
@@ -111,24 +111,10 @@ export const useAirQualityData = ({
 
       // Supprimer explicitement les devices MobileAir si MobileAir n'est pas sélectionné
       if (!selectedSources.includes("communautaire.mobileair")) {
-        console.log(
-          "🚫 [HOOK] MobileAir désélectionné - suppression explicite des devices MobileAir"
-        );
         setDevices((prevDevices) => {
           const filteredDevices = prevDevices.filter((device) => {
             return device.source !== "mobileair";
           });
-
-          console.log(
-            "🧹 [HOOK] Suppression explicite des devices MobileAir:",
-            {
-              totalDevices: prevDevices.length,
-              filteredDevices: filteredDevices.length,
-              removedMobileAirDevices: prevDevices
-                .filter((d) => d.source === "mobileair")
-                .map((d) => ({ id: d.id, source: d.source })),
-            }
-          );
 
           return filteredDevices;
         });
@@ -136,9 +122,6 @@ export const useAirQualityData = ({
 
       // Si MobileAir est réactivé, supprimer temporairement ses devices pour forcer un nouveau choix
       if (selectedSources.includes("communautaire.mobileair")) {
-        console.log(
-          "🔄 [HOOK] MobileAir réactivé - suppression temporaire des devices pour forcer nouveau choix"
-        );
         setDevices((prevDevices) => {
           const filteredDevices = prevDevices.filter((device) => {
             // Supprimer temporairement les devices MobileAir

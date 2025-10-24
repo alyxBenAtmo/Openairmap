@@ -271,3 +271,46 @@
   background: rgba(255, 255, 255, 0.95) !important;
   border-color: rgba(0, 0, 0, 0.2) !important;
 }
+
+/* Styles par défaut pour les boutons de pas de temps */
+.time-step-button-full {
+  display: inline !important;
+}
+
+.time-step-button-short {
+  display: none !important;
+}
+
+/* Styles pour les petits écrans en mode paysage */
+@media (max-width: 1024px) and (orientation: landscape) {
+  /* Masquer les labels d'axe Y sur petits écrans en mode paysage */
+  .recharts-yAxis .recharts-label {
+    display: none !important;
+  }
+
+  /* Boutons de pas de temps plus compacts */
+  .time-step-button-full {
+    display: none !important;
+  }
+
+  .time-step-button-short {
+    display: inline !important;
+  }
+}
+
+/* Styles pour les très petits écrans en mode paysage */
+@media (max-width: 768px) and (orientation: landscape) {
+  /* Masquer complètement les labels d'axe Y */
+  .recharts-yAxis .recharts-label {
+    display: none !important;
+  }
+
+  /* Boutons de pas de temps encore plus compacts */
+  .time-step-button-full {
+    display: none !important;
+  }
+
+  .time-step-button-short {
+    display: inline !important;
+  }
+}

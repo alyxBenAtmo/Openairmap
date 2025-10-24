@@ -70,9 +70,9 @@ const Legend: React.FC<LegendProps> = ({
 
   // Position fixe de la légende pour éviter les décalages
   const getLegendPosition = () => {
-    // Position fixe : mobile à droite au-dessus de la carte d'appareils, desktop légèrement à gauche
+    // Position fixe : mobile à droite au-dessus de l'encart d'attribution, desktop légèrement à gauche
     // La légende ne bouge plus selon l'état du side panel
-    return "absolute bottom-12 right-2 lg:bottom-4 lg:left-1/2 lg:right-auto lg:transform lg:-translate-x-1/2 lg:ml-[-20px]";
+    return "absolute bottom-8 right-2 lg:bottom-6 lg:left-1/2 lg:right-auto lg:transform lg:-translate-x-1/2 lg:ml-[-20px]";
   };
 
   return (

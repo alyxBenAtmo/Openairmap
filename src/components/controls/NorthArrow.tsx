@@ -26,6 +26,10 @@ const NorthArrow: React.FC<NorthArrowProps> = ({
         // Créer le conteneur de la flèche
         const container = L.DomUtil.create("div", "north-arrow-container");
 
+        // Ajouter le texte "N"
+        const text = L.DomUtil.create("div", "north-arrow-text", container);
+        text.textContent = "N";
+
         // Créer l'élément de la flèche
         const arrow = L.DomUtil.create("div", "north-arrow", container);
 
@@ -36,10 +40,6 @@ const NorthArrow: React.FC<NorthArrowProps> = ({
             <path d="M12 8.5L16 10L12 22L8 10L12 8.5Z" fill="#E5E7EB" stroke="#6B7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         `;
-
-        // Ajouter le texte "N"
-        const text = L.DomUtil.create("div", "north-arrow-text", container);
-        text.textContent = "N";
 
         // Empêcher les événements de la carte quand on interagit avec la flèche
         L.DomEvent.disableClickPropagation(container);
