@@ -31,6 +31,7 @@ import SpiderfiedMarkers from "./SpiderfiedMarkers";
 import CustomSpiderfiedMarkers from "./CustomSpiderfiedMarkers";
 
 import { getMarkerPath } from "../../utils";
+import { QUALITY_COLORS } from "../../constants/qualityColors";
 import { AtmoRefService } from "../../services/AtmoRefService";
 import { AtmoMicroService } from "../../services/AtmoMicroService";
 import { NebuleAirService } from "../../services/NebuleAirService";
@@ -509,6 +510,21 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     setCurrentBaseLayer(layerKey);
   };
 
+  // Fonction pour vérifier si un appareil est sélectionné
+  const isDeviceSelected = (device: MeasurementDevice): boolean => {
+    // Vérifier si l'appareil est dans le side panel normal
+    if (selectedStation && selectedStation.id === device.id) {
+      return true;
+    }
+    
+    // Vérifier si l'appareil est dans le mode comparaison
+    if (comparisonState.isComparisonMode && comparisonState.comparedStations.length > 0) {
+      return comparisonState.comparedStations.some(station => station.id === device.id);
+    }
+    
+    return false;
+  };
+
   // Fonction pour créer un marqueur personnalisé
   const createCustomIcon = (device: MeasurementDevice) => {
     const qualityLevel = device.qualityLevel || "default";
@@ -522,6 +538,39 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     const img = document.createElement("img");
     img.src = markerPath;
     img.alt = `${device.source} marker`;
+
+    // Vérifier si cet appareil est sélectionné et ajouter la mise en évidence
+    const isSelected = isDeviceSelected(device);
+    if (isSelected) {
+      // Utiliser la couleur correspondant au niveau de qualité
+      const highlightColor = QUALITY_COLORS[qualityLevel] || "#3b82f6";
+      
+      div.style.cssText += `
+        box-shadow: 0 0 0 3px ${highlightColor}, 0 0 0 6px ${highlightColor}40;
+        border-radius: 50%;
+        animation: pulse-${qualityLevel} 2s infinite;
+      `;
+      
+      // Ajouter l'animation CSS spécifique à chaque niveau
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes pulse-${qualityLevel} {
+          0% { 
+            box-shadow: 0 0 0 3px ${highlightColor}, 0 0 0 6px ${highlightColor}40; 
+          }
+          50% { 
+            box-shadow: 0 0 0 3px ${highlightColor}, 0 0 0 12px ${highlightColor}20; 
+          }
+          100% { 
+            box-shadow: 0 0 0 3px ${highlightColor}, 0 0 0 6px ${highlightColor}40; 
+          }
+        }
+      `;
+      if (!document.head.querySelector(`style[data-highlight-${qualityLevel}]`)) {
+        style.setAttribute(`data-highlight-${qualityLevel}`, 'true');
+        document.head.appendChild(style);
+      }
+    }
 
     // Ajouter une animation subtile pendant le chargement
     if (loading) {
