@@ -458,16 +458,21 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
           </p>
         </div>
 
-        {/* Contrôles de taille du panel - masqués sur mobile */}
-        <div className="hidden sm:flex items-center space-x-1 sm:space-x-2 mr-2">
+        {/* Contrôles unifiés du panel */}
+        <div className="flex items-center space-x-1 sm:space-x-2">
+          {/* Bouton agrandir/rétrécir */}
           <button
-            onClick={() => handlePanelSizeChange("normal")}
-            className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
-              currentPanelSize === "normal"
-                ? "bg-blue-100 text-blue-600"
-                : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-            }`}
-            title="Taille normale"
+            onClick={() => 
+              handlePanelSizeChange(
+                currentPanelSize === "fullscreen" ? "normal" : "fullscreen"
+              )
+            }
+            className="p-1.5 sm:p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            title={
+              currentPanelSize === "fullscreen" 
+                ? "Rétrécir le panel" 
+                : "Agrandir le panel"
+            }
           >
             <svg
               className="w-3.5 h-3.5 sm:w-4 sm:h-4"
@@ -475,19 +480,29 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 4H5a2 2 0 00-2 2v4m0 4v4a2 2 0 002 2h4m4-16h4a2 2 0 012 2v4m0 4v4a2 2 0 01-2 2h-4"
-              />
+              {currentPanelSize === "fullscreen" ? (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              ) : (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              )}
             </svg>
           </button>
 
+          {/* Bouton rabattre */}
           <button
             onClick={() => handlePanelSizeChange("hidden")}
             className="p-1.5 sm:p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-            title="Masquer"
+            title="Rabattre le panel"
           >
             <svg
               className="w-3.5 h-3.5 sm:w-4 sm:h-4"
@@ -499,55 +514,11 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
-              />
-            </svg>
-          </button>
-
-          <button
-            onClick={() => handlePanelSizeChange("fullscreen")}
-            className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
-              currentPanelSize === "fullscreen"
-                ? "bg-blue-100 text-blue-600"
-                : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-            }`}
-            title="Plein écran"
-          >
-            <svg
-              className="w-3.5 h-3.5 sm:w-4 sm:h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 5l7 7-7 7M5 5l7 7-7 7"
+                d="M6 18L18 6M6 6l12 12"
               />
             </svg>
           </button>
         </div>
-
-        <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 transition-colors p-1.5 sm:p-1 rounded-full hover:bg-gray-200 ml-2"
-          title="Fermer"
-        >
-          <svg
-            className="w-4 h-4 sm:w-5 sm:h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
       </div>
 
       {/* Contenu - masqué quand currentPanelSize === 'hidden' */}

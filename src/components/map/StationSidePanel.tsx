@@ -58,8 +58,6 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
   const [internalPanelSize, setInternalPanelSize] =
     useState<PanelSize>("normal");
   const [showPollutantsList, setShowPollutantsList] = useState(false);
-  const [showMobileComparisonInfo, setShowMobileComparisonInfo] =
-    useState(false);
 
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
@@ -353,46 +351,21 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
           </p>
         </div>
 
-        {/* Contrôles de taille du panel - masqués sur mobile */}
-        <div className="hidden sm:flex items-center space-x-1 sm:space-x-2 mr-2">
-          {/* Bouton mode comparaison */}
-          {onComparisonModeToggle && (
-            <button
-              onClick={onComparisonModeToggle}
-              className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
-                isComparisonMode
-                  ? "bg-green-100 text-green-600"
-                  : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-              }`}
-              title={
-                isComparisonMode
-                  ? "Désactiver le mode comparaison"
-                  : "Activer le mode comparaison"
-              }
-            >
-              <svg
-                className="w-3.5 h-3.5 sm:w-4 sm:h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                />
-              </svg>
-            </button>
-          )}
+        {/* Contrôles unifiés du panel */}
+        <div className="flex items-center space-x-1 sm:space-x-2">
+          {/* Bouton agrandir/rétrécir */}
           <button
-            onClick={() => handlePanelSizeChange("normal")}
-            className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
-              currentPanelSize === "normal"
-                ? "bg-blue-100 text-blue-600"
-                : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-            }`}
-            title="Taille normale"
+            onClick={() => 
+              handlePanelSizeChange(
+                currentPanelSize === "fullscreen" ? "normal" : "fullscreen"
+              )
+            }
+            className="p-1.5 sm:p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            title={
+              currentPanelSize === "fullscreen" 
+                ? "Rétrécir le panel" 
+                : "Agrandir le panel"
+            }
           >
             <svg
               className="w-3.5 h-3.5 sm:w-4 sm:h-4"
@@ -400,19 +373,29 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 4H5a2 2 0 00-2 2v4m0 4v4a2 2 0 002 2h4m4-16h4a2 2 0 012 2v4m0 4v4a2 2 0 01-2 2h-4"
-              />
+              {currentPanelSize === "fullscreen" ? (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              ) : (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              )}
             </svg>
           </button>
 
+          {/* Bouton rabattre */}
           <button
             onClick={() => handlePanelSizeChange("hidden")}
             className="p-1.5 sm:p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-            title="Masquer"
+            title="Rabattre le panel"
           >
             <svg
               className="w-3.5 h-3.5 sm:w-4 sm:h-4"
@@ -424,140 +407,52 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
+                d="M6 18L18 6M6 6l12 12"
               />
             </svg>
           </button>
 
-          <button
-            onClick={() => handlePanelSizeChange("fullscreen")}
-            className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
-              currentPanelSize === "fullscreen"
-                ? "bg-blue-100 text-blue-600"
-                : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-            }`}
-            title="Plein écran"
-          >
-            <svg
-              className="w-3.5 h-3.5 sm:w-4 sm:h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 5l7 7-7 7M5 5l7 7-7 7"
-              />
-            </svg>
-          </button>
         </div>
-
-        {/* Bouton mode comparaison pour mobile - visible uniquement sur mobile */}
-        {onComparisonModeToggle && (
-          <div className="sm:hidden">
-            <button
-              onClick={() => setShowMobileComparisonInfo(true)}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors mr-2"
-              title="Mode comparaison"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                />
-              </svg>
-            </button>
-          </div>
-        )}
-
-        <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 transition-colors p-1.5 sm:p-1 rounded-full hover:bg-gray-200 ml-2"
-          title="Fermer"
-        >
-          <svg
-            className="w-4 h-4 sm:w-5 sm:h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
       </div>
 
-      {/* Message informatif pour le mode comparaison sur mobile */}
-      {showMobileComparisonInfo && (
-        <div className="sm:hidden bg-blue-50 border-l-4 border-blue-400 p-3 mx-3 mt-2 rounded-md">
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <svg
-                className="w-5 h-5 text-blue-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </div>
-            <div className="ml-3 flex-1">
-              <p className="text-sm text-blue-700">
-                <strong>Mode comparaison :</strong> Pour accéder au mode
-                comparaison, veuillez tourner votre appareil en mode paysage.
-              </p>
-            </div>
-            <div className="ml-3 flex-shrink-0">
-              <button
-                onClick={() => setShowMobileComparisonInfo(false)}
-                className="text-blue-400 hover:text-blue-600 transition-colors"
-                title="Fermer"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Contenu - masqué quand currentPanelSize === 'hidden' */}
       {currentPanelSize !== "hidden" && (
         <div className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 space-y-3 sm:space-y-4 md:space-y-6">
           {/* Graphique avec contrôles intégrés */}
           <div className="flex-1 min-h-64 sm:min-h-80 md:min-h-96 lg:min-h-[28rem]">
-            <h3 className="text-sm font-medium text-gray-700 mb-2 sm:mb-3">
-              Évolution temporelle
-            </h3>
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <h3 className="text-sm font-medium text-gray-700">
+                Évolution temporelle
+              </h3>
+              
+              {/* Bouton mode comparaison - sur la ligne du titre */}
+              {onComparisonModeToggle && (
+                <button
+                  onClick={onComparisonModeToggle}
+                  className={`px-3 py-1.5 rounded-md text-xs transition-all duration-200 flex items-center ${
+                    isComparisonMode
+                      ? "text-green-700 bg-green-50 border border-green-200"
+                      : "text-gray-700 hover:bg-gray-50 border border-gray-200"
+                  }`}
+                >
+                  <svg
+                    className="w-3 h-3 mr-1"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                    />
+                  </svg>
+                  {isComparisonMode ? "Désactiver comparaison" : "Activer comparaison"}
+                </button>
+              )}
+            </div>
             {state.loading ? (
               <div className="flex items-center justify-center h-64 sm:h-80 md:h-96 lg:h-[28rem] bg-gray-50 rounded-lg">
                 <div className="flex flex-col items-center space-y-2">
