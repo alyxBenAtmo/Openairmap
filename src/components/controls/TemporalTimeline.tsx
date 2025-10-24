@@ -224,7 +224,7 @@ const TemporalTimeline: React.FC<TemporalTimelineProps> = ({
         {/* Labels de dates */}
         <div className="flex justify-between mt-2 text-xs text-gray-600">
           <span>{formatDate(startDate)}</span>
-          <span className="font-medium">
+          <span className="font-bold text-blue-600">
             {hoverTimestamp
               ? formatDate(hoverTimestamp)
               : formatDate(currentDate)}
@@ -233,21 +233,12 @@ const TemporalTimeline: React.FC<TemporalTimelineProps> = ({
         </div>
       </div>
 
-      {/* Informations sur la position actuelle */}
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex items-center space-x-2">
-          <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
-          <span className="text-gray-700">
-            Position actuelle : {formatDate(currentDate)}
-          </span>
+      {/* Informations sur les données */}
+      {dataPoints.length > 0 && (
+        <div className="flex justify-end text-sm text-gray-500">
+          {dataPoints.length} points temporels
         </div>
-
-        {dataPoints.length > 0 && (
-          <div className="text-gray-500">
-            {dataPoints.length} points temporels
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Barre de progression
       <div className="w-full bg-gray-200 rounded-full h-2">

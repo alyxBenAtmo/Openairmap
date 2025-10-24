@@ -201,11 +201,6 @@ const TemporalPlaybackControls: React.FC<TemporalPlaybackControlsProps> = ({
           />
         </div> */}
 
-        <div className="flex justify-between text-xs text-gray-500">
-          <span>{formatDate(startDate)}</span>
-          <span className="font-medium">{formatDate(currentDate)}</span>
-          <span>{formatDate(endDate)}</span>
-        </div>
       </div>
 
       {/* Contrôles de vitesse */}
