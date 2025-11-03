@@ -500,7 +500,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     isSpiderfyActive,
   ]);
 
-  // Effet pour mettre à jour le fond de carte
+  // Effet pour mettre à jour le fond de carte et le maxZoom
   useEffect(() => {
     if (mapRef.current) {
       // Supprimer l'ancien fond de carte s'il existe
@@ -516,6 +516,11 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       } else {
         setCurrentTileLayer(null);
       }
+
+      // Ajuster le maxZoom en fonction de la couche active
+      const layerConfig = baseLayers[currentBaseLayer];
+      const maxZoom = layerConfig.options.maxZoom || 18;
+      mapRef.current.setMaxZoom(maxZoom);
     }
   }, [currentBaseLayer]);
 
@@ -1372,12 +1377,12 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
           dragging={true}
           touchZoom={true}
           minZoom={1}
-          maxZoom={19}
+          maxZoom={18}
         >
           {/* Fond de carte initial */}
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
           />
 
           {/* Contrôle d'échelle */}
