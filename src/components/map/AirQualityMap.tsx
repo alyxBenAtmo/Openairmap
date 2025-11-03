@@ -3,6 +3,8 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "geoportal-extensions-leaflet";
+import "leaflet-velocity";
+import "leaflet-velocity/dist/leaflet-velocity.css";
 
 // Déclaration de type pour l'extension Geoportal
 declare module "leaflet" {
@@ -131,6 +133,9 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   const [currentModelingWMSLayer, setCurrentModelingWMSLayer] =
     useState<L.TileLayer | null>(null);
   const modelingLayerRef = useRef<L.TileLayer | null>(null);
+  // Refs pour la modélisation de vent
+  const windLayerRef = useRef<L.Layer | null>(null);
+  const windLayerGroupRef = useRef<L.LayerGroup | null>(null);
   const [selectedStation, setSelectedStation] = useState<StationInfo | null>(
     null
   );
@@ -539,6 +544,81 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     }
   }, [currentBaseLayer]);
 
+  // Fonction pour charger la modélisation de vent
+  const loadWindModeling = useCallback(async () => {
+    if (!mapRef.current) return;
+
+    try {
+      // Nettoyage de la couche existante
+      if (windLayerGroupRef.current && mapRef.current) {
+        mapRef.current.removeLayer(windLayerGroupRef.current);
+        windLayerGroupRef.current = null;
+      }
+      if (windLayerRef.current && mapRef.current) {
+        mapRef.current.removeLayer(windLayerRef.current);
+        windLayerRef.current = null;
+      }
+
+      // Calculer la date et l'heure
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const MM = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const HH = String(now.getHours()).padStart(2, '0');
+      const dateStr = `${yyyy}${MM}${dd}`;
+      const windUrl = `https://meteo.atmosud.org/${dateStr}/wind_field_${HH}.json`;
+
+      console.log("🌬️ [WIND] Chargement des données de vent:", windUrl);
+
+      // Charger les données avec fetch
+      const response = await fetch(windUrl);
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      const data = await response.json();
+
+      // Créer le LayerGroup pour le vent
+      const windLayerGroup = L.layerGroup();
+      
+      // Créer le layer Velocity
+      const velocityLayer = (L as any).velocityLayer({
+        displayValues: false,
+        displayOptions: false,
+        data: data,
+        velocityScale: 0.004,
+        lineWidth: 2,
+        colorScale: [
+          '#2a6f9d', // vent très faible (bleu foncé)
+          '#549e8a', // bleu-vert
+          '#8cb38a', // vert clair
+          '#c0d07d', // jaune pâle
+          '#d4b86a', // jaune
+          '#d48e4f', // orange
+          '#c85a37', // rouge-orangé
+          '#b0323f', // rouge foncé (vent fort)
+        ],
+        minVelocity: 0,
+        maxVelocity: 30,
+        overlayName: 'wind_layer',
+      });
+
+      // Ajouter le layer au groupe
+      velocityLayer.addTo(windLayerGroup);
+      
+      // Ajouter le groupe à la carte
+      if (mapRef.current) {
+        windLayerGroup.addTo(mapRef.current);
+        windLayerRef.current = velocityLayer;
+        windLayerGroupRef.current = windLayerGroup;
+        console.log("✅ [WIND] Layer de vent ajouté à la carte");
+      }
+    } catch (error) {
+      console.error("❌ [WIND] Erreur lors du chargement des données de vent:", error);
+      // Afficher un message d'erreur dans la console (vous pouvez adapter pour un système de notification)
+      alert("Impossible de charger les données de vent à cette heure.");
+    }
+  }, []);
+
   // Effet pour gérer les layers de modélisation WMS
   useEffect(() => {
     if (!mapRef.current) return;
@@ -552,20 +632,34 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
 
     // Cleanup: retirer l'ancien layer de modélisation s'il existe
     if (modelingLayerRef.current && mapRef.current) {
-      console.log("🗺️ [MODELING] Retrait de l'ancien layer");
+      console.log("🗺️ [MODELING] Retrait de l'ancien layer WMS");
       mapRef.current.removeLayer(modelingLayerRef.current);
       modelingLayerRef.current = null;
       setCurrentModelingWMSLayer(null);
     }
 
-    // Vérifier si les modélisations sont disponibles pour ce pas de temps
+    // Cleanup: retirer l'ancien layer de vent s'il existe
+    if (windLayerGroupRef.current && mapRef.current) {
+      console.log("🗺️ [MODELING] Retrait de l'ancien layer de vent");
+      mapRef.current.removeLayer(windLayerGroupRef.current);
+      windLayerGroupRef.current = null;
+      windLayerRef.current = null;
+    }
+
+    // Pour le vent, pas besoin de vérifier isModelingAvailable car il utilise une API différente
+    if (currentModelingLayer === "vent") {
+      loadWindModeling();
+      return;
+    }
+
+    // Vérifier si les modélisations sont disponibles pour ce pas de temps (pour icaireh et pollutant)
     if (!isModelingAvailable(selectedTimeStep)) {
       console.log("🗺️ [MODELING] Modélisations non disponibles pour ce pas de temps");
       return;
     }
 
-    // Si un layer de modélisation est sélectionné
-    if (currentModelingLayer) {
+    // Si un layer de modélisation WMS est sélectionné (icaireh ou pollutant)
+    if (currentModelingLayer === "icaireh" || currentModelingLayer === "pollutant") {
       try {
         // Calculer l'heure à afficher
         const hour = getModelingLayerHour(selectedTimeStep);
@@ -591,8 +685,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
           }
           layerName = getPollutantLayerName(selectedPollutant, hourFormatted);
         } else {
-          // "vent" - pas encore implémenté
-          console.log("🗺️ [MODELING] Layer 'vent' non implémenté");
+          // Ce cas ne devrait jamais se produire, mais TypeScript le requiert
           return;
         }
 
@@ -611,18 +704,27 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       }
     }
 
-    // Cleanup function pour retirer le layer lors du démontage ou changement
+    // Cleanup function pour retirer les layers lors du démontage ou changement
     return () => {
-      if (mapRef.current && modelingLayerRef.current) {
-        console.log("🗺️ [MODELING] Cleanup: retrait du layer");
-        mapRef.current.removeLayer(modelingLayerRef.current);
-        modelingLayerRef.current = null;
+      if (mapRef.current) {
+        if (modelingLayerRef.current) {
+          console.log("🗺️ [MODELING] Cleanup: retrait du layer WMS");
+          mapRef.current.removeLayer(modelingLayerRef.current);
+          modelingLayerRef.current = null;
+        }
+        if (windLayerGroupRef.current) {
+          console.log("🗺️ [MODELING] Cleanup: retrait du layer de vent");
+          mapRef.current.removeLayer(windLayerGroupRef.current);
+          windLayerGroupRef.current = null;
+          windLayerRef.current = null;
+        }
       }
     };
   }, [
     currentModelingLayer,
     selectedTimeStep,
     selectedPollutant,
+    loadWindModeling,
   ]);
 
   // Effet pour redimensionner la carte quand les panneaux latéraux changent de taille
@@ -837,7 +939,9 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       valueText.textContent = displayValue.toString();
 
       // Ajuster la taille du texte selon la longueur de la valeur
-      if (displayValue >= 100) {
+      if (displayValue >= 1000) {
+        valueText.style.fontSize = "10px"
+      } else if (displayValue >= 100) {
         valueText.style.fontSize = "12px"; // Police plus petite pour les valeurs à 3 chiffres
       } else if (displayValue >= 10) {
         valueText.style.fontSize = "16px"; // Police moyenne pour les valeurs à 2 chiffres

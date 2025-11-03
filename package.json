@@ -27,6 +27,7 @@
     "geoportal-extensions-leaflet": "^2.4.3",
     "html2canvas": "^1.4.1",
     "leaflet": "^1.9.4",
+    "leaflet-velocity": "^2.1.4",
     "overlapping-marker-spiderfier-leaflet": "^0.2.7",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
