@@ -40,13 +40,13 @@ import Legend from "./Legend";
 import StationSidePanel from "./StationSidePanel";
 import MicroSidePanel from "./MicroSidePanel";
 import NebuleAirSidePanel from "./NebuleAirSidePanel";
+import SensorCommunitySidePanel from "./SensorCommunitySidePanel";
+import PurpleAirSidePanel from "./PurpleAirSidePanel";
 import ComparisonSidePanel from "./ComparisonSidePanel";
 import MobileAirSidePanel from "./MobileAirSidePanel";
 import MobileAirSelectionPanel from "./MobileAirSelectionPanel";
 import MobileAirDetailPanel from "./MobileAirDetailPanel";
 import MobileAirRoutes from "./MobileAirRoutes";
-import PurpleAirPopup from "./PurpleAirPopup";
-import SensorCommunityPopup from "./SensorCommunityPopup";
 import SpiderfiedMarkers from "./SpiderfiedMarkers";
 import CustomSpiderfiedMarkers from "./CustomSpiderfiedMarkers";
 
@@ -176,10 +176,11 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     "normal" | "fullscreen" | "hidden"
   >("normal");
 
-  // État pour la popup PurpleAir
-  const [selectedPurpleAirDevice, setSelectedPurpleAirDevice] = useState<
-    | (MeasurementDevice & {
-        qualityLevel: string;
+  // État pour les données PurpleAir (stockées par ID de station)
+  const [purpleAirDeviceData, setPurpleAirDeviceData] = useState<
+    Record<
+      string,
+      {
         rssi: number;
         uptime: number;
         confidence: number;
@@ -188,22 +189,10 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
         pm1Value: number;
         pm25Value: number;
         pm10Value: number;
-      })
-    | null
-  >(null);
+      }
+    >
+  >({});
 
-  // État pour la popup Sensor Community
-  const [selectedSensorCommunityDevice, setSelectedSensorCommunityDevice] =
-    useState<
-      | (MeasurementDevice & {
-          qualityLevel: string;
-          sensorId?: string;
-          manufacturer?: string;
-          sensorType?: string;
-          altitude?: string;
-        })
-      | null
-    >(null);
 
   const [selectedMobileAirRoute, setSelectedMobileAirRoute] =
     useState<MobileAirRoute | null>(null);
@@ -588,14 +577,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
         velocityScale: 0.004,
         lineWidth: 2,
         colorScale: [
-          '#2a6f9d', // vent très faible (bleu foncé)
-          '#549e8a', // bleu-vert
-          '#8cb38a', // vert clair
-          '#c0d07d', // jaune pâle
-          '#d4b86a', // jaune
-          '#d48e4f', // orange
-          '#c85a37', // rouge-orangé
-          '#b0323f', // rouge foncé (vent fort)
+          '#8cb38a', // couleur unique pour tout le vent
         ],
         minVelocity: 0,
         maxVelocity: 30,
@@ -1076,15 +1058,67 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       return;
     }
 
-    // Gérer PurpleAir avec popup
+    // Gérer PurpleAir avec side panel
     if (device.source === "purpleair") {
-      setSelectedPurpleAirDevice(device as any);
+      const purpleAirDevice = device as any;
+      
+      // Extraire les données PurpleAir
+      const deviceData = {
+        rssi: purpleAirDevice.rssi,
+        uptime: purpleAirDevice.uptime,
+        confidence: purpleAirDevice.confidence,
+        temperature: purpleAirDevice.temperature,
+        humidity: purpleAirDevice.humidity,
+        pm1Value: purpleAirDevice.pm1Value,
+        pm25Value: purpleAirDevice.pm25Value,
+        pm10Value: purpleAirDevice.pm10Value,
+      };
+
+      // Stocker les données PurpleAir
+      setPurpleAirDeviceData((prev) => ({
+        ...prev,
+        [device.id]: deviceData,
+      }));
+
+      const stationInfo: StationInfo = {
+        id: device.id,
+        name: device.name,
+        address: device.address || "",
+        departmentId: device.departmentId || "",
+        source: device.source,
+        variables: {}, // PurpleAir ne fournit pas de variables contrôlables
+      };
+
+      setSelectedStation(stationInfo);
+      setIsSidePanelOpen(true);
+      
+      // Si le panneau est caché, le rouvrir automatiquement
+      if (panelSize === "hidden") {
+        setPanelSize("normal");
+      }
       return;
     }
 
-    // Gérer Sensor Community avec popup
+    // Gérer Sensor Community avec side panel
     if (device.source === "sensorCommunity") {
-      setSelectedSensorCommunityDevice(device as any);
+      // Extraire l'ID du capteur depuis l'ID du device (format: sensorId_locationId)
+      // On stocke l'ID complet pour pouvoir l'afficher, mais le sensorId sera extrait dans le side panel
+      const stationInfo: StationInfo = {
+        id: device.id, // Format: sensorId_locationId ou sensorId directement
+        name: device.name,
+        address: device.address || "",
+        departmentId: device.departmentId || "",
+        source: device.source,
+        variables: {}, // SensorCommunity ne fournit pas de variables contrôlables
+      };
+
+      setSelectedStation(stationInfo);
+      setIsSidePanelOpen(true);
+      
+      // Si le panneau est caché, le rouvrir automatiquement
+      if (panelSize === "hidden") {
+        setPanelSize("normal");
+      }
       return;
     }
 
@@ -1163,6 +1197,8 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       comparedStations: [],
       comparisonData: {},
     }));
+    // Optionnel: nettoyer les données PurpleAir si nécessaire
+    // (on les garde en mémoire au cas où l'utilisateur rouvre le panel)
   };
 
   const handleSidePanelSizeChange = (
@@ -1457,9 +1493,9 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       }
       setHighlightedMobileAirPoint(point);
 
-      // Centrer la carte sur le point mis en surbrillance
+      // Centrer la carte sur le point mis en surbrillance sans changer le zoom
       if (point && mapRef.current) {
-        mapRef.current.setView([point.lat, point.lon], 16, {
+        mapRef.current.panTo([point.lat, point.lon], {
           animate: true,
           duration: 0.5,
         });
@@ -1551,6 +1587,39 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
           <NebuleAirSidePanel
             isOpen={isSidePanelOpen}
             selectedStation={selectedStation}
+            onClose={handleCloseSidePanel}
+            onHidden={() => handleSidePanelSizeChange("hidden")}
+            onSizeChange={handleSidePanelSizeChange}
+            panelSize={panelSize}
+            initialPollutant={selectedPollutant}
+          />
+        )}
+
+      {/* Side Panel - Sensor Community */}
+      {!comparisonState.isComparisonMode &&
+        selectedStation?.source === "sensorCommunity" && (
+          <SensorCommunitySidePanel
+            isOpen={isSidePanelOpen}
+            selectedStation={selectedStation}
+            onClose={handleCloseSidePanel}
+            onHidden={() => handleSidePanelSizeChange("hidden")}
+            onSizeChange={handleSidePanelSizeChange}
+            panelSize={panelSize}
+            initialPollutant={selectedPollutant}
+          />
+        )}
+
+      {/* Side Panel - PurpleAir */}
+      {!comparisonState.isComparisonMode &&
+        selectedStation?.source === "purpleair" && (
+          <PurpleAirSidePanel
+            isOpen={isSidePanelOpen}
+            selectedStation={selectedStation}
+            deviceData={
+              selectedStation
+                ? purpleAirDeviceData[selectedStation.id]
+                : undefined
+            }
             onClose={handleCloseSidePanel}
             onHidden={() => handleSidePanelSizeChange("hidden")}
             onSizeChange={handleSidePanelSizeChange}
@@ -1895,21 +1964,6 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
         </button>
       )}
 
-      {/* Popup PurpleAir */}
-      {selectedPurpleAirDevice && (
-        <PurpleAirPopup
-          device={selectedPurpleAirDevice}
-          onClose={() => setSelectedPurpleAirDevice(null)}
-        />
-      )}
-
-      {/* Popup Sensor Community */}
-      {selectedSensorCommunityDevice && (
-        <SensorCommunityPopup
-          device={selectedSensorCommunityDevice}
-          onClose={() => setSelectedSensorCommunityDevice(null)}
-        />
-      )}
     </div>
   );
 };

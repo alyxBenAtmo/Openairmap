@@ -237,10 +237,10 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
       <Dot
         cx={cx}
         cy={cy}
-        r={isHighlighted ? 6 : 4}
-        fill={payload.color}
-        stroke={isHighlighted ? "#1D4ED8" : "#fff"}
-        strokeWidth={isHighlighted ? 3 : 2}
+        r={isHighlighted ? 6 : 3}
+        fill={isHighlighted ? "#3B82F6" : "#3B82F680"}
+        stroke={isHighlighted ? "#1D4ED8" : "none"}
+        strokeWidth={isHighlighted ? 3 : 0}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onClick={handleClick}

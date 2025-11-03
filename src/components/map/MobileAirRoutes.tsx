@@ -197,7 +197,7 @@ const MobileAirRoutes: React.FC<MobileAirRoutesProps> = memo(
                     {isHighlighted && (
                       <CircleMarker
                         center={[point.lat, point.lon]}
-                        radius={12}
+                        radius={18}
                         pathOptions={{
                           color: "rgba(0, 0, 0, 0.2)",
                           fillColor: "rgba(0, 0, 0, 0.1)",
@@ -211,7 +211,7 @@ const MobileAirRoutes: React.FC<MobileAirRoutesProps> = memo(
                     {/* Point principal */}
                     <CircleMarker
                       center={[point.lat, point.lon]}
-                      radius={isHighlighted ? 8 : 6}
+                      radius={isHighlighted ? 12 : 6}
                       pathOptions={{
                         color: isHighlighted ? "#FFFFFF" : color, // Bordure blanche pour le point mis en évidence
                         fillColor: color, // Garder la couleur de qualité
