@@ -1035,6 +1035,11 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
 
       setSelectedStation(stationInfo);
       setIsSidePanelOpen(true);
+      
+      // Si le panneau est caché, le rouvrir automatiquement
+      if (panelSize === "hidden") {
+        setPanelSize("normal");
+      }
     } catch (error) {
       console.error(
         "Erreur lors de la récupération des informations de la station:",
@@ -1744,7 +1749,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       {isSidePanelOpen && panelSize === "hidden" && (
         <button
           onClick={() => handleSidePanelSizeChange("normal")}
-          className="fixed top-60 left-2 z-[2001] bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
+          className="fixed top-1/2 -translate-y-1/2 left-2 z-[2001] bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
           title="Rouvrir le panneau de données"
         >
           <svg
@@ -1757,7 +1762,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth={2}
-              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+              d="M9 5l7 7-7 7"
             />
           </svg>
         </button>
