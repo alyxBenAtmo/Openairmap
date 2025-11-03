@@ -24,6 +24,14 @@ import {
 import { baseLayers, BaseLayerKey } from "../../constants/mapLayers";
 import BaseLayerControl from "../controls/BaseLayerControl";
 import ClusterControl from "../controls/ClusterControl";
+import {
+  getModelingLayerHour,
+  formatHourLayerName,
+  getIcairehLayerName,
+  getPollutantLayerName,
+  createModelingWMSLayer,
+  isModelingAvailable,
+} from "../../services/ModelingLayerService";
 import ScaleControl from "../controls/ScaleControl";
 import NorthArrow from "../controls/NorthArrow";
 import Legend from "./Legend";
@@ -65,6 +73,8 @@ interface AirQualityMapProps {
   zoom: number;
   selectedPollutant: string;
   selectedSources: string[];
+  selectedTimeStep: string;
+  currentModelingLayer: "icaireh" | "pollutant" | "vent" | null;
   loading?: boolean;
   onMobileAirSensorSelected?: (
     sensorId: string,
@@ -96,6 +106,8 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   zoom,
   selectedPollutant,
   selectedSources,
+  selectedTimeStep,
+  currentModelingLayer,
   loading,
   onMobileAirSensorSelected,
   onMobileAirSourceDeselected,
@@ -116,6 +128,9 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   const [currentTileLayer, setCurrentTileLayer] = useState<L.TileLayer | null>(
     null
   );
+  const [currentModelingWMSLayer, setCurrentModelingWMSLayer] =
+    useState<L.TileLayer | null>(null);
+  const modelingLayerRef = useRef<L.TileLayer | null>(null);
   const [selectedStation, setSelectedStation] = useState<StationInfo | null>(
     null
   );
@@ -523,6 +538,109 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       mapRef.current.setMaxZoom(maxZoom);
     }
   }, [currentBaseLayer]);
+
+  // Effet pour gérer les layers de modélisation WMS
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    console.log("🗺️ [MODELING] Effet déclenché:", {
+      currentModelingLayer,
+      selectedTimeStep,
+      selectedPollutant,
+      isAvailable: isModelingAvailable(selectedTimeStep),
+    });
+
+    // Cleanup: retirer l'ancien layer de modélisation s'il existe
+    if (modelingLayerRef.current && mapRef.current) {
+      console.log("🗺️ [MODELING] Retrait de l'ancien layer");
+      mapRef.current.removeLayer(modelingLayerRef.current);
+      modelingLayerRef.current = null;
+      setCurrentModelingWMSLayer(null);
+    }
+
+    // Vérifier si les modélisations sont disponibles pour ce pas de temps
+    if (!isModelingAvailable(selectedTimeStep)) {
+      console.log("🗺️ [MODELING] Modélisations non disponibles pour ce pas de temps");
+      return;
+    }
+
+    // Si un layer de modélisation est sélectionné
+    if (currentModelingLayer) {
+      try {
+        // Calculer l'heure à afficher
+        const hour = getModelingLayerHour(selectedTimeStep);
+        console.log("🗺️ [MODELING] Heure calculée:", hour);
+        
+        // Si l'heure est invalide (scan), ne pas charger
+        if (hour < 0) {
+          console.log("🗺️ [MODELING] Heure invalide, arrêt");
+          return;
+        }
+
+        // Formater l'heure (h00, h01, ..., h47)
+        const hourFormatted = formatHourLayerName(hour);
+        let layerName: string;
+
+        // Déterminer le nom du layer selon le type
+        if (currentModelingLayer === "icaireh") {
+          layerName = getIcairehLayerName(hourFormatted);
+        } else if (currentModelingLayer === "pollutant") {
+          if (!selectedPollutant) {
+            console.log("🗺️ [MODELING] Aucun polluant sélectionné");
+            return;
+          }
+          layerName = getPollutantLayerName(selectedPollutant, hourFormatted);
+        } else {
+          // "vent" - pas encore implémenté
+          console.log("🗺️ [MODELING] Layer 'vent' non implémenté");
+          return;
+        }
+
+        console.log("🗺️ [MODELING] Création du layer WMS:", layerName);
+
+        // Créer et ajouter le layer WMS
+        const wmsLayer = createModelingWMSLayer(layerName);
+        if (mapRef.current) {
+          wmsLayer.addTo(mapRef.current);
+          modelingLayerRef.current = wmsLayer;
+          setCurrentModelingWMSLayer(wmsLayer);
+          console.log("✅ [MODELING] Layer WMS ajouté à la carte:", layerName);
+        }
+      } catch (error) {
+        console.error("❌ [MODELING] Erreur lors du chargement du layer de modélisation:", error);
+      }
+    }
+
+    // Cleanup function pour retirer le layer lors du démontage ou changement
+    return () => {
+      if (mapRef.current && modelingLayerRef.current) {
+        console.log("🗺️ [MODELING] Cleanup: retrait du layer");
+        mapRef.current.removeLayer(modelingLayerRef.current);
+        modelingLayerRef.current = null;
+      }
+    };
+  }, [
+    currentModelingLayer,
+    selectedTimeStep,
+    selectedPollutant,
+  ]);
+
+  // Effet pour redimensionner la carte quand les panneaux latéraux changent de taille
+  useEffect(() => {
+    if (mapRef.current) {
+      // Utiliser requestAnimationFrame pour s'assurer que le DOM est mis à jour
+      requestAnimationFrame(() => {
+        if (mapRef.current) {
+          mapRef.current.invalidateSize();
+        }
+      });
+    }
+  }, [
+    panelSize,
+    isSidePanelOpen,
+    mobileAirSelectionPanelSize,
+    mobileAirDetailPanelSize,
+  ]);
 
   // Effet pour initialiser le contrôle de recherche IGN
   useEffect(() => {

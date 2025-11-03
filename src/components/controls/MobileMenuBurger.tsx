@@ -5,6 +5,8 @@ import TimeStepDropdown from "./TimeStepDropdown";
 import SignalAirPeriodSelector from "./SignalAirPeriodSelector";
 import HistoricalModeButton from "./HistoricalModeButton";
 import AutoRefreshControl from "./AutoRefreshControl";
+import ModelingLayerControl from "./ModelingLayerControl";
+import { ModelingLayerType } from "../../constants/mapLayers";
 
 interface MobileMenuBurgerProps {
   selectedPollutant: string;
@@ -24,6 +26,8 @@ interface MobileMenuBurgerProps {
   onToggleAutoRefresh: (enabled: boolean) => void;
   lastRefresh: Date | null;
   loading: boolean;
+  currentModelingLayer: ModelingLayerType | null;
+  onModelingLayerChange: (layerType: ModelingLayerType | null) => void;
 }
 
 const MobileMenuBurger: React.FC<MobileMenuBurgerProps> = ({
@@ -41,6 +45,8 @@ const MobileMenuBurger: React.FC<MobileMenuBurgerProps> = ({
   onToggleAutoRefresh,
   lastRefresh,
   loading,
+  currentModelingLayer,
+  onModelingLayerChange,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -97,14 +103,9 @@ const MobileMenuBurger: React.FC<MobileMenuBurgerProps> = ({
       {/* Menu déroulant */}
       {isOpen && (
         <div className="absolute right-0 top-full mt-2 w-screen max-w-sm sm:max-w-md bg-white rounded-lg shadow-xl border border-gray-200 z-[2000] max-h-[80vh] overflow-y-auto">
-          <div className="p-4 space-y-4">
-            {/* Titre */}
-            <div className="border-b border-gray-200 pb-2">
-              <h3 className="font-semibold text-gray-800">Contrôles</h3>
-            </div>
-
+          <div className="p-4 space-y-2">
             {/* Polluant */}
-            <div className="space-y-2">
+            <div className="space-y-1">
               <label className="text-sm font-medium text-gray-700">
                 Polluant
               </label>
@@ -115,7 +116,7 @@ const MobileMenuBurger: React.FC<MobileMenuBurgerProps> = ({
             </div>
 
             {/* Sources */}
-            <div className="space-y-2">
+            <div className="space-y-1">
               <label className="text-sm font-medium text-gray-700">
                 Sources de données
               </label>
@@ -126,7 +127,7 @@ const MobileMenuBurger: React.FC<MobileMenuBurgerProps> = ({
             </div>
 
             {/* Pas de temps */}
-            <div className="space-y-2">
+            <div className="space-y-1">
               <label className="text-sm font-medium text-gray-700">
                 Pas de temps
               </label>
@@ -139,7 +140,7 @@ const MobileMenuBurger: React.FC<MobileMenuBurgerProps> = ({
 
             {/* Période SignalAir */}
             {selectedSources.includes("signalair") && (
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <label className="text-sm font-medium text-gray-700">
                   Période SignalAir
                 </label>
@@ -152,8 +153,21 @@ const MobileMenuBurger: React.FC<MobileMenuBurgerProps> = ({
               </div>
             )}
 
+            {/* Carte de modélisation */}
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">
+                Carte de modélisation
+              </label>
+              <ModelingLayerControl
+                currentModelingLayer={currentModelingLayer}
+                onModelingLayerChange={onModelingLayerChange}
+                selectedPollutant={selectedPollutant}
+                selectedTimeStep={selectedTimeStep}
+              />
+            </div>
+
             {/* Mode historique */}
-            <div className="space-y-2 border-t border-gray-200 pt-4">
+            <div className="space-y-1 border-t border-gray-200 pt-4">
               <label className="text-sm font-medium text-gray-700">Mode</label>
               <HistoricalModeButton
                 isActive={isHistoricalModeActive}
@@ -162,7 +176,7 @@ const MobileMenuBurger: React.FC<MobileMenuBurgerProps> = ({
             </div>
 
             {/* Auto-refresh */}
-            <div className="space-y-2 border-t border-gray-200 pt-4">
+            <div className="space-y-1 border-t border-gray-200 pt-4">
               <label className="text-sm font-medium text-gray-700">
                 Actualisation
               </label>

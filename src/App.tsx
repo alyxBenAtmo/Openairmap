@@ -5,6 +5,7 @@ import { useTemporalVisualization } from "./hooks/useTemporalVisualization";
 import { useDomainConfig } from "./hooks/useDomainConfig";
 import { pollutants, getDefaultPollutant } from "./constants/pollutants";
 import { pasDeTemps } from "./constants/timeSteps";
+import { getDefaultSources } from "./constants/sources";
 import AutoRefreshControl from "./components/controls/AutoRefreshControl";
 import PollutantDropdown from "./components/controls/PollutantDropdown";
 import SourceDropdown from "./components/controls/SourceDropdown";
@@ -13,6 +14,8 @@ import SignalAirPeriodSelector from "./components/controls/SignalAirPeriodSelect
 import HistoricalModeButton from "./components/controls/HistoricalModeButton";
 import HistoricalControlPanel from "./components/controls/HistoricalControlPanel";
 import MobileMenuBurger from "./components/controls/MobileMenuBurger";
+import ModelingLayerControl from "./components/controls/ModelingLayerControl";
+import { ModelingLayerType } from "./constants/mapLayers";
 
 const App: React.FC = () => {
   // Configuration basée sur le domaine
@@ -42,15 +45,16 @@ const App: React.FC = () => {
   const [selectedPollutant, setSelectedPollutant] = useState<string>(
     getDefaultPollutant()
   );
-  const [selectedSources, setSelectedSources] = useState<string[]>([
-    "atmoRef",
-    "atmoMicro",
-  ]);
+  const [selectedSources, setSelectedSources] = useState<string[]>(
+    getDefaultSources()
+  );
   const [selectedTimeStep, setSelectedTimeStep] =
     useState<string>(defaultTimeStep);
   const [signalAirPeriod, setSignalAirPeriod] = useState(
     defaultSignalAirPeriod
   );
+  const [currentModelingLayer, setCurrentModelingLayer] =
+    useState<ModelingLayerType | null>(null);
 
   // États pour MobileAir
   const [mobileAirPeriod, setMobileAirPeriod] = useState(
@@ -203,6 +207,8 @@ const App: React.FC = () => {
             onToggleAutoRefresh={setAutoRefreshEnabled}
             lastRefresh={lastRefresh}
             loading={loading}
+            currentModelingLayer={currentModelingLayer}
+            onModelingLayerChange={setCurrentModelingLayer}
           />
 
           {/* Contrôles intégrés dans l'en-tête - Desktop uniquement */}
@@ -225,6 +231,14 @@ const App: React.FC = () => {
               endDate={signalAirPeriod.endDate}
               onPeriodChange={handleSignalAirPeriodChange}
               isVisible={selectedSources.includes("signalair")}
+            />
+
+            {/* Carte de modélisation */}
+            <ModelingLayerControl
+              currentModelingLayer={currentModelingLayer}
+              onModelingLayerChange={setCurrentModelingLayer}
+              selectedPollutant={selectedPollutant}
+              selectedTimeStep={selectedTimeStep}
             />
 
             {/* Bouton mode historique */}
@@ -302,6 +316,8 @@ const App: React.FC = () => {
           zoom={mapZoom}
           selectedPollutant={selectedPollutant}
           selectedSources={selectedSources}
+          selectedTimeStep={selectedTimeStep}
+          currentModelingLayer={currentModelingLayer}
           loading={loading || temporalState.loading}
           onMobileAirSensorSelected={handleMobileAirSensorSelected}
           onMobileAirSourceDeselected={handleMobileAirSourceDeselected}

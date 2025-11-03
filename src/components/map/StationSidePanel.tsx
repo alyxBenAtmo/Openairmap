@@ -326,7 +326,8 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
       case "fullscreen":
         return `${baseClasses} w-full`;
       case "hidden":
-        return `${baseClasses} w-0 overflow-hidden`;
+        // Retirer complètement du flux pour éviter l'espace réservé
+        return `${baseClasses} hidden`;
       case "normal":
       default:
         // Responsive: plein écran sur mobile, largeur réduite pour les petits écrans en paysage

@@ -79,7 +79,7 @@ const HistoricalControlPanel: React.FC<
       {isPanelVisible && (
         <div
           ref={panelRef}
-          className="fixed top-4 right-4 z-[2000] bg-white border border-gray-300 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-hidden"
+          className="fixed top-[60px] right-4 z-[2000] bg-white border border-gray-300 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-hidden"
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
@@ -393,7 +393,7 @@ const HistoricalControlPanel: React.FC<
       {!isPanelVisible && (
         <button
           onClick={() => setIsPanelVisible(true)}
-          className="fixed top-4 right-4 z-[2001] bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
+          className="fixed top-[130px] right-1 z-[2001] bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
           title="Rouvrir le panel de contrôle historique"
         >
           <svg

@@ -378,7 +378,7 @@ export class NebuleAirService extends BaseDataService {
 
       // Définir les seuils de fraîcheur selon le pas de temps
       const freshnessThresholds: Record<string, number> = {
-        instantane: 3, // 3 minutes pour les données instantanées
+        instantane: 3 * 60, // 3 minutes pour les données instantanées
         deuxMin: 3, // 3 minutes pour les données 2min
         quartHeure: 16, // 16 minutes pour les données 15min
         heure: 61, // 61 minutes pour les données horaires
