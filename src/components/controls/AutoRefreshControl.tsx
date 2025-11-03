@@ -149,19 +149,6 @@ const AutoRefreshControl: React.FC<AutoRefreshControlProps> = ({
           </div>
         </>
       )}
-
-      {/* Dernier rafraîchissement */}
-      {lastRefresh && (
-        <>
-          <div className="w-px h-4 bg-gray-300"></div>
-          <div className="flex flex-col">
-            <span className="text-xs text-gray-600">Dernier:</span>
-            <span className="text-xs font-medium text-gray-800">
-              {formatLastRefresh(lastRefresh)}
-            </span>
-          </div>
-        </>
-      )}
     </div>
   );
 };

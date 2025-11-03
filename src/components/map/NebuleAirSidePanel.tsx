@@ -444,18 +444,15 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
   if (!isOpen || !selectedStation) {
     return null;
   }
-
+  console.log(selectedStation);
   return (
     <div className={getPanelClasses()}>
       {/* Header */}
       <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200 bg-gray-50">
         <div className="flex-1 min-w-0">
           <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-            {selectedStation.name} (NebuleAir)
+            {selectedStation.id}, Microcapteur AirCarto
           </h2>
-          <p className="text-xs sm:text-sm text-gray-600 truncate">
-            {selectedStation.address}
-          </p>
         </div>
 
         {/* Contrôles unifiés du panel */}

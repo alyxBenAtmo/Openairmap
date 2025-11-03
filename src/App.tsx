@@ -78,6 +78,15 @@ const App: React.FC = () => {
     }
   };
 
+  // Fonction pour désélectionner la source MobileAir
+  const handleMobileAirSourceDeselected = () => {
+    // Retirer communautaire.mobileair des sources sélectionnées
+    setSelectedSources(selectedSources.filter(source => source !== "communautaire.mobileair"));
+    // Réinitialiser les états MobileAir
+    setSelectedMobileAirSensor(null);
+    setMobileAirPeriod(defaultSignalAirPeriod);
+  };
+
   // Effet pour ouvrir automatiquement le side panel MobileAir quand la source est sélectionnée
   useEffect(() => {
     if (
@@ -295,6 +304,7 @@ const App: React.FC = () => {
           selectedSources={selectedSources}
           loading={loading || temporalState.loading}
           onMobileAirSensorSelected={handleMobileAirSensorSelected}
+          onMobileAirSourceDeselected={handleMobileAirSourceDeselected}
         />
 
         {/* Panel de contrôle historique */}

@@ -36,19 +36,28 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
 }) => {
   // État pour détecter le mode paysage sur mobile
   const [isLandscapeMobile, setIsLandscapeMobile] = useState(false);
+  // État pour détecter si on est sur mobile
+  const [isMobile, setIsMobile] = useState(false);
 
   // État pour l'exportation
   const [isExporting, setIsExporting] = useState(false);
+  
+  // État pour le menu d'export
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
 
   // Référence vers le graphique pour l'exportation
   const chartRef = useRef<any>(null);
+  
+  // Référence pour le menu déroulant
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // Effet pour détecter le mode paysage sur mobile
   useEffect(() => {
     const checkOrientation = () => {
-      const isMobile = window.innerWidth <= 1024;
+      const mobile = window.innerWidth <= 768; // Mobile = largeur <= 768px
       const isLandscape = window.innerHeight < window.innerWidth;
-      setIsLandscapeMobile(isMobile && isLandscape);
+      setIsMobile(mobile);
+      setIsLandscapeMobile(mobile && isLandscape);
     };
 
     checkOrientation();
@@ -60,6 +69,23 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
       window.removeEventListener("orientationchange", checkOrientation);
     };
   }, []);
+
+  // Effet pour fermer le menu quand on clique en dehors
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    };
+
+    if (isExportMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isExportMenuOpen]);
   // Log pour debug
   console.log("📊 [HistoricalChart] Props reçues:", {
     data,
@@ -170,13 +196,19 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
       // Créer les points de données
       const transformedData = sortedTimestamps.map(
         ([timestampMs, originalTimestamp]) => {
+          const date = new Date(timestampMs);
+          // Format plus court sur mobile uniquement
+          const timestamp = isMobile
+            ? `${date.getDate()}/${date.getMonth() + 1} ${date.getHours()}h`
+            : date.toLocaleString("fr-FR", {
+                month: "short",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+          
           const point: any = {
-            timestamp: new Date(timestampMs).toLocaleString("fr-FR", {
-              month: "short",
-              day: "2-digit",
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
+            timestamp,
             rawTimestamp: timestampMs,
           };
 
@@ -224,13 +256,19 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
 
     // Créer les points de données
     const transformedData = sortedTimestamps.map((timestamp) => {
+      const date = new Date(timestamp);
+      // Format plus court sur mobile uniquement
+      const timestampFormatted = isMobile
+        ? `${date.getDate()}/${date.getMonth() + 1} ${date.getHours()}h`
+        : date.toLocaleString("fr-FR", {
+            month: "short",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+      
       const point: any = {
-        timestamp: new Date(timestamp).toLocaleString("fr-FR", {
-          month: "short",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        timestamp: timestampFormatted,
         rawTimestamp: timestamp,
       };
 
@@ -284,6 +322,19 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   const chartData = transformData();
   const unitGroups = groupPollutantsByUnit();
   const unitKeys = Object.keys(unitGroups);
+  
+  // Calculer un intervalle optimal pour l'axe X selon le nombre de points
+  // Pour éviter la surcharge de labels, on affiche environ 6-8 labels maximum
+  const getXAxisInterval = () => {
+    if (isMobile) {
+      return "preserveStartEnd";
+    }
+    if (chartData.length === 0) return 0;
+    // Calculer un intervalle pour afficher environ 6-8 labels
+    const targetLabels = 7;
+    const interval = Math.floor(chartData.length / targetLabels);
+    return interval > 0 ? interval : 0;
+  };
 
   // Détecter si des données corrigées sont disponibles (seulement pour AtmoMicro)
   const hasCorrectedData =
@@ -387,72 +438,28 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   // Marges adaptées selon le mode
   const getChartMargins = () => {
     if (isLandscapeMobile) {
-      // Marges réduites pour le mode paysage sur mobile
-      return { top: 5, right: 10, left: 5, bottom: 5 };
+      // Marges réduites pour le mode paysage sur mobile, mais espace pour le bouton burger
+      return { top: 45, right: 5, left: 2, bottom: 5 };
     }
-    // Marges normales pour les autres modes
-    return { top: 5, right: 30, left: 20, bottom: 5 };
+    if (isMobile) {
+      // Marges optimisées pour mobile portrait : marges minimales pour maximiser l'espace du graphique
+      return { top: 45, right: 5, left: 5, bottom: 15 };
+    }
+    // Marges normales pour les autres modes, avec espace pour le bouton burger en haut à droite
+    return { top: 45, right: 30, left: 20, bottom: 5 };
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Boutons d'exportation */}
-      <div className="flex flex-wrap gap-2 p-2 bg-gray-50 border-b border-gray-200">
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span className="font-medium">Exporter :</span>
-        </div>
+    <div className="flex flex-col h-full relative">
+      {/* Bouton burger et menu d'export en haut à droite */}
+      <div className="absolute top-2 right-2 z-10" ref={menuRef}>
         <button
-          onClick={handleExportPNG}
-          disabled={isExporting || !chartData.length}
-          className="flex items-center gap-1 px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-        >
-          {isExporting ? (
-            <>
-              <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24">
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  fill="none"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
-              Export...
-            </>
-          ) : (
-            <>
-              <svg
-                className="w-3 h-3"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-              PNG
-            </>
-          )}
-        </button>
-        {/* Option SVG supprimée */}
-        <button
-          onClick={handleExportCSV}
-          disabled={!chartData.length}
-          className="flex items-center gap-1 px-3 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+          className="p-2 bg-white rounded-lg shadow-md hover:bg-gray-100 transition-colors border border-gray-200"
+          title="Menu d'export"
         >
           <svg
-            className="w-3 h-3"
+            className="w-5 h-5 text-gray-700"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -461,11 +468,89 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth={2}
-              d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              d="M4 6h16M4 12h16M4 18h16"
             />
           </svg>
-          CSV
         </button>
+
+        {/* Menu déroulant */}
+        {isExportMenuOpen && (
+          <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20">
+            <div className="px-3 py-2 text-xs font-semibold text-gray-700 border-b border-gray-200">
+              Exporter le graphique
+            </div>
+            <button
+              onClick={() => {
+                handleExportPNG();
+                setIsExportMenuOpen(false);
+              }}
+              disabled={isExporting || !chartData.length}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+            >
+              {isExporting ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="none"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  <span>Export en cours...</span>
+                </>
+              ) : (
+                <>
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
+                  <span>Exporter en PNG</span>
+                </>
+              )}
+            </button>
+            <button
+              onClick={() => {
+                handleExportCSV();
+                setIsExportMenuOpen(false);
+              }}
+              disabled={!chartData.length}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              <span>Exporter en CSV</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Graphique */}
@@ -475,24 +560,28 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis
               dataKey="timestamp"
-              angle={-45}
-              textAnchor="end"
-              height={isLandscapeMobile ? 60 : 80}
-              fontSize={isLandscapeMobile ? 10 : 12}
+              angle={isMobile ? 0 : -45}
+              textAnchor={isMobile ? "middle" : "end"}
+              height={isMobile ? 20 : isLandscapeMobile ? 60 : 80}
+              fontSize={isMobile ? 8 : isLandscapeMobile ? 10 : 12}
+              interval={getXAxisInterval()}
+              tick={{ fill: "#666" }}
+              tickMargin={isMobile ? 2 : 5}
             />
 
             {/* Axe Y principal (première unité) */}
             {unitKeys.length > 0 && (
               <YAxis
                 yAxisId="left"
-                fontSize={isLandscapeMobile ? 10 : 12}
+                fontSize={isMobile ? 9 : isLandscapeMobile ? 10 : 12}
+                width={isMobile ? 30 : 40}
                 label={{
-                  value: `Concentration (${unitKeys[0]})`,
+                  value: `Conc. (${unitKeys[0]})`,
                   angle: -90,
                   position: "insideLeft",
                   style: {
                     textAnchor: "middle",
-                    fontSize: isLandscapeMobile ? 10 : 12,
+                    fontSize: isMobile ? 8 : isLandscapeMobile ? 10 : 12,
                   },
                 }}
                 // Le label sera masqué par CSS personnalisé sur petits écrans en mode paysage
@@ -504,14 +593,15 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
               <YAxis
                 yAxisId="right"
                 orientation="right"
-                fontSize={isLandscapeMobile ? 10 : 12}
+                fontSize={isMobile ? 9 : isLandscapeMobile ? 10 : 12}
+                width={isMobile ? 30 : 40}
                 label={{
-                  value: `Concentration (${unitKeys[1]})`,
+                  value: `Conc. (${unitKeys[1]})`,
                   angle: 90,
                   position: "insideRight",
                   style: {
                     textAnchor: "middle",
-                    fontSize: isLandscapeMobile ? 10 : 12,
+                    fontSize: isMobile ? 8 : isLandscapeMobile ? 10 : 12,
                   },
                 }}
                 // Le label sera masqué par CSS personnalisé sur petits écrans en mode paysage
@@ -583,7 +673,17 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
                 padding: "8px",
               }}
             />
-            <Legend />
+            <Legend 
+              wrapperStyle={{ 
+                paddingTop: isMobile ? "2px" : "8px", 
+                paddingBottom: "0",
+                paddingLeft: isMobile ? "0" : "8px",
+                paddingRight: isMobile ? "0" : "8px"
+              }}
+              iconSize={isMobile ? 10 : 12}
+              fontSize={isMobile ? 9 : 12}
+              iconType="line"
+            />
 
             {/* Mode comparaison : une ligne par station */}
             {source === "comparison" && stations.length > 0
@@ -598,14 +698,14 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
                   return (
                     <Line
                       key={station.id}
-                      type="monotone"
+                      type="linear"
                       dataKey={station.id}
                       yAxisId="left"
                       stroke={stationColor}
                       strokeWidth={2}
                       strokeDasharray="0" // Trait plein pour toutes les stations
-                      dot={{ r: 3 }}
-                      activeDot={{ r: 5 }}
+                      dot={false}
+                      activeDot={{ r: 2.5, fillOpacity: 0.7 }}
                       name={`${station.name} - ${pollutantName}`}
                       connectNulls={true} // Relier les points malgré les gaps (résolutions différentes)
                     />
@@ -641,14 +741,14 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
                         {isAtmoRef ? (
                           /* AtmoRef : toujours trait plein (données de référence fiables) */
                           <Line
-                            type="monotone"
+                            type="linear"
                             dataKey={pollutant}
                             yAxisId={yAxisId}
                             stroke={pollutantColor}
                             strokeWidth={2}
                             strokeDasharray="0" // Trait plein
-                            dot={{ r: 3 }}
-                            activeDot={{ r: 5 }}
+                            dot={false}
+                            activeDot={{ r: 2.5, fillOpacity: 0.7 }}
                             name={pollutantName}
                           />
                         ) : isAtmoMicro ? (
@@ -657,14 +757,14 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
                             {/* Ligne des données corrigées (trait plein) - priorité par défaut */}
                             {hasCorrectedData && (
                               <Line
-                                type="monotone"
+                                type="linear"
                                 dataKey={`${pollutant}_corrected`}
                                 yAxisId={yAxisId}
                                 stroke={pollutantColor}
                                 strokeWidth={2}
                                 strokeDasharray="0" // Trait plein
-                                dot={{ r: 3 }}
-                                activeDot={{ r: 5 }}
+                                dot={false}
+                                activeDot={{ r: 2.5, fillOpacity: 0.7 }}
                                 name={pollutantName} // Nom simple par défaut
                                 connectNulls={false}
                               />
@@ -673,14 +773,14 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
                             {/* Ligne des données brutes (trait discontinu) - affichée seulement si showRawData est true */}
                             {hasRawData && showRawData && (
                               <Line
-                                type="monotone"
+                                type="linear"
                                 dataKey={`${pollutant}_raw`}
                                 yAxisId={yAxisId}
                                 stroke={pollutantColor}
                                 strokeWidth={2}
                                 strokeDasharray="5 5" // Trait discontinu
-                                dot={{ r: 2 }}
-                                activeDot={{ r: 4 }}
+                                dot={false}
+                                activeDot={{ r: 2, fillOpacity: 0.7 }}
                                 name={
                                   hasCorrectedData
                                     ? `${pollutantName} (brut)`
@@ -693,14 +793,14 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
                         ) : (
                           /* Autres sources : trait discontinu par défaut */
                           <Line
-                            type="monotone"
+                            type="linear"
                             dataKey={pollutant}
                             yAxisId={yAxisId}
                             stroke={pollutantColor}
                             strokeWidth={2}
                             strokeDasharray="5 5" // Trait discontinu
-                            dot={{ r: 3 }}
-                            activeDot={{ r: 5 }}
+                            dot={false}
+                            activeDot={{ r: 2.5, fillOpacity: 0.7 }}
                             name={pollutantName}
                           />
                         )}

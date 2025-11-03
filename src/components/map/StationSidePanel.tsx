@@ -344,7 +344,7 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
       <div className="flex items-center justify-between p-2 sm:p-3 md:p-4 border-b border-gray-200 bg-gray-50">
         <div className="flex-1 min-w-0">
           <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-            {selectedStation.name}
+            {selectedStation.name.replace("_", " ")}, Station de référence AtmoSud
           </h2>
           <p className="text-xs sm:text-sm text-gray-600 truncate">
             {selectedStation.address}

@@ -382,11 +382,8 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
       <div className="flex items-center justify-between p-2 sm:p-3 md:p-4 border-b border-gray-200 bg-gray-50">
         <div className="flex-1 min-w-0">
           <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-            {selectedStation.name} (AtmoMicro)
+            {selectedStation.name}, Microcapteur Qualifié AtmoSud
           </h2>
-          <p className="text-xs sm:text-sm text-gray-600 truncate">
-            {selectedStation.address}
-          </p>
         </div>
 
         {/* Contrôles unifiés du panel */}
@@ -523,15 +520,39 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
               </div>
             ) : (
               <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
-                {/* Sélection des polluants - en haut du graphique */}
-                <div className="border border-gray-200 rounded-lg mb-3 sm:mb-4">
-                  <button
-                    onClick={() => setShowPollutantsList(!showPollutantsList)}
-                    className="w-full flex items-center justify-between p-2.5 sm:p-3 text-left hover:bg-gray-50 transition-colors rounded-lg"
-                  >
-                    <div className="flex items-center space-x-2 min-w-0 flex-1">
+                {/* Sélection des polluants et contrôle d'affichage des données brutes sur la même ligne */}
+                <div className="flex flex-row items-start gap-2 sm:gap-4 mb-1 sm:mb-4">
+                  {/* Sélection des polluants */}
+                  <div className="flex-1 border border-gray-200 rounded-lg">
+                    <button
+                      onClick={() => setShowPollutantsList(!showPollutantsList)}
+                      className="w-full flex items-center justify-between p-2 sm:p-3 text-left hover:bg-gray-50 transition-colors rounded-lg"
+                    >
+                      <div className="flex items-center space-x-1.5 sm:space-x-2 min-w-0 flex-1">
+                        <svg
+                          className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600 flex-shrink-0"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                          />
+                        </svg>
+                        <span className="text-xs sm:text-sm font-medium text-gray-700 truncate">
+                          Polluants
+                        </span>
+                        <span className="text-[10px] sm:text-xs text-gray-500 bg-gray-100 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full flex-shrink-0">
+                          {state.chartControls.selectedPollutants.length}
+                        </span>
+                      </div>
                       <svg
-                        className="w-4 h-4 text-gray-600 flex-shrink-0"
+                        className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 transition-transform flex-shrink-0 ${
+                          showPollutantsList ? "rotate-180" : ""
+                        }`}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -540,152 +561,120 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                          d="M19 9l-7 7-7-7"
                         />
                       </svg>
-                      <span className="text-sm font-medium text-gray-700 truncate">
-                        Polluants affichés
-                      </span>
-                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full flex-shrink-0">
-                        {state.chartControls.selectedPollutants.length}{" "}
-                        sélectionné(s)
-                      </span>
-                    </div>
-                    <svg
-                      className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${
-                        showPollutantsList ? "rotate-180" : ""
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
+                    </button>
 
-                  {showPollutantsList && (
-                    <div className="px-2.5 sm:px-3 pb-2.5 sm:pb-3 space-y-1">
-                      {Object.entries(pollutants).map(
-                        ([pollutantCode, pollutant]) => {
-                          // Vérifier si ce polluant est disponible dans la station
-                          const isEnabled = isPollutantAvailable(pollutantCode);
-                          const isSelected =
-                            state.chartControls.selectedPollutants.includes(
-                              pollutantCode
-                            );
+                    {showPollutantsList && (
+                      <div className="px-2.5 sm:px-3 pb-2.5 sm:pb-3 space-y-1">
+                        {Object.entries(pollutants).map(
+                          ([pollutantCode, pollutant]) => {
+                            // Vérifier si ce polluant est disponible dans la station
+                            const isEnabled = isPollutantAvailable(pollutantCode);
+                            const isSelected =
+                              state.chartControls.selectedPollutants.includes(
+                                pollutantCode
+                              );
 
-                          return (
-                            <button
-                              key={pollutantCode}
-                              onClick={() =>
-                                isEnabled &&
-                                handlePollutantToggle(pollutantCode)
-                              }
-                              disabled={!isEnabled}
-                              className={`w-full flex items-center px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-md text-sm transition-all duration-200 ${
-                                !isEnabled
-                                  ? "text-gray-400 cursor-not-allowed"
-                                  : isSelected
-                                  ? "text-blue-700 bg-blue-50 border border-blue-200"
-                                  : "text-gray-700 hover:bg-gray-50"
-                              }`}
-                            >
-                              <div
-                                className={`w-3 h-3 rounded border mr-2 flex items-center justify-center transition-colors flex-shrink-0 ${
+                            return (
+                              <button
+                                key={pollutantCode}
+                                onClick={() =>
+                                  isEnabled &&
+                                  handlePollutantToggle(pollutantCode)
+                                }
+                                disabled={!isEnabled}
+                                className={`w-full flex items-center px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-md text-sm transition-all duration-200 ${
                                   !isEnabled
-                                    ? "border-gray-300 bg-gray-100"
+                                    ? "text-gray-400 cursor-not-allowed"
                                     : isSelected
-                                    ? "bg-blue-600 border-blue-600"
-                                    : "border-gray-300"
+                                    ? "text-blue-700 bg-blue-50 border border-blue-200"
+                                    : "text-gray-700 hover:bg-gray-50"
                                 }`}
                               >
-                                {isSelected && isEnabled && (
-                                  <svg
-                                    className="w-2 h-2 text-white"
-                                    fill="currentColor"
-                                    viewBox="0 0 20 20"
-                                  >
-                                    <path
-                                      fillRule="evenodd"
-                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                      clipRule="evenodd"
-                                    />
-                                  </svg>
-                                )}
-                              </div>
-                              <span className="flex-1 text-left truncate">
-                                {pollutant.name}
-                              </span>
-                              {!isEnabled && (
-                                <span className="text-xs text-gray-400 flex-shrink-0">
-                                  Non disponible
+                                <div
+                                  className={`w-3 h-3 rounded border mr-2 flex items-center justify-center transition-colors flex-shrink-0 ${
+                                    !isEnabled
+                                      ? "border-gray-300 bg-gray-100"
+                                      : isSelected
+                                      ? "bg-blue-600 border-blue-600"
+                                      : "border-gray-300"
+                                  }`}
+                                >
+                                  {isSelected && isEnabled && (
+                                    <svg
+                                      className="w-2 h-2 text-white"
+                                      fill="currentColor"
+                                      viewBox="0 0 20 20"
+                                    >
+                                      <path
+                                        fillRule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clipRule="evenodd"
+                                      />
+                                    </svg>
+                                  )}
+                                </div>
+                                <span className="flex-1 text-left truncate">
+                                  {pollutant.name}
                                 </span>
-                              )}
-                            </button>
-                          );
-                        }
-                      )}
-                    </div>
-                  )}
-                </div>
+                                {!isEnabled && (
+                                  <span className="text-xs text-gray-400 flex-shrink-0">
+                                    Non disponible
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          }
+                        )}
+                      </div>
+                    )}
+                  </div>
 
-                {/* Contrôle d'affichage des données brutes - seulement si des données corrigées sont disponibles */}
-                {hasCorrectedData && (
-                  <div className="border border-gray-200 rounded-lg mb-3 sm:mb-4">
-                    <div className="p-2.5 sm:p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <svg
-                            className="w-4 h-4 text-gray-600 flex-shrink-0"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                            />
-                          </svg>
-                          <span className="text-sm font-medium text-gray-700">
-                            Affichage des données
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <span className="text-xs text-gray-500">
-                            Données brutes
-                          </span>
+                  {/* Contrôle d'affichage des données brutes - seulement si des données corrigées sont disponibles */}
+                  {hasCorrectedData && (
+                    <div className="flex-1 border border-gray-200 rounded-lg">
+                      <div className="p-2 sm:p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-1.5 sm:space-x-2 min-w-0">
+                            <svg
+                              className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600 flex-shrink-0"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                              />
+                            </svg>
+                            <span className="text-xs sm:text-sm font-medium text-gray-700 truncate">
+                              Données brutes
+                            </span>
+                          </div>
                           <button
                             onClick={() => setShowRawData(!showRawData)}
-                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                            className={`relative inline-flex h-4 w-8 sm:h-5 sm:w-9 items-center rounded-full transition-colors flex-shrink-0 ${
                               showRawData ? "bg-blue-600" : "bg-gray-200"
                             }`}
                           >
                             <span
-                              className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                                showRawData ? "translate-x-5" : "translate-x-1"
+                              className={`inline-block h-2.5 w-2.5 sm:h-3 sm:w-3 transform rounded-full bg-white transition-transform ${
+                                showRawData ? "translate-x-4 sm:translate-x-5" : "translate-x-0.5 sm:translate-x-1"
                               }`}
                             />
                           </button>
                         </div>
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {showRawData
-                          ? "Affichage des données corrigées (trait plein) et brutes (trait discontinu)"
-                          : "Affichage des données corrigées"}
-                      </p>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {/* Graphique */}
-                <div className="h-64 sm:h-72 md:h-80 lg:h-96 mb-2 sm:mb-3 md:mb-4">
+                <div className="h-80 sm:h-72 md:h-80 lg:h-96 mb-2 sm:mb-3 md:mb-4">
                   <HistoricalChart
                     data={state.historicalData}
                     selectedPollutants={state.chartControls.selectedPollutants}

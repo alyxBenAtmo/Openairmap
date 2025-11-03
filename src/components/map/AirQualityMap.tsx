@@ -70,6 +70,7 @@ interface AirQualityMapProps {
     sensorId: string,
     period: { startDate: string; endDate: string }
   ) => void;
+  onMobileAirSourceDeselected?: () => void;
 }
 
 const defaultClusterConfig = {
@@ -97,6 +98,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   selectedSources,
   loading,
   onMobileAirSensorSelected,
+  onMobileAirSourceDeselected,
 }) => {
   // Debug: Log des sources sélectionnées (à supprimer en production)
   // console.log("🔍 [SOURCES] Sources sélectionnées:", {
@@ -1160,6 +1162,11 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     setUserClosedSelectionPanel(true);
     setIsMobileAirSelectionPanelOpen(false);
     setMobileAirSelectionPanelSize("normal");
+    
+    // Désactiver la source MobileAir si le callback est fourni
+    if (onMobileAirSourceDeselected) {
+      onMobileAirSourceDeselected();
+    }
   };
 
   const handleMobileAirSelectionPanelSizeChange = (
