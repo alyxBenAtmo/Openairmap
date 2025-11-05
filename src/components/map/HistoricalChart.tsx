@@ -110,6 +110,30 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     );
   };
 
+  // Fonction pour obtenir l'ordre de priorité d'un polluant dans le tooltip
+  const getPollutantOrder = (pollutantKey: string): number => {
+    // Extraire le code du polluant (enlever les suffixes _corrected ou _raw)
+    const basePollutantKey = pollutantKey.replace(
+      /_corrected$|_raw$/,
+      ""
+    );
+    
+    // Ordre de priorité : PM10 en premier, puis PM2.5, puis PM1, puis les autres
+    const orderMap: Record<string, number> = {
+      pm10: 1,
+      pm25: 2,
+      pm1: 3,
+    };
+    
+    // Si le polluant est dans la liste de priorité, retourner son ordre
+    if (orderMap[basePollutantKey] !== undefined) {
+      return orderMap[basePollutantKey];
+    }
+    
+    // Pour les autres polluants, retourner un ordre élevé (ils apparaîtront après)
+    return 100;
+  };
+
   // Fonction pour encoder les unités en notation scientifique
   const encodeUnit = (unit: string): string => {
     const unitMap: Record<string, string> = {
@@ -665,6 +689,28 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
                 const pollutantName = name;
 
                 return [formattedValue, pollutantName];
+              }}
+              itemSorter={(item: any) => {
+                // Mode comparaison : pas de tri personnalisé nécessaire
+                if (source === "comparison" && stations.length > 0) {
+                  return 0;
+                }
+                
+                // Mode normal : trier selon l'ordre de priorité des polluants
+                const pollutantKey = item.dataKey || item.name || "";
+                const order = getPollutantOrder(pollutantKey);
+                
+                // Calculer un ordre composite : polluant prioritaire + type de donnée
+                // Les données corrigées doivent apparaître avant les brutes pour le même polluant
+                let compositeOrder = order * 1000;
+                
+                if (pollutantKey.includes("_corrected")) {
+                  compositeOrder -= 1; // Les données corrigées avant
+                } else if (pollutantKey.includes("_raw")) {
+                  compositeOrder += 1; // Les données brutes après
+                }
+                
+                return compositeOrder;
               }}
               labelFormatter={(label) => `Date: ${label}`}
               contentStyle={{
