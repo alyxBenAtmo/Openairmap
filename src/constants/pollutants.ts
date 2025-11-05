@@ -113,7 +113,7 @@ export const POLLUTANT_COLORS = {
   pm25: "#66b2ff",
   pm10: "#0066cc",
   no2: "#A133FF",
-  o3: "#FFEEAD",
+  o3: "#f5d045",
   so2: "#D4A5A5",
   h2s: "#9B59B6",
   nh3: "#3498DB",

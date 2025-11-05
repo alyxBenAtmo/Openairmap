@@ -223,7 +223,8 @@ export class AtmoRefService extends BaseDataService {
       }
 
       // Transformer les données historiques
-      const historicalData = response.mesures.map(
+      const historicalData = response.mesures
+      .filter((measure: AtmoRefMeasure) => measure.valeur !== null && measure.valeur !== undefined).map(
         (measure: AtmoRefMeasure) => ({
           timestamp: measure.date_debut,
           value: measure.valeur,

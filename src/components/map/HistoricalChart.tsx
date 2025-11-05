@@ -567,6 +567,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
               interval={getXAxisInterval()}
               tick={{ fill: "#666" }}
               tickMargin={isMobile ? 2 : 5}
+              
             />
 
             {/* Axe Y principal (première unité) */}
