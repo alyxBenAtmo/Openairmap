@@ -1,13 +1,28 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useMap } from "react-leaflet";
 import { MeasurementDevice } from "../types";
 
 interface UseCustomSpiderfierProps {
   devices: MeasurementDevice[];
   enabled: boolean;
-  nearbyDistance?: number;
+  nearbyDistance?: number; // Non utilisé - la comparaison se fait maintenant par position géographique exacte
   zoomThreshold?: number;
 }
+
+// Fonction pour normaliser et comparer les positions géographiques
+// Utilise une précision de 9 décimales (environ 0.11 mm de précision)
+// Cette précision garantit que seules les positions vraiment identiques sont regroupées
+const normalizeCoordinate = (coord: number): number => {
+  // Arrondir à 9 décimales pour éviter les problèmes de précision des nombres flottants
+  return Math.round(coord * 1000000000) / 1000000000;
+};
+
+// Fonction pour créer une clé de position normalisée
+const getPositionKey = (lat: number, lng: number): string => {
+  const normalizedLat = normalizeCoordinate(lat);
+  const normalizedLng = normalizeCoordinate(lng);
+  return `${normalizedLat},${normalizedLng}`;
+};
 
 export const useCustomSpiderfier = ({
   devices,
@@ -44,8 +59,39 @@ export const useCustomSpiderfier = ({
     };
   }, [map, zoomThreshold]);
 
+  // Grouper les devices par position exacte (lat, lng) avec comparaison numérique robuste
+  const devicesByPosition = useMemo(() => {
+    const groups = new Map<string, MeasurementDevice[]>();
+    devices.forEach((device) => {
+      // Utiliser une clé normalisée pour éviter les problèmes de précision flottante
+      const key = getPositionKey(device.latitude, device.longitude);
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+      groups.get(key)!.push(device);
+    });
+    return groups;
+  }, [devices]);
+
+  // Déterminer quels devices doivent être spiderfiés (seulement ceux avec position exacte identique)
+  const devicesToSpiderfy = useMemo(() => {
+    const result: MeasurementDevice[][] = [];
+    devicesByPosition.forEach((group) => {
+      // Seulement spiderfier si plus d'un device à la même position exacte
+      if (group.length > 1) {
+        result.push(group);
+      }
+    });
+    return result;
+  }, [devicesByPosition]);
+
   useEffect(() => {
-    if (!enabled || !map || devices.length === 0) return;
+    if (!enabled || !map || devices.length === 0 || devicesToSpiderfy.length === 0) {
+      // Désactiver le spiderfier si pas de devices ou pas de groupes à spiderfier
+      setSpiderfiedMarkers(new Map());
+      setGroupCenters(new Map());
+      return;
+    }
 
     // Vérifier si le zoom est suffisant pour activer le spiderfier
     const shouldSpiderfy = currentZoom >= zoomThreshold;
@@ -56,20 +102,6 @@ export const useCustomSpiderfier = ({
       setGroupCenters(new Map());
       return;
     }
-
-    // Fonction pour calculer la distance entre deux points en pixels
-    const getDistanceInPixels = (
-      lat1: number,
-      lng1: number,
-      lat2: number,
-      lng2: number
-    ) => {
-      const point1 = map.latLngToLayerPoint([lat1, lng1]);
-      const point2 = map.latLngToLayerPoint([lat2, lng2]);
-      return Math.sqrt(
-        Math.pow(point1.x - point2.x, 2) + Math.pow(point1.y - point2.y, 2)
-      );
-    };
 
     // Fonction pour générer des positions en spirale
     const generateSpiralPositions = (
@@ -90,67 +122,9 @@ export const useCustomSpiderfier = ({
       return positions;
     };
 
-    // Analyser les marqueurs qui se chevauchent
+    // Utiliser les groupes précalculés basés sur les positions géographiques exactes
     const analyzeOverlappingMarkers = () => {
-      const overlappingGroups: MeasurementDevice[][] = [];
-      const processed = new Set<string>();
-
-      devices.forEach((device, index) => {
-        if (processed.has(device.id)) return;
-
-        const group = [device];
-        processed.add(device.id);
-
-        // Trouver tous les marqueurs proches
-        devices.forEach((otherDevice, otherIndex) => {
-          if (otherIndex === index || processed.has(otherDevice.id)) return;
-
-          const distance = getDistanceInPixels(
-            device.latitude,
-            device.longitude,
-            otherDevice.latitude,
-            otherDevice.longitude
-          );
-
-          // Seuil plus strict : seulement si les marqueurs sont vraiment proches
-          if (distance < nearbyDistance) {
-            // Vérification supplémentaire : s'assurer que les marqueurs se chevauchent visuellement
-            const isReallyOverlapping = distance < nearbyDistance * 0.7; // 70% du seuil pour être plus strict
-
-            if (isReallyOverlapping) {
-              group.push(otherDevice);
-              processed.add(otherDevice.id);
-            }
-          }
-        });
-
-        // Seulement créer un groupe si on a au moins 2 marqueurs ET qu'ils sont vraiment proches
-        if (group.length > 1) {
-          // Vérification finale : s'assurer que tous les marqueurs du groupe sont vraiment proches les uns des autres
-          let allClose = true;
-          for (let i = 0; i < group.length; i++) {
-            for (let j = i + 1; j < group.length; j++) {
-              const dist = getDistanceInPixels(
-                group[i].latitude,
-                group[i].longitude,
-                group[j].latitude,
-                group[j].longitude
-              );
-              if (dist > nearbyDistance) {
-                allClose = false;
-                break;
-              }
-            }
-            if (!allClose) break;
-          }
-
-          if (allClose) {
-            overlappingGroups.push(group);
-          }
-        }
-      });
-
-      return overlappingGroups;
+      return devicesToSpiderfy;
     };
 
     // Traiter les groupes qui se chevauchent
@@ -197,7 +171,7 @@ export const useCustomSpiderfier = ({
     // Analyser et traiter les marqueurs
     const groups = analyzeOverlappingMarkers();
     processOverlappingGroups(groups);
-  }, [enabled, map, devices, nearbyDistance, currentZoom, zoomThreshold]);
+  }, [enabled, map, devicesToSpiderfy, currentZoom, zoomThreshold]);
 
   // Fonction pour obtenir la position d'un marqueur (originale ou éclatée)
   const getMarkerPosition = (device: MeasurementDevice) => {
