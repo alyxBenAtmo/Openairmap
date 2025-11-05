@@ -676,6 +676,7 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                     data={state.historicalData}
                     selectedPollutants={state.chartControls.selectedPollutants}
                     source="nebuleAir"
+                    stationInfo={selectedStation}
                   />
                 </div>
 

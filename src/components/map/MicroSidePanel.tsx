@@ -682,6 +682,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                     source="atmoMicro"
                     onHasCorrectedDataChange={handleHasCorrectedDataChange}
                     showRawData={showRawData}
+                    stationInfo={selectedStation}
                   />
                 </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   LineChart,
   Line,
@@ -9,7 +9,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { HistoricalDataPoint } from "../../types";
+import { HistoricalDataPoint, StationInfo } from "../../types";
 import { pollutants, POLLUTANT_COLORS } from "../../constants/pollutants";
 import {
   exportChartAsPNG,
@@ -24,6 +24,7 @@ interface HistoricalChartProps {
   onHasCorrectedDataChange?: (hasCorrectedData: boolean) => void;
   stations?: any[]; // Stations pour le mode comparaison
   showRawData?: boolean; // Contrôler l'affichage des données brutes
+  stationInfo?: StationInfo | null; // Informations de la station pour les exports
 }
 
 const HistoricalChart: React.FC<HistoricalChartProps> = ({
@@ -33,6 +34,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   onHasCorrectedDataChange,
   stations = [],
   showRawData = true,
+  stationInfo = null,
 }) => {
   // État pour détecter le mode paysage sur mobile
   const [isLandscapeMobile, setIsLandscapeMobile] = useState(false);
@@ -50,6 +52,33 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   
   // Référence pour le menu déroulant
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Créer une clé stable basée sur les IDs des stations pour éviter les recréations inutiles
+  // Cette clé change uniquement si les IDs des stations changent, pas si c'est un nouvel array
+  // Utiliser useRef pour comparer le contenu et maintenir une référence stable
+  const prevStationsKeyRef = useRef<string>('');
+  const stationsKey = useMemo(() => {
+    if (stations.length === 0) {
+      const emptyKey = '';
+      if (prevStationsKeyRef.current !== emptyKey) {
+        prevStationsKeyRef.current = emptyKey;
+      }
+      return prevStationsKeyRef.current;
+    }
+    // Créer une clé stable basée sur les IDs triés
+    const newKey = stations.map(s => s.id).sort().join(',');
+    // Ne mettre à jour que si la clé a vraiment changé (comparaison de contenu)
+    if (newKey !== prevStationsKeyRef.current) {
+      prevStationsKeyRef.current = newKey;
+    }
+    // Retourner la référence stable
+    return prevStationsKeyRef.current;
+  }, [stations]);
+
+  // Mémoriser stationInfo basé sur son ID pour éviter les recréations inutiles
+  const stationInfoKey = useMemo(() => {
+    return stationInfo?.id || null;
+  }, [stationInfo?.id]);
 
   // Effet pour détecter le mode paysage sur mobile
   useEffect(() => {
@@ -342,14 +371,14 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     return transformedData;
   };
 
-  // Transformer les données pour Recharts
-  const chartData = transformData();
-  const unitGroups = groupPollutantsByUnit();
-  const unitKeys = Object.keys(unitGroups);
+  // Transformer les données pour Recharts - Mémorisé pour éviter les recalculs inutiles
+  const chartData = useMemo(() => transformData(), [data, selectedPollutants, source, stations, isMobile]);
+  const unitGroups = useMemo(() => groupPollutantsByUnit(), [selectedPollutants, data, source, stations]);
+  const unitKeys = useMemo(() => Object.keys(unitGroups), [unitGroups]);
   
   // Calculer un intervalle optimal pour l'axe X selon le nombre de points
   // Pour éviter la surcharge de labels, on affiche environ 6-8 labels maximum
-  const getXAxisInterval = () => {
+  const xAxisInterval = useMemo(() => {
     if (isMobile) {
       return "preserveStartEnd";
     }
@@ -358,16 +387,166 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     const targetLabels = 7;
     const interval = Math.floor(chartData.length / targetLabels);
     return interval > 0 ? interval : 0;
-  };
+  }, [isMobile, chartData.length]);
 
-  // Détecter si des données corrigées sont disponibles (seulement pour AtmoMicro)
-  const hasCorrectedData =
-    source === "atmoMicro" &&
-    selectedPollutants.some((pollutant) => {
-      return chartData.some(
-        (point) => point[`${pollutant}_corrected`] !== undefined
-      );
+  // Détecter si des données corrigées sont disponibles (seulement pour AtmoMicro) - Mémorisé
+  const hasCorrectedData = useMemo(() => {
+    return source === "atmoMicro" &&
+      selectedPollutants.some((pollutant) => {
+        return chartData.some(
+          (point) => point[`${pollutant}_corrected`] !== undefined
+        );
+      });
+  }, [source, selectedPollutants, chartData]);
+
+  // Mémoriser les objets activeDot pour éviter les recréations
+  const activeDotNormal = useMemo(() => ({ r: 2.5, fillOpacity: 0.7 }), []);
+  const activeDotSmall = useMemo(() => ({ r: 2, fillOpacity: 0.7 }), []);
+
+  // Pré-calculer les données de correction par polluant pour éviter les recalculs dans le render
+  const pollutantDataFlags = useMemo(() => {
+    const flags: Record<string, { hasCorrected: boolean; hasRaw: boolean }> = {};
+    selectedPollutants.forEach((pollutant) => {
+      flags[pollutant] = {
+        hasCorrected: chartData.some(
+          (point) => point[`${pollutant}_corrected`] !== undefined
+        ),
+        hasRaw: chartData.some(
+          (point) => point[`${pollutant}_raw`] !== undefined
+        ),
+      };
     });
+    return flags;
+  }, [selectedPollutants, chartData]);
+
+  // Mémoriser la génération des lignes du graphique pour éviter les retracements
+  // Utiliser stationsKey au lieu de stations pour éviter les recréations dues aux changements de référence
+  const chartLines = useMemo(() => {
+    if (source === "comparison" && stations.length > 0) {
+      return stations.map((station, index) => {
+        const pollutant = selectedPollutants[0];
+        // En mode comparaison, utiliser directement les couleurs de fallback pour différencier les stations
+        const stationColor =
+          fallbackColors[index % fallbackColors.length];
+        const pollutantName =
+          pollutants[pollutant]?.name || pollutant;
+
+        return (
+          <Line
+            key={station.id}
+            type="linear"
+            dataKey={station.id}
+            yAxisId="left"
+            stroke={stationColor}
+            strokeWidth={2}
+            strokeDasharray="0" // Trait plein pour toutes les stations
+            dot={false}
+            activeDot={activeDotNormal}
+            name={`${station.name} - ${pollutantName}`}
+            connectNulls={true} // Relier les points malgré les gaps (résolutions différentes)
+          />
+        );
+      });
+    }
+    
+    // Mode normal : rendu des lignes par unité
+    return unitKeys.map((unit, unitIndex) => {
+      const pollutantsInUnit = unitGroups[unit];
+      const yAxisId = unitIndex === 0 ? "left" : "right";
+
+      return pollutantsInUnit.map((pollutant, pollutantIndex) => {
+        const pollutantColor = getPollutantColor(
+          pollutant,
+          pollutantIndex
+        );
+        const pollutantName =
+          pollutants[pollutant]?.name || pollutant;
+
+        // Utiliser les flags pré-calculés au lieu de recalculer
+        const flags = pollutantDataFlags[pollutant] || { hasCorrected: false, hasRaw: false };
+        const hasCorrectedData = flags.hasCorrected;
+        const hasRawData = flags.hasRaw;
+
+        // Déterminer le style selon la source
+        const isAtmoRef = source === "atmoRef";
+        const isAtmoMicro = source === "atmoMicro";
+
+        return (
+          <React.Fragment key={pollutant}>
+            {isAtmoRef ? (
+              /* AtmoRef : toujours trait plein (données de référence fiables) */
+              <Line
+                type="linear"
+                dataKey={pollutant}
+                yAxisId={yAxisId}
+                stroke={pollutantColor}
+                strokeWidth={2}
+                strokeDasharray="0" // Trait plein
+                dot={false}
+                activeDot={activeDotNormal}
+                name={pollutantName}
+              />
+            ) : isAtmoMicro ? (
+              /* AtmoMicro : données corrigées (trait plein) et brutes (trait discontinu) */
+              <>
+                {/* Ligne des données corrigées (trait plein) - priorité par défaut */}
+                {hasCorrectedData && (
+                  <Line
+                    type="linear"
+                    dataKey={`${pollutant}_corrected`}
+                    yAxisId={yAxisId}
+                    stroke={pollutantColor}
+                    strokeWidth={2}
+                    strokeDasharray="0" // Trait plein
+                    dot={false}
+                    activeDot={activeDotNormal}
+                    name={pollutantName} // Nom simple par défaut
+                    connectNulls={false}
+                  />
+                )}
+
+                {/* Ligne des données brutes (trait discontinu) - affichée seulement si showRawData est true */}
+                {hasRawData && showRawData && (
+                  <Line
+                    type="linear"
+                    dataKey={`${pollutant}_raw`}
+                    yAxisId={yAxisId}
+                    stroke={pollutantColor}
+                    strokeWidth={2}
+                    strokeDasharray="5 5" // Trait discontinu
+                    dot={false}
+                    activeDot={activeDotSmall}
+                    name={
+                      hasCorrectedData
+                        ? `${pollutantName} (brut)`
+                        : pollutantName
+                    }
+                    connectNulls={false}
+                  />
+                )}
+              </>
+            ) : (
+              /* Autres sources : trait discontinu par défaut */
+              <Line
+                type="linear"
+                dataKey={pollutant}
+                yAxisId={yAxisId}
+                stroke={pollutantColor}
+                strokeWidth={2}
+                strokeDasharray="5 5" // Trait discontinu
+                dot={false}
+                activeDot={activeDotNormal}
+                name={pollutantName}
+              />
+            )}
+          </React.Fragment>
+        );
+      });
+    });
+    // Utiliser stationsKey au lieu de stations directement pour éviter les recréations dues aux changements de référence
+    // stations est utilisé dans le code mais stationsKey dans les dépendances pour la stabilité
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source, stationsKey, selectedPollutants, unitKeys, unitGroups, pollutantDataFlags, showRawData, activeDotNormal, activeDotSmall]);
 
   // Notifier le composant parent si des données corrigées sont disponibles
   React.useEffect(() => {
@@ -376,8 +555,8 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     }
   }, [hasCorrectedData, onHasCorrectedDataChange]);
 
-  // Fonctions d'exportation
-  const handleExportPNG = async () => {
+  // Fonctions d'exportation - Mémorisées pour éviter les recréations inutiles
+  const handleExportPNG = useCallback(async () => {
     if (!chartData.length) return;
 
     setIsExporting(true);
@@ -385,40 +564,49 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
       const filename = generateExportFilename(
         source,
         selectedPollutants,
-        stations
+        stations,
+        stationInfo
       );
-      await exportChartAsPNG(chartRef, filename);
+      await exportChartAsPNG(chartRef, filename, stationInfo, selectedPollutants, source, stations);
     } catch (error) {
       console.error("Erreur lors de l'export PNG:", error);
       alert("Erreur lors de l'exportation en PNG");
     } finally {
       setIsExporting(false);
     }
-  };
+    // Utiliser stationsKey et stationInfoKey au lieu des objets directement pour éviter les recréations
+    // stations et stationInfo sont utilisés dans le code mais les clés dans les dépendances pour la stabilité
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chartData.length, source, selectedPollutants, stationsKey, stationInfoKey]);
 
   // Option SVG supprimée
 
-  const handleExportCSV = () => {
+  const handleExportCSV = useCallback(() => {
     if (!chartData.length) return;
 
     try {
       const filename = generateExportFilename(
         source,
         selectedPollutants,
-        stations
+        stations,
+        stationInfo
       );
       exportDataAsCSV(
         chartData,
         filename,
         source,
         stations,
-        selectedPollutants
+        selectedPollutants,
+        stationInfo
       );
     } catch (error) {
       console.error("Erreur lors de l'export CSV:", error);
       alert("Erreur lors de l'exportation en CSV");
     }
-  };
+    // Utiliser stationsKey et stationInfoKey au lieu des objets directement pour éviter les recréations
+    // stations et stationInfo sont utilisés dans le code mais les clés dans les dépendances pour la stabilité
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chartData, source, selectedPollutants, stationsKey, stationInfoKey]);
 
   console.log("📈 [HistoricalChart] Données transformées:", {
     chartDataLength: chartData.length,
@@ -459,8 +647,8 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     );
   }
 
-  // Marges adaptées selon le mode
-  const getChartMargins = () => {
+  // Marges adaptées selon le mode - Mémorisé pour éviter les recalculs inutiles
+  const chartMargins = useMemo(() => {
     if (isLandscapeMobile) {
       // Marges réduites pour le mode paysage sur mobile, mais espace pour le bouton burger
       return { top: 45, right: 5, left: 2, bottom: 5 };
@@ -471,7 +659,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     }
     // Marges normales pour les autres modes, avec espace pour le bouton burger en haut à droite
     return { top: 45, right: 30, left: 20, bottom: 5 };
-  };
+  }, [isLandscapeMobile, isMobile]);
 
   return (
     <div className="flex flex-col h-full relative">
@@ -497,9 +685,12 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
           </svg>
         </button>
 
-        {/* Menu déroulant */}
-        {isExportMenuOpen && (
-          <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20">
+        {/* Menu déroulant - Utiliser display: none au lieu de rendu conditionnel pour éviter les re-renders */}
+        <div 
+          className={`absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20 ${
+            isExportMenuOpen ? 'block' : 'hidden'
+          }`}
+        >
             <div className="px-3 py-2 text-xs font-semibold text-gray-700 border-b border-gray-200">
               Exporter le graphique
             </div>
@@ -574,13 +765,12 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
               <span>Exporter en CSV</span>
             </button>
           </div>
-        )}
       </div>
 
       {/* Graphique */}
       <div className="flex-1">
         <ResponsiveContainer width="100%" height="100%" ref={chartRef}>
-          <LineChart data={chartData} margin={getChartMargins()}>
+          <LineChart data={chartData} margin={chartMargins}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis
               dataKey="timestamp"
@@ -588,7 +778,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
               textAnchor={isMobile ? "middle" : "end"}
               height={isMobile ? 20 : isLandscapeMobile ? 60 : 80}
               fontSize={isMobile ? 8 : isLandscapeMobile ? 10 : 12}
-              interval={getXAxisInterval()}
+              interval={xAxisInterval}
               tick={{ fill: "#666" }}
               tickMargin={isMobile ? 2 : 5}
               
@@ -733,128 +923,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
             />
 
             {/* Mode comparaison : une ligne par station */}
-            {source === "comparison" && stations.length > 0
-              ? stations.map((station, index) => {
-                  const pollutant = selectedPollutants[0];
-                  // En mode comparaison, utiliser directement les couleurs de fallback pour différencier les stations
-                  const stationColor =
-                    fallbackColors[index % fallbackColors.length];
-                  const pollutantName =
-                    pollutants[pollutant]?.name || pollutant;
-
-                  return (
-                    <Line
-                      key={station.id}
-                      type="linear"
-                      dataKey={station.id}
-                      yAxisId="left"
-                      stroke={stationColor}
-                      strokeWidth={2}
-                      strokeDasharray="0" // Trait plein pour toutes les stations
-                      dot={false}
-                      activeDot={{ r: 2.5, fillOpacity: 0.7 }}
-                      name={`${station.name} - ${pollutantName}`}
-                      connectNulls={true} // Relier les points malgré les gaps (résolutions différentes)
-                    />
-                  );
-                })
-              : /* Mode normal : rendu des lignes par unité */
-                unitKeys.map((unit, unitIndex) => {
-                  const pollutantsInUnit = unitGroups[unit];
-                  const yAxisId = unitIndex === 0 ? "left" : "right";
-
-                  return pollutantsInUnit.map((pollutant, pollutantIndex) => {
-                    const pollutantColor = getPollutantColor(
-                      pollutant,
-                      pollutantIndex
-                    );
-                    const pollutantName =
-                      pollutants[pollutant]?.name || pollutant;
-
-                    // Vérifier si ce polluant a des données avec correction
-                    const hasCorrectedData = chartData.some(
-                      (point) => point[`${pollutant}_corrected`] !== undefined
-                    );
-                    const hasRawData = chartData.some(
-                      (point) => point[`${pollutant}_raw`] !== undefined
-                    );
-
-                    // Déterminer le style selon la source
-                    const isAtmoRef = source === "atmoRef";
-                    const isAtmoMicro = source === "atmoMicro";
-
-                    return (
-                      <React.Fragment key={pollutant}>
-                        {isAtmoRef ? (
-                          /* AtmoRef : toujours trait plein (données de référence fiables) */
-                          <Line
-                            type="linear"
-                            dataKey={pollutant}
-                            yAxisId={yAxisId}
-                            stroke={pollutantColor}
-                            strokeWidth={2}
-                            strokeDasharray="0" // Trait plein
-                            dot={false}
-                            activeDot={{ r: 2.5, fillOpacity: 0.7 }}
-                            name={pollutantName}
-                          />
-                        ) : isAtmoMicro ? (
-                          /* AtmoMicro : données corrigées (trait plein) et brutes (trait discontinu) */
-                          <>
-                            {/* Ligne des données corrigées (trait plein) - priorité par défaut */}
-                            {hasCorrectedData && (
-                              <Line
-                                type="linear"
-                                dataKey={`${pollutant}_corrected`}
-                                yAxisId={yAxisId}
-                                stroke={pollutantColor}
-                                strokeWidth={2}
-                                strokeDasharray="0" // Trait plein
-                                dot={false}
-                                activeDot={{ r: 2.5, fillOpacity: 0.7 }}
-                                name={pollutantName} // Nom simple par défaut
-                                connectNulls={false}
-                              />
-                            )}
-
-                            {/* Ligne des données brutes (trait discontinu) - affichée seulement si showRawData est true */}
-                            {hasRawData && showRawData && (
-                              <Line
-                                type="linear"
-                                dataKey={`${pollutant}_raw`}
-                                yAxisId={yAxisId}
-                                stroke={pollutantColor}
-                                strokeWidth={2}
-                                strokeDasharray="5 5" // Trait discontinu
-                                dot={false}
-                                activeDot={{ r: 2, fillOpacity: 0.7 }}
-                                name={
-                                  hasCorrectedData
-                                    ? `${pollutantName} (brut)`
-                                    : pollutantName
-                                }
-                                connectNulls={false}
-                              />
-                            )}
-                          </>
-                        ) : (
-                          /* Autres sources : trait discontinu par défaut */
-                          <Line
-                            type="linear"
-                            dataKey={pollutant}
-                            yAxisId={yAxisId}
-                            stroke={pollutantColor}
-                            strokeWidth={2}
-                            strokeDasharray="5 5" // Trait discontinu
-                            dot={false}
-                            activeDot={{ r: 2.5, fillOpacity: 0.7 }}
-                            name={pollutantName}
-                          />
-                        )}
-                      </React.Fragment>
-                    );
-                  });
-                })}
+            {chartLines}
           </LineChart>
         </ResponsiveContainer>
       </div>

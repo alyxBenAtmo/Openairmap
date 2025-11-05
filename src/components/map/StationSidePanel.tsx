@@ -613,6 +613,7 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
                     data={state.historicalData}
                     selectedPollutants={state.chartControls.selectedPollutants}
                     source="atmoRef"
+                    stationInfo={selectedStation}
                   />
                 </div>
 
