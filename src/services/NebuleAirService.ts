@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { BaseDataService } from "./BaseDataService";
 import {
   MeasurementDevice,
@@ -11,13 +12,22 @@ import { getAirQualityLevel } from "../utils";
 import { pollutants } from "../constants/pollutants";
 
 export class NebuleAirService extends BaseDataService {
-  private readonly BASE_URL = "/aircarto";
+  private readonly BASE_URL = this.getApiBaseUrl();
   private sensorsMetadataCache: NebuleAirSensor[] | null = null;
   private lastMetadataFetch: number = 0;
   private readonly METADATA_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
   constructor() {
     super("nebuleair");
+  }
+
+  private getApiBaseUrl(): string {
+    // En développement, utiliser le proxy Vite
+    if (import.meta.env.DEV) {
+      return "/aircarto";
+    }
+    // En production, utiliser l'URL complète de l'API
+    return "https://api.aircarto.fr";
   }
 
   async fetchData(params: {
