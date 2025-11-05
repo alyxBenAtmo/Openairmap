@@ -10,6 +10,7 @@ interface CustomSpiderfiedMarkersProps {
   enabled: boolean;
   nearbyDistance?: number;
   zoomThreshold?: number;
+  getMarkerKey?: (device: MeasurementDevice) => string;
 }
 
 const CustomSpiderfiedMarkers: React.FC<CustomSpiderfiedMarkersProps> = ({
@@ -19,6 +20,7 @@ const CustomSpiderfiedMarkers: React.FC<CustomSpiderfiedMarkersProps> = ({
   enabled,
   nearbyDistance = 20,
   zoomThreshold = 12,
+  getMarkerKey,
 }) => {
   const markerRefs = useRef<Map<string, any>>(new Map());
   const {
@@ -41,9 +43,10 @@ const CustomSpiderfiedMarkers: React.FC<CustomSpiderfiedMarkersProps> = ({
         const position = getMarkerPosition(device);
         const isSpiderfied = isMarkerSpiderfied(device);
         const spiderfiedData = getSpiderfiedData(device);
+        const markerKey = getMarkerKey ? getMarkerKey(device) : device.id;
 
         return (
-          <React.Fragment key={device.id}>
+          <React.Fragment key={markerKey}>
             <Marker
               position={position}
               icon={createCustomIcon(device)}

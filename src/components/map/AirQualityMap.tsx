@@ -844,17 +844,29 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
 
   // Fonction pour vérifier si un appareil est sélectionné
   const isDeviceSelected = (device: MeasurementDevice): boolean => {
-    // Vérifier si l'appareil est dans le side panel normal
+    // En mode comparaison, ignorer selectedStation et ne vérifier que comparedStations
+    if (comparisonState.isComparisonMode) {
+      return comparisonState.comparedStations.some(station => station.id === device.id);
+    }
+    
+    // En mode normal, vérifier si l'appareil est dans le side panel normal
     if (selectedStation && selectedStation.id === device.id) {
       return true;
     }
     
-    // Vérifier si l'appareil est dans le mode comparaison
-    if (comparisonState.isComparisonMode && comparisonState.comparedStations.length > 0) {
-      return comparisonState.comparedStations.some(station => station.id === device.id);
-    }
-    
     return false;
+  };
+
+  // Fonction pour générer une clé unique pour les marqueurs incluant l'état de sélection
+  // Cette clé change quand l'état de sélection change, forçant React à recréer le marqueur
+  const getMarkerKey = (device: MeasurementDevice): string => {
+    const isSelected = isDeviceSelected(device);
+    // En mode comparaison, utiliser uniquement les IDs des stations comparées
+    // En mode normal, utiliser l'ID de la station sélectionnée
+    const selectedIds = comparisonState.isComparisonMode 
+      ? comparisonState.comparedStations.map(s => s.id).sort().join(',')
+      : (selectedStation?.id || '');
+    return `${device.id}-${isSelected ? 'selected' : 'unselected'}-${selectedIds}`;
   };
 
   // Fonction pour créer un marqueur personnalisé
@@ -989,7 +1001,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       html: div.outerHTML,
       className: "custom-marker-div",
       iconSize: [32, 32],
-      iconAnchor: [16, 32],
+      iconAnchor: [0, 32],
     });
   };
 
@@ -1021,7 +1033,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       html: div.outerHTML,
       className: "custom-marker-div",
       iconSize: [32, 32],
-      iconAnchor: [16, 32],
+      iconAnchor: [0, 32],
     });
   };
 
@@ -1209,15 +1221,23 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
 
   // Fonctions pour le mode comparaison
   const handleComparisonModeToggle = () => {
+    const isActivatingComparison = !comparisonState.isComparisonMode;
+    
     setComparisonState((prev) => ({
       ...prev,
       isComparisonMode: !prev.isComparisonMode,
       // Si on active le mode comparaison, ajouter la station actuelle comme première
       comparedStations:
-        !prev.isComparisonMode && selectedStation
+        isActivatingComparison && selectedStation
           ? [selectedStation]
           : prev.comparedStations,
     }));
+    
+    // Nettoyer selectedStation quand on active le mode comparaison pour éviter les conflits
+    if (isActivatingComparison) {
+      setSelectedStation(null);
+      setIsSidePanelOpen(false);
+    }
   };
 
   const handleAddStationToComparison = async (device: MeasurementDevice) => {
@@ -1278,21 +1298,41 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   };
 
   const handleRemoveStationFromComparison = (stationId: string) => {
-    setComparisonState((prev) => ({
-      ...prev,
-      comparedStations: prev.comparedStations.filter(
+    // Calculer la nouvelle longueur avant de mettre à jour l'état
+    const currentLength = comparisonState.comparedStations.length;
+    const willBeEmpty = currentLength === 1; // Si on supprime la dernière station
+    
+    setComparisonState((prev) => {
+      const newComparedStations = prev.comparedStations.filter(
         (station) => station.id !== stationId
-      ),
-      // Supprimer aussi les données de cette station
-      comparisonData: Object.fromEntries(
-        Object.entries(prev.comparisonData).map(([pollutant, stationsData]) => [
-          pollutant,
-          Object.fromEntries(
-            Object.entries(stationsData).filter(([id]) => id !== stationId)
-          ),
-        ])
-      ),
-    }));
+      );
+      
+      // Si la liste devient vide, désactiver le mode comparaison et nettoyer les données
+      const shouldDisableComparison = newComparedStations.length === 0;
+      
+      return {
+        ...prev,
+        isComparisonMode: shouldDisableComparison ? false : prev.isComparisonMode,
+        comparedStations: newComparedStations,
+        // Supprimer aussi les données de cette station
+        comparisonData: shouldDisableComparison 
+          ? {} // Nettoyer toutes les données si le mode comparaison est désactivé
+          : Object.fromEntries(
+              Object.entries(prev.comparisonData).map(([pollutant, stationsData]) => [
+                pollutant,
+                Object.fromEntries(
+                  Object.entries(stationsData).filter(([id]) => id !== stationId)
+                ),
+              ])
+            ),
+      };
+    });
+    
+    // Fermer le panneau si le mode comparaison est désactivé automatiquement
+    if (willBeEmpty) {
+      setIsSidePanelOpen(false);
+      setSelectedStation(null);
+    }
   };
 
   // Fonction pour charger les données de comparaison
@@ -1712,7 +1752,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
                 })
                 .map((device) => (
                   <Marker
-                    key={device.id}
+                    key={getMarkerKey(device)}
                     position={[device.latitude, device.longitude]}
                     icon={createCustomIcon(device)}
                     eventHandlers={{
@@ -1736,6 +1776,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
               enabled={spiderfyConfig.enabled}
               nearbyDistance={10} // Distance en pixels pour considérer les marqueurs comme se chevauchant
               zoomThreshold={spiderfyConfig.autoSpiderfyZoomThreshold} // Seuil de zoom pour activer le spiderfier
+              getMarkerKey={getMarkerKey}
             />
           ) : (
             devices
@@ -1749,7 +1790,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
               })
               .map((device) => (
                 <Marker
-                  key={device.id}
+                  key={getMarkerKey(device)}
                   position={[device.latitude, device.longitude]}
                   icon={createCustomIcon(device)}
                   eventHandlers={{
