@@ -189,7 +189,7 @@ const App: React.FC = () => {
             <img
               src={domainConfig.logo}
               alt={`${domainConfig.organization} logo`}
-              className="h-8 md:h-10"
+              className="h-8 md:h-12"
             />
           </div>
 
