@@ -139,6 +139,8 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   const [selectedStation, setSelectedStation] = useState<StationInfo | null>(
     null
   );
+  const [lastSelectedStationBeforeComparison, setLastSelectedStationBeforeComparison] =
+    useState<StationInfo | null>(null);
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const [panelSize, setPanelSize] = useState<
     "normal" | "fullscreen" | "hidden"
@@ -709,6 +711,10 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     loadWindModeling,
   ]);
 
+  const isComparisonPanelVisible =
+    comparisonState.isComparisonMode &&
+    comparisonState.comparedStations.length > 0;
+
   // Effet pour redimensionner la carte quand les panneaux latéraux changent de taille
   useEffect(() => {
     if (mapRef.current) {
@@ -724,6 +730,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     isSidePanelOpen,
     mobileAirSelectionPanelSize,
     mobileAirDetailPanelSize,
+    isComparisonPanelVisible,
   ]);
 
   // Effet pour initialiser le contrôle de recherche IGN
@@ -1222,21 +1229,48 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   // Fonctions pour le mode comparaison
   const handleComparisonModeToggle = () => {
     const isActivatingComparison = !comparisonState.isComparisonMode;
-    
-    setComparisonState((prev) => ({
-      ...prev,
-      isComparisonMode: !prev.isComparisonMode,
-      // Si on active le mode comparaison, ajouter la station actuelle comme première
-      comparedStations:
-        isActivatingComparison && selectedStation
-          ? [selectedStation]
-          : prev.comparedStations,
-    }));
-    
-    // Nettoyer selectedStation quand on active le mode comparaison pour éviter les conflits
+
     if (isActivatingComparison) {
+      setLastSelectedStationBeforeComparison(selectedStation);
+
+      setComparisonState((prev) => ({
+        ...prev,
+        isComparisonMode: true,
+        // Si on active le mode comparaison, ajouter la station actuelle comme première
+        comparedStations:
+          selectedStation ? [selectedStation] : prev.comparedStations,
+      }));
+
+      // Nettoyer selectedStation quand on active le mode comparaison pour éviter les conflits
       setSelectedStation(null);
       setIsSidePanelOpen(false);
+    } else {
+      const remainingStations = comparisonState.comparedStations;
+
+      setComparisonState((prev) => ({
+        ...prev,
+        isComparisonMode: false,
+        comparedStations: [],
+        comparisonData: {},
+      }));
+
+      const stationToRestore =
+        (remainingStations.length === 1
+          ? remainingStations[0]
+          : lastSelectedStationBeforeComparison) ||
+        remainingStations[0] ||
+        null;
+
+      if (stationToRestore) {
+        setSelectedStation(stationToRestore);
+        setIsSidePanelOpen(true);
+        setPanelSize("normal");
+      } else {
+        setSelectedStation(null);
+        setIsSidePanelOpen(false);
+      }
+
+      setLastSelectedStationBeforeComparison(null);
     }
   };
 
