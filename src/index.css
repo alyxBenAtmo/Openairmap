@@ -233,8 +233,8 @@
 /* Styles pour l'encart d'attribution de Leaflet */
 .leaflet-control-attribution {
   position: fixed !important;
-  bottom: 4px !important;
-  right: 4px !important;
+  bottom: 0px !important;
+  right: 0px !important;
   background: rgba(255, 255, 255, 0.9) !important;
   border: 1px solid rgba(0, 0, 0, 0.1) !important;
   border-radius: 4px !important;

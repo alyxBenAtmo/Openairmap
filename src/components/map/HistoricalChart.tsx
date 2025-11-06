@@ -27,6 +27,150 @@ interface HistoricalChartProps {
   stationInfo?: StationInfo | null; // Informations de la station pour les exports
 }
 
+interface ExportMenuProps {
+  hasData: boolean;
+  onExportPNG: () => Promise<void> | void;
+  onExportCSV: () => void;
+}
+
+const ExportMenu: React.FC<ExportMenuProps> = React.memo(
+  ({ hasData, onExportPNG, onExportCSV }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+      if (!isOpen) {
+        return;
+      }
+
+      const handleClickOutside = (event: MouseEvent) => {
+        if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+          setIsOpen(false);
+        }
+      };
+
+      document.addEventListener("mousedown", handleClickOutside);
+
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }, [isOpen]);
+
+    return (
+      <div className="absolute top-2 right-2 z-10" ref={menuRef}>
+        <button
+          onClick={() => setIsOpen((open) => !open)}
+          className="p-2 bg-white rounded-lg shadow-md hover:bg-gray-100 transition-colors border border-gray-200"
+          title="Menu d'export"
+        >
+          <svg
+            className="w-5 h-5 text-gray-700"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 6h16M4 12h16M4 18h16"
+            />
+          </svg>
+        </button>
+
+        <div
+          className={`absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20 ${
+            isOpen ? "block" : "hidden"
+          }`}
+        >
+          <div className="px-3 py-2 text-xs font-semibold text-gray-700 border-b border-gray-200">
+            Exporter le graphique
+          </div>
+          <button
+            onClick={async () => {
+              if (isExporting || !hasData) {
+                return;
+              }
+              setIsExporting(true);
+              try {
+                await Promise.resolve(onExportPNG());
+              } finally {
+                setIsExporting(false);
+                setIsOpen(false);
+              }
+            }}
+            disabled={isExporting || !hasData}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+          >
+            {isExporting ? (
+              <>
+                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                <span>Export en cours...</span>
+              </>
+            ) : (
+              <>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                <span>Exporter en PNG</span>
+              </>
+            )}
+          </button>
+          <button
+            onClick={() => {
+              onExportCSV();
+              setIsOpen(false);
+            }}
+            disabled={!hasData}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+            <span>Exporter en CSV</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+);
+
 const HistoricalChart: React.FC<HistoricalChartProps> = ({
   data,
   selectedPollutants,
@@ -41,17 +185,8 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   // État pour détecter si on est sur mobile
   const [isMobile, setIsMobile] = useState(false);
 
-  // État pour l'exportation
-  const [isExporting, setIsExporting] = useState(false);
-  
-  // État pour le menu d'export
-  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
-
   // Référence vers le graphique pour l'exportation
   const chartRef = useRef<any>(null);
-  
-  // Référence pour le menu déroulant
-  const menuRef = useRef<HTMLDivElement>(null);
 
   // Créer une clé stable basée sur les IDs des stations pour éviter les recréations inutiles
   // Cette clé change uniquement si les IDs des stations changent, pas si c'est un nouvel array
@@ -99,27 +234,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     };
   }, []);
 
-  // Effet pour fermer le menu quand on clique en dehors
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsExportMenuOpen(false);
-      }
-    };
-
-    if (isExportMenuOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isExportMenuOpen]);
   // Log pour debug
-  console.log("📊 [HistoricalChart] Props reçues:", {
-    data,
-    selectedPollutants,
-  });
 
   // Couleurs de fallback si un polluant n'est pas défini dans POLLUTANT_COLORS
   const fallbackColors = [
@@ -559,7 +674,6 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   const handleExportPNG = useCallback(async () => {
     if (!chartData.length) return;
 
-    setIsExporting(true);
     try {
       const filename = generateExportFilename(
         source,
@@ -567,12 +681,17 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
         stations,
         stationInfo
       );
-      await exportChartAsPNG(chartRef, filename, stationInfo, selectedPollutants, source, stations);
+      await exportChartAsPNG(
+        chartRef,
+        filename,
+        stationInfo,
+        selectedPollutants,
+        source,
+        stations
+      );
     } catch (error) {
       console.error("Erreur lors de l'export PNG:", error);
       alert("Erreur lors de l'exportation en PNG");
-    } finally {
-      setIsExporting(false);
     }
     // Utiliser stationsKey et stationInfoKey au lieu des objets directement pour éviter les recréations
     // stations et stationInfo sont utilisés dans le code mais les clés dans les dépendances pour la stabilité
@@ -608,45 +727,6 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartData, source, selectedPollutants, stationsKey, stationInfoKey]);
 
-  console.log("📈 [HistoricalChart] Données transformées:", {
-    chartDataLength: chartData.length,
-    unitGroups,
-    unitKeys,
-    hasCorrectedData,
-    chartData: chartData.slice(0, 3), // Log des 3 premiers points
-  });
-
-  // Log spécifique pour le mode comparaison
-  if (source === "comparison" && stations.length > 0) {
-    console.log(
-      "🔍 [HistoricalChart] Mode comparaison - Analyse des données:",
-      {
-        totalPoints: chartData.length,
-        stations: stations.map((s) => s.id),
-        sampleData: chartData.slice(0, 5),
-        // Compter les points avec des valeurs pour chaque station
-        stationDataCount: stations.reduce((acc, station) => {
-          acc[station.id] = chartData.filter(
-            (p) => p[station.id] !== undefined
-          ).length;
-          return acc;
-        }, {} as Record<string, number>),
-      }
-    );
-  }
-
-  // Afficher un message si aucune donnée n'est disponible
-  if (chartData.length === 0) {
-    console.log(
-      "⚠️ [HistoricalChart] Aucune donnée disponible pour le graphique"
-    );
-    return (
-      <div className="flex items-center justify-center h-full text-gray-500">
-        <p>Aucune donnée disponible</p>
-      </div>
-    );
-  }
-
   // Marges adaptées selon le mode - Mémorisé pour éviter les recalculs inutiles
   const chartMargins = useMemo(() => {
     if (isLandscapeMobile) {
@@ -661,111 +741,23 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     return { top: 45, right: 30, left: 20, bottom: 5 };
   }, [isLandscapeMobile, isMobile]);
 
+  // Afficher un message si aucune donnée n'est disponible
+  if (chartData.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full text-gray-500">
+        <p>Aucune donnée disponible</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full relative">
       {/* Bouton burger et menu d'export en haut à droite */}
-      <div className="absolute top-2 right-2 z-10" ref={menuRef}>
-        <button
-          onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-          className="p-2 bg-white rounded-lg shadow-md hover:bg-gray-100 transition-colors border border-gray-200"
-          title="Menu d'export"
-        >
-          <svg
-            className="w-5 h-5 text-gray-700"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 6h16M4 12h16M4 18h16"
-            />
-          </svg>
-        </button>
-
-        {/* Menu déroulant - Utiliser display: none au lieu de rendu conditionnel pour éviter les re-renders */}
-        <div 
-          className={`absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20 ${
-            isExportMenuOpen ? 'block' : 'hidden'
-          }`}
-        >
-            <div className="px-3 py-2 text-xs font-semibold text-gray-700 border-b border-gray-200">
-              Exporter le graphique
-            </div>
-            <button
-              onClick={() => {
-                handleExportPNG();
-                setIsExportMenuOpen(false);
-              }}
-              disabled={isExporting || !chartData.length}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
-            >
-              {isExporting ? (
-                <>
-                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24">
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                  <span>Export en cours...</span>
-                </>
-              ) : (
-                <>
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                  <span>Exporter en PNG</span>
-                </>
-              )}
-            </button>
-            <button
-              onClick={() => {
-                handleExportCSV();
-                setIsExportMenuOpen(false);
-              }}
-              disabled={!chartData.length}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              <span>Exporter en CSV</span>
-            </button>
-          </div>
-      </div>
+      <ExportMenu
+        hasData={chartData.length > 0}
+        onExportPNG={handleExportPNG}
+        onExportCSV={handleExportCSV}
+      />
 
       {/* Graphique */}
       <div className="flex-1">

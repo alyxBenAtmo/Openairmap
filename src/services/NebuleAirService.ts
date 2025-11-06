@@ -140,10 +140,8 @@ export class NebuleAirService extends BaseDataService {
   private async fetchSensorsData(): Promise<NebuleAirSensor[]> {
     try {
       const url = `${this.BASE_URL}/capteurs/metadata?capteurType=NebuleAir&format=JSON`;
-      console.log("🌐 [NebuleAir] Appel API metadata:", url);
 
       const response = await this.makeRequest(url);
-      console.log("📥 [NebuleAir] Réponse metadata:", response);
 
       // Vérifier si la réponse est valide (pas de HTML)
       if (typeof response === "string" && response.includes("<html")) {
@@ -155,45 +153,24 @@ export class NebuleAirService extends BaseDataService {
 
       // L'API retourne directement un tableau de capteurs
       if (Array.isArray(response)) {
-        console.log("✅ [NebuleAir] Capteurs récupérés:", response.length);
         // Filtrer les capteurs qui ont displayMap = true
         const displayableSensors = response.filter(
           (sensor) => sensor.displayMap === true
-        );
-        console.log(
-          "✅ [NebuleAir] Capteurs affichables:",
-          displayableSensors.length
         );
         return displayableSensors;
       }
 
       // Si la réponse est encapsulée dans un objet
       if (response.sensors && Array.isArray(response.sensors)) {
-        console.log(
-          "✅ [NebuleAir] Capteurs récupérés (sensors):",
-          response.sensors.length
-        );
         const displayableSensors = response.sensors.filter(
           (sensor) => sensor.displayMap === true
-        );
-        console.log(
-          "✅ [NebuleAir] Capteurs affichables (sensors):",
-          displayableSensors.length
         );
         return displayableSensors;
       }
 
       if (response.data && Array.isArray(response.data)) {
-        console.log(
-          "✅ [NebuleAir] Capteurs récupérés (data):",
-          response.data.length
-        );
         const displayableSensors = response.data.filter(
           (sensor) => sensor.displayMap === true
-        );
-        console.log(
-          "✅ [NebuleAir] Capteurs affichables (data):",
-          displayableSensors.length
         );
         return displayableSensors;
       }

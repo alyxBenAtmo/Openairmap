@@ -1955,7 +1955,7 @@ const handleOpenMobileAirDetailPanel = () => {
           className={`absolute ${
             isSidePanelOpen && panelSize !== "hidden"
               ? "bottom-8 right-4 hidden lg:block"
-              : "bottom-6 right-4 hidden lg:block"
+              : "bottom-6 right-0 hidden lg:block"
           } bg-white px-3 py-1 rounded-md shadow-lg z-[1000] transition-all duration-300`}
         >
           <p className="text-xs text-gray-600">
