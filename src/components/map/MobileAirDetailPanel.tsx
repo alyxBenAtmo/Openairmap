@@ -264,7 +264,7 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
 
   const getPanelClasses = () => {
     const baseClasses =
-      "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300 h-[calc(100vh-70px)]";
+      "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300 h-[calc(100vh-64px)]";
 
     switch (currentPanelSize) {
       case "fullscreen":
@@ -282,7 +282,7 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
   return (
     <div className={getPanelClasses()}>
       {/* Header */}
-      <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200 bg-gray-50">
+      <div className="flex items-center justify-between p-2 sm:p-3 md:p-4 border-b border-gray-200 bg-gray-50">
         <div className="flex-1 min-w-0">
           <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
             Session {routeToUse.sessionId}
@@ -293,40 +293,21 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
           </p>
         </div>
 
-        {/* Contrôles de taille du panel */}
-        <div className="hidden sm:flex items-center space-x-1 sm:space-x-2 mr-2">
+        {/* Contrôles unifiés du panel */}
+        <div className="flex items-center space-x-1 sm:space-x-2">
+          {/* Bouton agrandir/rétrécir */}
           <button
-            onClick={() => handlePanelSizeChange("normal")}
-            className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
-              currentPanelSize === "normal"
-                ? "bg-blue-100 text-blue-600"
-                : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-            }`}
-            title="Taille normale"
-          >
-            <svg
-              className="w-3.5 h-3.5 sm:w-4 sm:h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
-              />
-            </svg>
-          </button>
-
-          <button
-            onClick={() => handlePanelSizeChange("fullscreen")}
-            className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
+            onClick={() =>
+              handlePanelSizeChange(
+                currentPanelSize === "fullscreen" ? "normal" : "fullscreen"
+              )
+            }
+            className="p-1.5 sm:p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            title={
               currentPanelSize === "fullscreen"
-                ? "bg-blue-100 text-blue-600"
-                : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-            }`}
-            title="Plein écran"
+                ? "Rétrécir le panel"
+                : "Agrandir le panel"
+            }
           >
             <svg
               className="w-3.5 h-3.5 sm:w-4 sm:h-4"
@@ -334,19 +315,29 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
-              />
+              {currentPanelSize === "fullscreen" ? (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              ) : (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              )}
             </svg>
           </button>
 
+          {/* Bouton rabattre */}
           <button
             onClick={() => handlePanelSizeChange("hidden")}
             className="p-1.5 sm:p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-            title="Masquer"
+            title="Rabattre le panel"
           >
             <svg
               className="w-3.5 h-3.5 sm:w-4 sm:h-4"
@@ -363,95 +354,54 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
             </svg>
           </button>
         </div>
-
-        <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 transition-colors p-1.5 sm:p-1 rounded-full hover:bg-gray-200 ml-2"
-          title="Fermer"
-        >
-          <svg
-            className="w-4 h-4 sm:w-5 sm:h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
       </div>
 
       {/* Contenu */}
       {currentPanelSize !== "hidden" && (
         <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4 sm:space-y-6">
-          {/* Informations de la session */}
-          <div className="border border-gray-200 rounded-lg p-3 sm:p-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-3 text-center">
-              Informations de la session
-            </h3>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <span className="text-gray-600">Début:</span>
-                <p className="font-medium">
-                  {formatDate(routeToUse.startTime)}
-                </p>
-              </div>
-              <div>
-                <span className="text-gray-600">Fin:</span>
-                <p className="font-medium">{formatDate(routeToUse.endTime)}</p>
-              </div>
-              <div>
-                <span className="text-gray-600">Durée:</span>
-                <p className="font-medium">
-                  {formatDuration(routeToUse.duration)}
-                </p>
-              </div>
-              <div>
-                <span className="text-gray-600">Points:</span>
-                <p className="font-medium">{routeToUse.points.length}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Statistiques */}
-          <div className="border border-gray-200 rounded-lg p-3 sm:p-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-3 text-center">
-              Statistiques
-            </h3>
-            <div className="grid grid-cols-3 gap-3 text-sm">
-              <div className="text-center">
-                <span className="text-gray-600 block">Moyenne</span>
-                <p className="font-medium text-lg">
-                  {routeToUse.averageValue.toFixed(1)}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {pollutantConfig?.unit || "µg/m³"}
-                </p>
-              </div>
-              <div className="text-center">
-                <span className="text-gray-600 block">Maximum</span>
-                <p className="font-medium text-lg">
-                  {routeToUse.maxValue.toFixed(1)}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {pollutantConfig?.unit || "µg/m³"}
-                </p>
-              </div>
-              <div className="text-center">
-                <span className="text-gray-600 block">Minimum</span>
-                <p className="font-medium text-lg">
-                  {routeToUse.minValue.toFixed(1)}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {pollutantConfig?.unit || "µg/m³"}
-                </p>
+          {/* Autres sessions disponibles */}
+          {allRoutes.length > 1 && (
+            <div className="border border-gray-200 rounded-lg p-3 sm:p-4">
+              <h3 className="text-sm font-medium text-gray-700 mb-3 text-center">
+                Autres sessions disponibles ({allRoutes.length - 1})
+              </h3>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {allRoutes
+                  .filter((route) => route.sessionId !== routeToUse.sessionId)
+                  .sort(
+                    (a, b) =>
+                      new Date(b.startTime).getTime() -
+                      new Date(a.startTime).getTime()
+                  )
+                  .map((route) => (
+                    <button
+                      key={route.sessionId}
+                      onClick={() => onRouteSelect && onRouteSelect(route)}
+                      className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="text-left">
+                        <div className="text-sm font-medium text-gray-900">
+                          Session {route.sessionId}
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          {formatDate(route.startTime)} •{" "}
+                          {formatDuration(route.duration)}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-medium text-gray-900">
+                          {route.averageValue.toFixed(1)}{" "}
+                          {pollutantConfig?.unit || "µg/m³"}
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          {route.points.length} points
+                        </div>
+                      </div>
+                    </button>
+                  ))}
               </div>
             </div>
-          </div>
+          )}
 
           {/* Graphique */}
           <div className="border border-gray-200 rounded-lg p-3 sm:p-4">
@@ -609,50 +559,70 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
               </div>
             </div>
           )}
-
-          {/* Autres sessions disponibles */}
-          {allRoutes.length > 1 && (
-            <div className="border border-gray-200 rounded-lg p-3 sm:p-4">
-              <h3 className="text-sm font-medium text-gray-700 mb-3 text-center">
-                Autres sessions disponibles ({allRoutes.length - 1})
-              </h3>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {allRoutes
-                  .filter((route) => route.sessionId !== routeToUse.sessionId)
-                  .sort(
-                    (a, b) =>
-                      new Date(b.startTime).getTime() -
-                      new Date(a.startTime).getTime()
-                  )
-                  .map((route) => (
-                    <button
-                      key={route.sessionId}
-                      onClick={() => onRouteSelect && onRouteSelect(route)}
-                      className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="text-left">
-                        <div className="text-sm font-medium text-gray-900">
-                          Session {route.sessionId}
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          {formatDate(route.startTime)} •{" "}
-                          {formatDuration(route.duration)}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-medium text-gray-900">
-                          {route.averageValue.toFixed(1)}{" "}
-                          {pollutantConfig?.unit || "µg/m³"}
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          {route.points.length} points
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+          {/* Informations de la session */}
+          <div className="border border-gray-200 rounded-lg p-3 sm:p-4">
+            <h3 className="text-sm font-medium text-gray-700 mb-3 text-center">
+              Informations de la session
+            </h3>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-gray-600">Début:</span>
+                <p className="font-medium">
+                  {formatDate(routeToUse.startTime)}
+                </p>
+              </div>
+              <div>
+                <span className="text-gray-600">Fin:</span>
+                <p className="font-medium">{formatDate(routeToUse.endTime)}</p>
+              </div>
+              <div>
+                <span className="text-gray-600">Durée:</span>
+                <p className="font-medium">
+                  {formatDuration(routeToUse.duration)}
+                </p>
+              </div>
+              <div>
+                <span className="text-gray-600">Points:</span>
+                <p className="font-medium">{routeToUse.points.length}</p>
               </div>
             </div>
-          )}
+          </div>
+
+          {/* Statistiques */}
+          <div className="border border-gray-200 rounded-lg p-3 sm:p-4">
+            <h3 className="text-sm font-medium text-gray-700 mb-3 text-center">
+              Statistiques
+            </h3>
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              <div className="text-center">
+                <span className="text-gray-600 block">Moyenne</span>
+                <p className="font-medium text-lg">
+                  {routeToUse.averageValue.toFixed(1)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {pollutantConfig?.unit || "µg/m³"}
+                </p>
+              </div>
+              <div className="text-center">
+                <span className="text-gray-600 block">Maximum</span>
+                <p className="font-medium text-lg">
+                  {routeToUse.maxValue.toFixed(1)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {pollutantConfig?.unit || "µg/m³"}
+                </p>
+              </div>
+              <div className="text-center">
+                <span className="text-gray-600 block">Minimum</span>
+                <p className="font-medium text-lg">
+                  {routeToUse.minValue.toFixed(1)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {pollutantConfig?.unit || "µg/m³"}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

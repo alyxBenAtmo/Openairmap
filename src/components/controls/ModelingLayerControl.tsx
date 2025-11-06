@@ -74,7 +74,7 @@ const ModelingLayerControl: React.FC<ModelingLayerControlProps> = ({
         type="button"
         onClick={() => !isDisabled && setIsOpen(!isOpen)}
         disabled={isDisabled}
-        className={`border rounded-md px-3 py-1.5 text-left shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm min-w-[160px] ${
+        className={`relative border rounded-md px-3 py-1 text-left shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm min-w-[150px] ${
           isDisabled
             ? "bg-gray-300 border-gray-300 cursor-not-allowed opacity-60"
             : "bg-[#0074d9] border-[#0074d9] hover:bg-[#0056b3] hover:border-[#0056b3]"

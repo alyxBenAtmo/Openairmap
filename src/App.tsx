@@ -181,9 +181,11 @@ const App: React.FC = () => {
         <div className="flex items-center justify-between">
           {/* Titre et logo groupés à gauche */}
           <div className="flex items-center space-x-2 md:space-x-3">
-            <h1 className="text-sm md:text-lg font-semibold text-blue-600 truncate">
-              {domainConfig.title}
-            </h1>
+          <img
+              src={domainConfig.logo2}
+              alt={`${domainConfig.organization} logo`}
+              className="h-8 md:h-10"
+            />
             <img
               src={domainConfig.logo}
               alt={`${domainConfig.organization} logo`}

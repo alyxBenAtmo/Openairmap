@@ -101,7 +101,7 @@ const SourceDropdown: React.FC<SourceDropdownProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="bg-[#0074d9] border border-[#0074d9] rounded-md px-3 py-1.5 text-left shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 hover:bg-[#0056b3] hover:border-[#0056b3] transition-colors text-sm min-w-[200px]"
+        className="relative bg-[#0074d9] border border-[#0074d9] rounded-md px-2.5 py-1 text-left shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 hover:bg-[#0056b3] hover:border-[#0056b3] transition-colors text-sm min-w-[180px]"
       >
         <span
           className={`block truncate pr-6 ${

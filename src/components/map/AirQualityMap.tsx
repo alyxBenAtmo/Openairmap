@@ -1511,13 +1511,24 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     }
   };
 
-  const handleMobileAirPointClick = (
-    route: MobileAirRoute,
-    point: MobileAirDataPoint
-  ) => {
-    setSelectedMobileAirRoute(route);
-    setIsMobileAirDetailPanelOpen(true);
-  };
+const openMobileAirDetailPanelForRoute = (
+  route: MobileAirRoute,
+  options?: { highlightedPoint?: MobileAirDataPoint | null }
+) => {
+  setActiveMobileAirRoute(route);
+  setSelectedMobileAirRoute(route);
+  setHighlightedMobileAirPoint(options?.highlightedPoint ?? null);
+  setUserClosedDetailPanel(false);
+  setMobileAirDetailPanelSize("normal");
+  setIsMobileAirDetailPanelOpen(true);
+};
+
+const handleMobileAirPointClick = (
+  route: MobileAirRoute,
+  point: MobileAirDataPoint
+) => {
+  openMobileAirDetailPanelForRoute(route, { highlightedPoint: point });
+};
 
   const handleMobileAirPointHover = useCallback(
     (point: MobileAirDataPoint | null) => {
@@ -1544,8 +1555,8 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     []
   );
 
-  const handleMobileAirRouteClick = (route: MobileAirRoute) => {
-    setActiveMobileAirRoute(route);
+const handleMobileAirRouteClick = (route: MobileAirRoute) => {
+  openMobileAirDetailPanelForRoute(route);
 
     // Centrer la carte sur la route sélectionnée
     if (route.points.length > 0 && mapRef.current) {
@@ -1565,10 +1576,11 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     setForceNewChoice(false);
   };
 
-  const handleOpenMobileAirDetailPanel = () => {
+const handleOpenMobileAirDetailPanel = () => {
     // console.log("🔄 [MANUAL] Ouverture manuelle du panel de détail MobileAir");
-    setUserClosedDetailPanel(false);
-    setIsMobileAirDetailPanelOpen(true);
+  setUserClosedDetailPanel(false);
+  setIsMobileAirDetailPanelOpen(true);
+  setMobileAirDetailPanelSize("normal");
   };
 
   return (
@@ -1693,7 +1705,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
         panelSize={mobileAirDetailPanelSize}
         onPointHover={handleMobileAirPointHover}
         onPointHighlight={handleMobileAirPointHighlight}
-        onRouteSelect={setActiveMobileAirRoute}
+      onRouteSelect={openMobileAirDetailPanelForRoute}
       />
 
       {/* Conteneur de la carte */}
@@ -1983,10 +1995,12 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       )}
 
       {/* Bouton pour rouvrir le panel MobileAir de détail masqué */}
-      {mobileAirRoutes.length > 0 && userClosedDetailPanel && (
+      {mobileAirRoutes.length > 0 &&
+        userClosedDetailPanel &&
+        mobileAirDetailPanelSize === "hidden" && (
         <button
           onClick={handleOpenMobileAirDetailPanel}
-          className="fixed top-60 right-2 z-[2001] bg-green-600 text-white p-3 rounded-full shadow-lg hover:bg-green-700 transition-colors"
+          className="fixed top-1/3 left-2 z-[2001] bg-green-600 text-white p-3 rounded-full shadow-lg hover:bg-green-700 transition-colors"
           title="Rouvrir le panneau MobileAir"
         >
           <svg

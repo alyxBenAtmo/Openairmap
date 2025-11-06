@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { Polyline, Popup, CircleMarker } from "react-leaflet";
+import { Polyline, CircleMarker } from "react-leaflet";
 import L from "leaflet";
 import {
   MobileAirRoute,
@@ -245,81 +245,7 @@ const MobileAirRoutes: React.FC<MobileAirRoutesProps> = memo(
                           }
                         },
                       }}
-                    >
-                      <Popup>
-                        <div className="p-2 min-w-[200px]">
-                          <div className="mb-2">
-                            <h3 className="font-semibold text-gray-900 text-sm">
-                              Point {index + 1} - Session {route.sessionId}
-                            </h3>
-                          </div>
-
-                          <div className="space-y-1 text-xs">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Polluant:</span>
-                              <span className="font-medium">
-                                {pollutantConfig?.name || selectedPollutant}
-                              </span>
-                            </div>
-
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Valeur:</span>
-                              <span className="font-medium">
-                                {(value || 0).toFixed(1)}{" "}
-                                {pollutantConfig?.unit || "µg/m³"}
-                              </span>
-                            </div>
-
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Niveau:</span>
-                              <span
-                                className="font-medium capitalize"
-                                style={{ color: color }}
-                              >
-                                {quality}
-                              </span>
-                            </div>
-
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Heure:</span>
-                              <span className="font-medium">
-                                {formatDate(point.time)}
-                              </span>
-                            </div>
-
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Position:</span>
-                              <span className="font-medium text-xs">
-                                {point.lat.toFixed(6)}, {point.lon.toFixed(6)}
-                              </span>
-                            </div>
-
-                            <div className="mt-2 pt-2 border-t border-gray-200 space-y-2">
-                              <button
-                                onClick={() => {
-                                  if (onPointClick) {
-                                    onPointClick(route, point);
-                                  }
-                                }}
-                                className="w-full px-3 py-2 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
-                              >
-                                Voir le graphique de la session
-                              </button>
-                              {onRouteClick && (
-                                <button
-                                  onClick={() => {
-                                    onRouteClick(route);
-                                  }}
-                                  className="w-full px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
-                                >
-                                  Sélectionner cette session
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </Popup>
-                    </CircleMarker>
+                    />
                   </React.Fragment>
                 );
               })}
