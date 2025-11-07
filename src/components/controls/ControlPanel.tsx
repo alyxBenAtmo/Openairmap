@@ -40,7 +40,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         {/* Bouton de toggle avec icônes améliorées */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="absolute -top-2 -left-2 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs hover:bg-blue-700 transition-colors shadow-md z-[1001] group"
+          className="absolute -top-2 -left-2 w-6 h-6 bg-[#4271B3] text-white rounded-full flex items-center justify-center text-xs hover:bg-[#325a96] transition-colors shadow-md z-[1001] group"
           title={isCollapsed ? "Ouvrir les contrôles" : "Fermer les contrôles"}
         >
           {isCollapsed ? (

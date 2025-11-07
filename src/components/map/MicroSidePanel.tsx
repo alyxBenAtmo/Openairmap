@@ -59,7 +59,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
     useState<PanelSize>("normal");
   const [showPollutantsList, setShowPollutantsList] = useState(false);
   const [hasCorrectedData, setHasCorrectedData] = useState(false);
-  const [showRawData, setShowRawData] = useState(true);
+  const [showRawData, setShowRawData] = useState(false);
   const [sensorTimeStep, setSensorTimeStep] = useState<number | null>(null);
 
   // Utiliser la taille externe si fournie, sinon la taille interne
@@ -116,7 +116,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
       // Réinitialiser la taille du panel
       setInternalPanelSize("normal");
       setHasCorrectedData(false);
-      setShowRawData(true); // Réinitialiser l'affichage des données brutes
+      setShowRawData(false); // Réinitialiser l'affichage des données brutes (désactivé par défaut)
 
       // Charger le pas de temps par défaut du capteur
       if (selectedPollutants.length > 0) {
@@ -383,7 +383,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
       <div className="flex items-center justify-between p-2 sm:p-3 md:p-4 border-b border-gray-200 bg-gray-50">
         <div className="flex-1 min-w-0">
           <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-            {selectedStation.name}, Microcapteur Qualifié AtmoSud
+            Comparaison multi-polluants
           </h2>
         </div>
 
@@ -455,14 +455,19 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
       {/* Contenu - masqué quand currentPanelSize === 'hidden' */}
       {currentPanelSize !== "hidden" && (
         <div className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 space-y-3 sm:space-y-4 md:space-y-6">
-          {/* Graphique avec contrôles intégrés */}
-          <div className="flex-1 min-h-64 sm:min-h-72 md:min-h-80 lg:min-h-96">
-            <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <h3 className="text-sm font-medium text-gray-700">
-                Évolution temporelle (AtmoMicro)
-              </h3>
-              
-              {/* Bouton mode comparaison - sur la ligne du titre */}
+          {/* Informations station sélectionnée */}
+          <div className="border border-gray-200 rounded-lg p-3 sm:p-4">
+            <div className="flex items-start justify-between space-x-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {selectedStation.name}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  Microcapteur qualifié AtmoSud{selectedStation.address ? ` · ${selectedStation.address}` : ""}
+                </p>
+              </div>
+
+              {/* Bouton mode comparaison */}
               {onComparisonModeToggle && (
                 <button
                   onClick={onComparisonModeToggle}
@@ -489,10 +494,19 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                 </button>
               )}
             </div>
+          </div>
+
+          {/* Graphique avec contrôles intégrés */}
+          <div className="flex-1 min-h-64 sm:min-h-72 md:min-h-80 lg:min-h-96">
+            <div className="mb-2 sm:mb-3">
+              <h3 className="text-sm font-medium text-gray-700">
+                Évolution temporelle (AtmoMicro)
+              </h3>
+            </div>
             {state.loading ? (
               <div className="flex items-center justify-center h-64 sm:h-72 md:h-80 lg:h-96 bg-gray-50 rounded-lg">
                 <div className="flex flex-col items-center space-y-2">
-                  <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-[#4271B3]"></div>
                   <span className="text-xs sm:text-sm text-gray-500">
                     Chargement des données...
                   </span>
@@ -590,7 +604,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                                   !isEnabled
                                     ? "text-gray-400 cursor-not-allowed"
                                     : isSelected
-                                    ? "text-blue-700 bg-blue-50 border border-blue-200"
+                                    ? "text-[#1f3c6d] bg-[#e7eef8] border border-[#c1d3eb]"
                                     : "text-gray-700 hover:bg-gray-50"
                                 }`}
                               >
@@ -598,9 +612,9 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                                   className={`w-3 h-3 rounded border mr-2 flex items-center justify-center transition-colors flex-shrink-0 ${
                                     !isEnabled
                                       ? "border-gray-300 bg-gray-100"
-                                      : isSelected
-                                      ? "bg-blue-600 border-blue-600"
-                                      : "border-gray-300"
+                                  : isSelected
+                                  ? "bg-[#325a96] border-[#325a96]"
+                                  : "border-gray-300"
                                   }`}
                                 >
                                   {isSelected && isEnabled && (
@@ -659,7 +673,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                           <button
                             onClick={() => setShowRawData(!showRawData)}
                             className={`relative inline-flex h-4 w-8 sm:h-5 sm:w-9 items-center rounded-full transition-colors flex-shrink-0 ${
-                              showRawData ? "bg-blue-600" : "bg-gray-200"
+                              showRawData ? "bg-[#4271B3]" : "bg-gray-200"
                             }`}
                           >
                             <span
@@ -736,7 +750,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                           onClick={() => handleTimeStepChange(key)}
                           className={`px-1.5 py-1 text-xs rounded-md transition-all duration-200 ${
                             state.chartControls.timeStep === key
-                              ? "bg-blue-600 text-white shadow-sm"
+                              ? "bg-[#4271B3] text-white shadow-sm"
                               : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                           }`}
                           title={

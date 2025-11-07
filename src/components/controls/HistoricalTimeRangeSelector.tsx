@@ -173,7 +173,7 @@ const HistoricalTimeRangeSelector: React.FC<
             }
             className={`px-1.5 py-1 text-xs rounded-md transition-all duration-200 ${
               timeRange.type === "preset" && timeRange.preset === key
-                ? "bg-blue-600 text-white shadow-sm"
+                ? "bg-[#4271B3] text-white shadow-sm"
                 : "bg-gray-100 text-gray-700 hover:bg-gray-200"
             }`}
           >

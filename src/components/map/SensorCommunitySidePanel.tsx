@@ -279,7 +279,7 @@ const SensorCommunitySidePanel: React.FC<SensorCommunitySidePanelProps> = ({
                           !active
                             ? "bg-gray-100 text-gray-500 cursor-not-allowed opacity-50"
                             : key === "24h"
-                            ? "bg-blue-600 text-white shadow-sm"
+                            ? "bg-[#4271B3] text-white shadow-sm"
                             : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                         }`}
                       >
@@ -347,7 +347,7 @@ const SensorCommunitySidePanel: React.FC<SensorCommunitySidePanelProps> = ({
                           !active
                             ? "bg-gray-100 text-gray-500 cursor-not-allowed opacity-50"
                             : key === "instantane"
-                            ? "bg-blue-600 text-white shadow-sm"
+                            ? "bg-[#4271B3] text-white shadow-sm"
                             : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                         }`}
                       >

@@ -530,7 +530,7 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
             {state.loading ? (
               <div className="flex items-center justify-center h-80 sm:h-96 md:h-[28rem] bg-gray-50 rounded-lg">
                 <div className="flex flex-col items-center space-y-2">
-                  <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-[#4271B3]"></div>
                   <span className="text-xs sm:text-sm text-gray-500">
                     Chargement des données...
                   </span>
@@ -627,7 +627,7 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                                 !isEnabled
                                   ? "text-gray-400 cursor-not-allowed"
                                   : isSelected
-                                  ? "text-blue-700 bg-blue-50 border border-blue-200"
+                                  ? "text-[#1f3c6d] bg-[#e7eef8] border border-[#c1d3eb]"
                                   : "text-gray-700 hover:bg-gray-50"
                               }`}
                             >
@@ -635,9 +635,9 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                                 className={`w-3 h-3 rounded border mr-2 flex items-center justify-center transition-colors flex-shrink-0 ${
                                   !isEnabled
                                     ? "border-gray-300 bg-gray-100"
-                                    : isSelected
-                                    ? "bg-blue-600 border-blue-600"
-                                    : "border-gray-300"
+                                  : isSelected
+                                  ? "bg-[#325a96] border-[#325a96]"
+                                  : "border-gray-300"
                                 }`}
                               >
                                 {isSelected && isEnabled && (
@@ -722,7 +722,7 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                           onClick={() => handleTimeStepChange(key)}
                           className={`px-1.5 py-1 text-xs rounded-md transition-all duration-200 ${
                             state.chartControls.timeStep === key
-                              ? "bg-blue-600 text-white shadow-sm"
+                              ? "bg-[#4271B3] text-white shadow-sm"
                               : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                           }`}
                         >

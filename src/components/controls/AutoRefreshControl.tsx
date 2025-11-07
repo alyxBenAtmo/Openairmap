@@ -111,8 +111,8 @@ const AutoRefreshControl: React.FC<AutoRefreshControlProps> = ({
       {/* Bouton toggle */}
       <button
         onClick={() => onToggle(!enabled)}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-          enabled ? "bg-blue-600" : "bg-gray-200"
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#4271B3] focus:ring-offset-2 ${
+          enabled ? "bg-[#4271B3]" : "bg-gray-200"
         }`}
         disabled={loading}
       >
@@ -129,9 +129,9 @@ const AutoRefreshControl: React.FC<AutoRefreshControlProps> = ({
       {/* Indicateur de statut */}
       <div className="flex items-center space-x-1">
         {loading ? (
-          <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+          <div className="w-2 h-2 bg-[#4271B3] rounded-full animate-pulse"></div>
         ) : enabled ? (
-          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+          <div className="w-2 h-2 bg-[#4271B3] rounded-full"></div>
         ) : (
           <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
         )}

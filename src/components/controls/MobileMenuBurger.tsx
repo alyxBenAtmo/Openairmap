@@ -193,7 +193,7 @@ const MobileMenuBurger: React.FC<MobileMenuBurgerProps> = ({
             <div className="border-t border-gray-200 pt-4">
               <button
                 onClick={() => setIsOpen(false)}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                className="w-full px-4 py-2 bg-[#4271B3] text-white rounded-md hover:bg-[#325a96] transition-colors"
               >
                 Fermer
               </button>

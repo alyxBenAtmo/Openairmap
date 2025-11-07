@@ -75,7 +75,7 @@ const SignalAirPeriodSelector: React.FC<SignalAirPeriodSelectorProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="bg-white border border-gray-300 rounded-md px-3 py-1.5 text-left shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 transition-colors text-sm min-w-[140px]"
+        className="bg-white border border-gray-300 rounded-md px-3 py-1.5 text-left shadow-sm focus:outline-none focus:ring-1 focus:ring-[#4271B3] focus:border-[#4271B3] hover:border-[#4271B3]/70 transition-colors text-sm min-w-[140px]"
       >
         <span className="block truncate text-gray-900">{getDisplayText()}</span>
         <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
@@ -156,7 +156,7 @@ const SignalAirPeriodSelector: React.FC<SignalAirPeriodSelectorProps> = ({
                     onChange={(e) =>
                       handleCustomDateChange("start", e.target.value)
                     }
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#4271B3] focus:border-[#4271B3]"
                     max={endDate}
                   />
                 </div>
@@ -170,7 +170,7 @@ const SignalAirPeriodSelector: React.FC<SignalAirPeriodSelectorProps> = ({
                     onChange={(e) =>
                       handleCustomDateChange("end", e.target.value)
                     }
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#4271B3] focus:border-[#4271B3]"
                     min={startDate}
                     max={new Date().toISOString().split("T")[0]}
                   />

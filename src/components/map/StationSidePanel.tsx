@@ -345,11 +345,8 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
       <div className="flex items-center justify-between p-2 sm:p-3 md:p-4 border-b border-gray-200 bg-gray-50">
         <div className="flex-1 min-w-0">
           <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-            {selectedStation.name.replace("_", " ")}, Station de référence AtmoSud
+            Comparaison multi-polluants
           </h2>
-          <p className="text-xs sm:text-sm text-gray-600 truncate">
-            {selectedStation.address}
-          </p>
         </div>
 
         {/* Contrôles unifiés du panel */}
@@ -420,14 +417,19 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
       {/* Contenu - masqué quand currentPanelSize === 'hidden' */}
       {currentPanelSize !== "hidden" && (
         <div className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 space-y-3 sm:space-y-4 md:space-y-6">
-          {/* Graphique avec contrôles intégrés */}
-          <div className="flex-1 min-h-64 sm:min-h-80 md:min-h-96 lg:min-h-[28rem]">
-            <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <h3 className="text-sm font-medium text-gray-700">
-                Évolution temporelle
-              </h3>
-              
-              {/* Bouton mode comparaison - sur la ligne du titre */}
+          {/* Informations station sélectionnée */}
+          <div className="border border-gray-200 rounded-lg p-3 sm:p-4">
+            <div className="flex items-start justify-between space-x-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {selectedStation.name.replace("_", " ")}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  Station de référence AtmoSud{selectedStation.address ? ` · ${selectedStation.address}` : ""}
+                </p>
+              </div>
+
+              {/* Bouton mode comparaison */}
               {onComparisonModeToggle && (
                 <button
                   onClick={onComparisonModeToggle}
@@ -454,10 +456,19 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
                 </button>
               )}
             </div>
+          </div>
+
+          {/* Graphique avec contrôles intégrés */}
+          <div className="flex-1 min-h-64 sm:min-h-80 md:min-h-96 lg:min-h-[28rem]">
+            <div className="mb-2 sm:mb-3">
+              <h3 className="text-sm font-medium text-gray-700">
+                Évolution temporelle
+              </h3>
+            </div>
             {state.loading ? (
               <div className="flex items-center justify-center h-64 sm:h-80 md:h-96 lg:h-[28rem] bg-gray-50 rounded-lg">
                 <div className="flex flex-col items-center space-y-2">
-                  <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-[#4271B3]"></div>
                   <span className="text-xs sm:text-sm text-gray-500">
                     Chargement des données...
                   </span>
@@ -564,7 +575,7 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
                                 !isEnabled
                                   ? "text-gray-400 cursor-not-allowed"
                                   : isSelected
-                                  ? "text-blue-700 bg-blue-50 border border-blue-200"
+                                  ? "text-[#1f3c6d] bg-[#e7eef8] border border-[#c1d3eb]"
                                   : "text-gray-700 hover:bg-gray-50"
                               }`}
                             >
@@ -572,9 +583,9 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
                                 className={`w-3 h-3 rounded border mr-2 flex items-center justify-center transition-colors flex-shrink-0 ${
                                   !isEnabled
                                     ? "border-gray-300 bg-gray-100"
-                                    : isSelected
-                                    ? "bg-blue-600 border-blue-600"
-                                    : "border-gray-300"
+                                : isSelected
+                                ? "bg-[#325a96] border-[#325a96]"
+                                : "border-gray-300"
                                 }`}
                               >
                                 {isSelected && isEnabled && (
@@ -682,7 +693,7 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
                             disabled
                               ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                               : state.chartControls.timeStep === key
-                              ? "bg-blue-600 text-white shadow-sm"
+                              ? "bg-[#4271B3] text-white shadow-sm"
                               : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                           }`}
                           title={label} // Tooltip avec le label complet

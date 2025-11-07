@@ -11,10 +11,10 @@ const HistoricalModeButton: React.FC<HistoricalModeButtonProps> = ({
       onClick={onToggle}
       className={`
         relative flex items-center space-x-2 px-3 py-1.5 rounded-md shadow-sm
-        transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500
+        transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4271B3]
         ${
           isActive
-            ? "bg-blue-600 text-white border-2 border-blue-600 hover:bg-blue-700"
+            ? "bg-[#4271B3] text-white border-2 border-[#4271B3] hover:bg-[#325a96]"
             : "bg-white text-gray-700 border-2 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
         }
       `}

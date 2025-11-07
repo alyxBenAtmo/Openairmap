@@ -14,6 +14,8 @@ const WMTS_CONFIG = {
   max_zoom: 16,
 };
 
+const GEOSERVER_BASE_URL = "https://azurh-geoservices.atmosud.org/geoserver";
+
 // Mapping des polluants vers les layers (à compléter selon les données disponibles)
 const POLLUTANT_LAYER_MAPPING: Record<string, { variable: string; libelle: string }> = {
   pm25: { variable: "pm2_5", libelle: "PM₂.₅" },
@@ -23,6 +25,41 @@ const POLLUTANT_LAYER_MAPPING: Record<string, { variable: string; libelle: strin
   o3: { variable: "o3", libelle: "O₃" },
   so2: { variable: "so2", libelle: "SO₂" },
 };
+
+function getHourRangeLabel(hourSuffix: string | null): string {
+  if (!hourSuffix) {
+    return "";
+  }
+
+  const now = new Date();
+  const currentHour = now.getHours();
+
+  let startHour = currentHour;
+
+  if (hourSuffix === "24") {
+    startHour = currentHour;
+  } else if (hourSuffix === "23") {
+    startHour = (currentHour - 1 + 24) % 24;
+  } else {
+    const suffixNumber = parseInt(hourSuffix, 10);
+    const delta = suffixNumber - 24;
+    startHour = (currentHour + delta + 24) % 24;
+  }
+
+  const endHour = (startHour + 1) % 24;
+
+  return `${startHour}h-${endHour}h`;
+}
+
+function getPollutantTitleFromVariable(variable: string): string {
+  for (const [, info] of Object.entries(POLLUTANT_LAYER_MAPPING)) {
+    if (info.variable === variable) {
+      return info.libelle;
+    }
+  }
+
+  return variable.replace(/_/g, " ").toUpperCase();
+}
 
 /**
  * Calcule l'index horaire (0-47) à afficher selon le pas de temps
@@ -112,7 +149,7 @@ export function getPollutantLayerName(pollutant: string, hour: string): string {
  * @param layerName - Le nom complet du layer (ex: "azur_heure:paca_icairh_h24")
  * @returns Un layer Leaflet WMTS
  */
-export function createModelingWMSLayer(layerName: string): L.TileLayer {
+export function createModelingWMTSLayer(layerName: string): L.TileLayer {
   // Construction de l'URL template pour WMTS selon le format GeoServer qui fonctionne
   // Format: {url}?SERVICE=WMTS&REQUEST=GetTile&VERSION={version}&LAYER={layer}&TILEMATRIXSET={tilematrixset}&FORMAT={format}&TILEMATRIX={tilematrixset}:{z}&TILEROW={y}&TILECOL={x}
   // Note: 
@@ -129,6 +166,70 @@ export function createModelingWMSLayer(layerName: string): L.TileLayer {
     pane: "overlayPane", // Au-dessus du fond de carte mais sous les marqueurs
     tileSize: WMTS_CONFIG.tilesize,
   });
+}
+
+/**
+ * Génère l'URL de la légende WMS associée à un layer de modélisation
+ * @param layerName - Le nom complet du layer (ex: "azur_heure:paca_icairh_h24")
+ * @returns L'URL du graphique de légende
+ */
+export function getModelingLegendUrl(layerName: string): string {
+  if (!layerName.includes(":")) {
+    throw new Error(`Nom de layer invalide pour la légende: ${layerName}`);
+  }
+
+  const [workspace] = layerName.split(":");
+  const wmsUrl = `${GEOSERVER_BASE_URL}/${workspace}/wms`;
+
+  const params = new URLSearchParams({
+    REQUEST: "GetLegendGraphic",
+    VERSION: WMTS_CONFIG.version,
+    FORMAT: "image/png",
+    WIDTH: "20",
+    HEIGHT: "10",
+    LAYER: layerName,
+    TRANSPARENT: "true",
+  });
+
+  return `${wmsUrl}?${params.toString()}`;
+}
+
+/**
+ * Génère un titre lisible pour la légende d'un layer de modélisation
+ * @param layerName - Le nom complet du layer (ex: "azur_heure:paca_icairh_h24")
+ * @returns Le titre à afficher dans la légende
+ */
+export function getModelingLegendTitle(layerName: string): string {
+  const baseName = layerName.includes(":")
+    ? layerName.split(":")[1]
+    : layerName;
+
+  const hourMatch = baseName.match(/_h(\d{2})$/);
+  const hourSuffix = hourMatch ? hourMatch[1] : null;
+
+  const timeLabel = getHourRangeLabel(hourSuffix);
+
+  const heading = "Modélisation horaire";
+
+  if (baseName.startsWith("paca_icairh_")) {
+    const subtitle = timeLabel
+      ? `ICAIR'H ${timeLabel}`
+      : "ICAIR'H";
+    return `${heading}\n${subtitle}`;
+  }
+
+  const pollutantMatch = baseName.match(/^paca_(.+)_h\d{2}$/);
+  if (pollutantMatch) {
+    const pollutantKey = pollutantMatch[1];
+    const pollutantTitle = getPollutantTitleFromVariable(pollutantKey);
+    const subtitle = timeLabel
+      ? `${pollutantTitle} ${timeLabel}`
+      : pollutantTitle;
+    return `${heading}\n${subtitle}`;
+  }
+
+  const subtitle = timeLabel ? `${baseName} ${timeLabel}` : baseName;
+  return `${heading}\n${subtitle}`;
 }
 
 /**

@@ -615,7 +615,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
                     strokeDasharray="0" // Trait plein
                     dot={false}
                     activeDot={activeDotNormal}
-                    name={pollutantName} // Nom simple par défaut
+                    name={`${pollutantName} (corrigé)`} // Nom simple par défaut
                     connectNulls={false}
                   />
                 )}
@@ -633,8 +633,8 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
                     activeDot={activeDotSmall}
                     name={
                       hasCorrectedData
-                        ? `${pollutantName} (brut)`
-                        : pollutantName
+                        ? `${pollutantName} (brute)`
+                        : `${pollutantName}` 
                     }
                     connectNulls={false}
                   />

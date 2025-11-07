@@ -101,7 +101,7 @@ const SourceDropdown: React.FC<SourceDropdownProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative bg-[#0074d9] border border-[#0074d9] rounded-md px-2.5 py-1 text-left shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 hover:bg-[#0056b3] hover:border-[#0056b3] transition-colors text-sm min-w-[180px]"
+        className="relative bg-[#4271B3] border border-[#4271B3] rounded-md px-2.5 py-1 text-left shadow-sm focus:outline-none focus:ring-1 focus:ring-[#4271B3] focus:border-[#4271B3] hover:bg-[#325a96] hover:border-[#325a96] transition-colors text-sm min-w-[180px]"
       >
         <span
           className={`block truncate pr-6 ${
@@ -143,14 +143,14 @@ const SourceDropdown: React.FC<SourceDropdownProps> = ({
               onClick={() => handleSourceToggle("atmoRef")}
               className={`w-full flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
                 selectedSources.includes("atmoRef")
-                  ? "bg-blue-50 text-blue-900 border border-blue-200"
+                  ? "bg-[#e7eef8] text-[#1f3c6d] border border-[#c1d3eb]"
                   : "text-gray-700 hover:bg-gray-50"
               }`}
             >
               <div
                 className={`w-4 h-4 rounded border mr-3 flex items-center justify-center ${
                   selectedSources.includes("atmoRef")
-                    ? "bg-blue-600 border-blue-600"
+                    ? "bg-[#325a96] border-[#325a96]"
                     : "border-gray-300"
                 }`}
               >
@@ -177,14 +177,14 @@ const SourceDropdown: React.FC<SourceDropdownProps> = ({
               onClick={() => handleSourceToggle("atmoMicro")}
               className={`w-full flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
                 selectedSources.includes("atmoMicro")
-                  ? "bg-blue-50 text-blue-900 border border-blue-200"
+                  ? "bg-[#e7eef8] text-[#1f3c6d] border border-[#c1d3eb]"
                   : "text-gray-700 hover:bg-gray-50"
               }`}
             >
               <div
                 className={`w-4 h-4 rounded border mr-3 flex items-center justify-center ${
                   selectedSources.includes("atmoMicro")
-                    ? "bg-blue-600 border-blue-600"
+                    ? "bg-[#325a96] border-[#325a96]"
                     : "border-gray-300"
                 }`}
               >
@@ -219,11 +219,11 @@ const SourceDropdown: React.FC<SourceDropdownProps> = ({
               <div className="flex items-center">
                 <div
                   className={`w-4 h-4 rounded border mr-3 flex items-center justify-center ${
-                    allCommunautaireSelected
-                      ? "bg-blue-600 border-blue-600"
-                      : someCommunautaireSelected
-                      ? "bg-blue-200 border-blue-300"
-                      : "border-gray-300"
+                  allCommunautaireSelected
+                    ? "bg-[#325a96] border-[#325a96]"
+                    : someCommunautaireSelected
+                    ? "bg-[#d0def4] border-[#adc4e6]"
+                    : "border-gray-300"
                   }`}
                 >
                   {allCommunautaireSelected && (
@@ -266,15 +266,15 @@ const SourceDropdown: React.FC<SourceDropdownProps> = ({
                   onClick={() => handleSourceToggle(code)}
                   className={`w-full flex items-center px-3 py-1.5 rounded-md text-sm transition-colors ${
                     selectedSources.includes(code)
-                      ? "bg-blue-50 text-blue-900"
+                      ? "bg-[#e7eef8] text-[#1f3c6d]"
                       : "text-gray-600 hover:bg-gray-50"
                   }`}
                 >
                   <div
                     className={`w-3 h-3 rounded border mr-2 flex items-center justify-center ${
-                      selectedSources.includes(code)
-                        ? "bg-blue-600 border-blue-600"
-                        : "border-gray-300"
+                    selectedSources.includes(code)
+                      ? "bg-[#325a96] border-[#325a96]"
+                      : "border-gray-300"
                     }`}
                   >
                     {selectedSources.includes(code) && (
@@ -304,14 +304,14 @@ const SourceDropdown: React.FC<SourceDropdownProps> = ({
               onClick={() => handleSourceToggle("signalair")}
               className={`w-full flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
                 selectedSources.includes("signalair")
-                  ? "bg-blue-50 text-blue-900 border border-blue-200"
+                  ? "bg-[#e7eef8] text-[#1f3c6d] border border-[#c1d3eb]"
                   : "text-gray-700 hover:bg-gray-50"
               }`}
             >
               <div
                 className={`w-4 h-4 rounded border mr-3 flex items-center justify-center ${
                   selectedSources.includes("signalair")
-                    ? "bg-blue-600 border-blue-600"
+                    ? "bg-[#325a96] border-[#325a96]"
                     : "border-gray-300"
                 }`}
               >

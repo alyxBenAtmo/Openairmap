@@ -31,7 +31,9 @@ import {
   formatHourLayerName,
   getIcairehLayerName,
   getPollutantLayerName,
-  createModelingWMSLayer,
+  createModelingWMTSLayer,
+  getModelingLegendUrl,
+  getModelingLegendTitle,
   isModelingAvailable,
 } from "../../services/ModelingLayerService";
 import ScaleControl from "../controls/ScaleControl";
@@ -130,8 +132,14 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   const [currentTileLayer, setCurrentTileLayer] = useState<L.TileLayer | null>(
     null
   );
-  const [currentModelingWMSLayer, setCurrentModelingWMSLayer] =
+  const [currentModelingWMTSLayer, setCurrentModelingWMTSLayer] =
     useState<L.TileLayer | null>(null);
+  const [currentModelingLegendUrl, setCurrentModelingLegendUrl] = useState<
+    string | null
+  >(null);
+const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
+  string | null
+>(null);
   const modelingLayerRef = useRef<L.TileLayer | null>(null);
   // Refs pour la modélisation de vent
   const windLayerRef = useRef<L.Layer | null>(null);
@@ -150,6 +158,9 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   const [currentZoom, setCurrentZoom] = useState(zoom);
   const [isSpiderfyActive, setIsSpiderfyActive] = useState(false);
   const [searchControl, setSearchControl] = useState<L.Control | null>(null);
+
+  const shouldShowStandardLegend =
+    selectedSources.length > 0 || currentModelingWMTSLayer === null;
 
   // États pour le mode comparaison
   const [comparisonState, setComparisonState] = useState<ComparisonState>({
@@ -603,7 +614,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     }
   }, []);
 
-  // Effet pour gérer les layers de modélisation WMS
+  // Effet pour gérer les layers de modélisation WMTS
   useEffect(() => {
     if (!mapRef.current) return;
 
@@ -616,11 +627,15 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
 
     // Cleanup: retirer l'ancien layer de modélisation s'il existe
     if (modelingLayerRef.current && mapRef.current) {
-      console.log("🗺️ [MODELING] Retrait de l'ancien layer WMS");
+      console.log("🗺️ [MODELING] Retrait de l'ancien layer WMTS");
       mapRef.current.removeLayer(modelingLayerRef.current);
       modelingLayerRef.current = null;
-      setCurrentModelingWMSLayer(null);
+      setCurrentModelingWMTSLayer(null);
     }
+
+    // Par défaut, aucune légende n'est affichée tant qu'un nouveau layer n'est pas chargé
+    setCurrentModelingLegendUrl(null);
+    setCurrentModelingLegendTitle(null);
 
     // Cleanup: retirer l'ancien layer de vent s'il existe
     if (windLayerGroupRef.current && mapRef.current) {
@@ -642,7 +657,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       return;
     }
 
-    // Si un layer de modélisation WMS est sélectionné (icaireh ou pollutant)
+    // Si un layer de modélisation WMTS est sélectionné (icaireh ou pollutant)
     if (currentModelingLayer === "icaireh" || currentModelingLayer === "pollutant") {
       try {
         // Calculer l'heure à afficher
@@ -673,15 +688,17 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
           return;
         }
 
-        console.log("🗺️ [MODELING] Création du layer WMS:", layerName);
+        console.log("🗺️ [MODELING] Création du layer WMTS:", layerName);
 
-        // Créer et ajouter le layer WMS
-        const wmsLayer = createModelingWMSLayer(layerName);
+        // Créer et ajouter le layer WMTS
+        const wmtsLayer = createModelingWMTSLayer(layerName);
         if (mapRef.current) {
-          wmsLayer.addTo(mapRef.current);
-          modelingLayerRef.current = wmsLayer;
-          setCurrentModelingWMSLayer(wmsLayer);
-          console.log("✅ [MODELING] Layer WMS ajouté à la carte:", layerName);
+          wmtsLayer.addTo(mapRef.current);
+          modelingLayerRef.current = wmtsLayer;
+          setCurrentModelingWMTSLayer(wmtsLayer);
+          setCurrentModelingLegendUrl(getModelingLegendUrl(layerName));
+          setCurrentModelingLegendTitle(getModelingLegendTitle(layerName));
+          console.log("✅ [MODELING] Layer WMTS ajouté à la carte:", layerName);
         }
       } catch (error) {
         console.error("❌ [MODELING] Erreur lors du chargement du layer de modélisation:", error);
@@ -692,7 +709,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     return () => {
       if (mapRef.current) {
         if (modelingLayerRef.current) {
-          console.log("🗺️ [MODELING] Cleanup: retrait du layer WMS");
+          console.log("🗺️ [MODELING] Cleanup: retrait du layer WMTS");
           mapRef.current.removeLayer(modelingLayerRef.current);
           modelingLayerRef.current = null;
         }
@@ -703,6 +720,9 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
           windLayerRef.current = null;
         }
       }
+      setCurrentModelingWMTSLayer(null);
+      setCurrentModelingLegendUrl(null);
+      setCurrentModelingLegendTitle(null);
     };
   }, [
     currentModelingLayer,
@@ -1246,6 +1266,13 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       setIsSidePanelOpen(false);
     } else {
       const remainingStations = comparisonState.comparedStations;
+      const lastStationStillPresent =
+        lastSelectedStationBeforeComparison &&
+        remainingStations.some(
+          (station) => station.id === lastSelectedStationBeforeComparison.id
+        )
+          ? lastSelectedStationBeforeComparison
+          : null;
 
       setComparisonState((prev) => ({
         ...prev,
@@ -1257,7 +1284,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       const stationToRestore =
         (remainingStations.length === 1
           ? remainingStations[0]
-          : lastSelectedStationBeforeComparison) ||
+          : lastStationStillPresent) ||
         remainingStations[0] ||
         null;
 
@@ -1978,11 +2005,34 @@ const handleOpenMobileAirDetailPanel = () => {
         </div>
 
         {/* Légende */}
-        <Legend
-          selectedPollutant={selectedPollutant}
-          isSidePanelOpen={isSidePanelOpen}
-          panelSize={panelSize}
-        />
+        {shouldShowStandardLegend && (
+          <Legend
+            selectedPollutant={selectedPollutant}
+            isSidePanelOpen={isSidePanelOpen}
+            panelSize={panelSize}
+          />
+        )}
+
+        {currentModelingLegendUrl && (
+          <div
+            className={`absolute hidden lg:block ${
+              isSidePanelOpen && panelSize !== "hidden"
+                ? "bottom-28 right-4"
+                : "bottom-24 right-0"
+            } z-[1000] transition-all duration-300`}
+          >
+            <div className="bg-white px-3 py-2 rounded-md shadow-lg border border-gray-200/70">
+              <p className="text-xs text-gray-600 font-medium mb-1 whitespace-pre-line">
+                {currentModelingLegendTitle ?? "Légende modélisation"}
+              </p>
+              <img
+                src={currentModelingLegendUrl}
+                alt="Légende de la couche de modélisation"
+                className="max-h-32 w-auto"
+              />
+            </div>
+          </div>
+        )}
 
         {/* Informations de la carte (nombre d'appareils et de signalements) */}
         <div
