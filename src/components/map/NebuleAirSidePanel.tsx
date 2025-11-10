@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   StationInfo,
   ChartControls,
@@ -12,6 +12,45 @@ import HistoricalChart from "./HistoricalChart";
 import HistoricalTimeRangeSelector, {
   TimeRange,
 } from "../controls/HistoricalTimeRangeSelector";
+
+const NEBULEAIR_TIMESTEP_OPTIONS = [
+  "instantane",
+  "quartHeure",
+  "heure",
+  "jour",
+] as const;
+
+const getSupportedTimeStepsForPollutants = (
+  pollutantCodes: string[]
+): string[] => {
+  if (!pollutantCodes || pollutantCodes.length === 0) {
+    return [...NEBULEAIR_TIMESTEP_OPTIONS];
+  }
+
+  return pollutantCodes.reduce<string[]>((acc, code) => {
+    const pollutantConfig = pollutants[code];
+    if (
+      pollutantConfig?.supportedTimeSteps &&
+      pollutantConfig.supportedTimeSteps.length > 0
+    ) {
+      return acc.filter((timeStep) =>
+        pollutantConfig.supportedTimeSteps!.includes(timeStep)
+      );
+    }
+    return acc;
+  }, [...NEBULEAIR_TIMESTEP_OPTIONS]);
+};
+
+const getInitialTimeStepForPollutants = (
+  pollutantCodes: string[],
+  fallback: string
+): string => {
+  const supported = getSupportedTimeStepsForPollutants(pollutantCodes);
+  if (supported.length === 0) {
+    return fallback;
+  }
+  return supported.includes(fallback) ? fallback : supported[0];
+};
 
 interface NebuleAirSidePanelProps {
   isOpen: boolean;
@@ -34,6 +73,11 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
   initialPollutant,
   panelSize: externalPanelSize,
 }) => {
+  const initialTimeStep = getInitialTimeStepForPollutants(
+    initialPollutant ? [initialPollutant] : [],
+    "instantane"
+  );
+
   const [state, setState] = useState<SidePanelState>({
     isOpen: false,
     selectedStation: null,
@@ -43,7 +87,7 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
         type: "preset",
         preset: "24h",
       },
-      timeStep: "quartHeure",
+      timeStep: initialTimeStep,
     },
     historicalData: {},
     loading: false,
@@ -110,6 +154,11 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
         selectedPollutants
       );
 
+      const nextTimeStep = getInitialTimeStepForPollutants(
+        selectedPollutants,
+        state.chartControls.timeStep
+      );
+
       setState((prev) => ({
         ...prev,
         isOpen,
@@ -117,6 +166,7 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
         chartControls: {
           ...prev.chartControls,
           selectedPollutants,
+          timeStep: nextTimeStep,
         },
         historicalData: {},
         loading: false,
@@ -146,7 +196,7 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
           selectedStation,
           selectedPollutants,
           state.chartControls.timeRange,
-          state.chartControls.timeStep
+          nextTimeStep
         );
       } else {
         if (selectedPollutants.length === 0) {
@@ -377,12 +427,39 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
     }
   };
 
+  const supportedTimeSteps = useMemo(() => {
+    return getSupportedTimeStepsForPollutants(
+      state.chartControls.selectedPollutants
+    );
+  }, [state.chartControls.selectedPollutants]);
+
+  const hasRestrictedTimeSteps =
+    supportedTimeSteps.length < NEBULEAIR_TIMESTEP_OPTIONS.length;
+  const restrictedPollutants = state.chartControls.selectedPollutants.filter(
+    (pollutantCode) =>
+      pollutants[pollutantCode]?.supportedTimeSteps &&
+      pollutants[pollutantCode]?.supportedTimeSteps!.length > 0 &&
+      pollutants[pollutantCode]?.supportedTimeSteps!.length <
+        NEBULEAIR_TIMESTEP_OPTIONS.length
+  );
+
   const handleTimeStepChange = (timeStep: string) => {
     console.log("🔄 [NebuleAirSidePanel] handleTimeStepChange appelé:", {
       timeStep,
       timestamp: new Date().toISOString(),
       stackTrace: new Error().stack?.split("\n").slice(1, 4).join("\n"),
     });
+
+    if (!supportedTimeSteps.includes(timeStep)) {
+      console.log(
+        "🚫 [NebuleAirSidePanel] Pas de temps non supporté pour les polluants sélectionnés",
+        {
+          timeStep,
+          supportedTimeSteps,
+        }
+      );
+      return;
+    }
 
     setState((prev) => ({
       ...prev,
@@ -716,20 +793,38 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                         { key: "quartHeure", label: "15min" },
                         { key: "heure", label: "1h" },
                         { key: "jour", label: "1j" },
-                      ].map(({ key, label }) => (
+                      ].map(({ key, label }) => {
+                        const isDisabled = !supportedTimeSteps.includes(key);
+                        const isSelected =
+                          state.chartControls.timeStep === key;
+
+                        return (
                         <button
                           key={key}
                           onClick={() => handleTimeStepChange(key)}
+                          disabled={isDisabled}
                           className={`px-1.5 py-1 text-xs rounded-md transition-all duration-200 ${
-                            state.chartControls.timeStep === key
+                            isDisabled
+                              ? "bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
+                              : isSelected
                               ? "bg-[#4271B3] text-white shadow-sm"
                               : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                           }`}
                         >
                           {label}
                         </button>
-                      ))}
+                        );
+                      })}
                     </div>
+                    {hasRestrictedTimeSteps && restrictedPollutants.length > 0 && (
+                      <p className="mt-2 text-[11px] sm:text-xs text-gray-500">
+                        {
+                          restrictedPollutants.includes("bruit")
+                            ? "Le bruit n’est disponible qu’en mode Scan (≤2 min), les autres pas de temps sont désactivés."
+                            : "Certains polluants sélectionnés ne sont pas disponibles pour tous les pas de temps."
+                        }
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

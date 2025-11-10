@@ -57,12 +57,13 @@ export class NebuleAirService extends BaseDataService {
         return [];
       }
 
+      const pollutantConfig = pollutants[params.pollutant];
+
       // Récupérer les données des capteurs
       const sensorsData = await this.fetchSensorsData();
 
       // Transformer les données en MeasurementDevice
       const devices: MeasurementDevice[] = [];
-      const pollutantConfig = pollutants[params.pollutant];
 
       for (const sensor of sensorsData) {
         // Vérifier si le capteur doit être affiché sur la carte
@@ -104,11 +105,12 @@ export class NebuleAirService extends BaseDataService {
           } as MeasurementDevice & { qualityLevel: string });
         } else {
           // Capteur avec donnée valide et récente - considérer comme actif
+          const pollutant = pollutants[params.pollutant];
           // Utiliser la valeur arrondie pour la cohérence avec l'affichage
           const roundedValue = Math.round(value);
           const qualityLevel =
-            pollutantConfig && pollutantConfig.thresholds
-              ? getAirQualityLevel(roundedValue, pollutantConfig.thresholds)
+            pollutant && pollutant.thresholds
+              ? getAirQualityLevel(roundedValue, pollutant.thresholds)
               : "default";
 
           devices.push({
@@ -119,7 +121,7 @@ export class NebuleAirService extends BaseDataService {
             source: this.sourceCode,
             pollutant: params.pollutant,
             value: value, // Garder la valeur exacte pour les calculs
-            unit: pollutantConfig?.unit || "µg/m³",
+            unit: pollutantConfig?.unit || pollutant?.unit || "µg/m³",
             timestamp: sensor.time,
             status: "active", // Toujours actif si on a une valeur valide et récente
             qualityLevel,
@@ -201,19 +203,22 @@ export class NebuleAirService extends BaseDataService {
         time: "2025-09-02T15:15:00Z",
         timeUTC: "2025-09-02T15:15:00Z",
         COV: "-1",
-        NOISE: "62.4",
+        NOISE: "56.4",
         PM1: "1.58",
         PM25: "2.33",
         PM10: "4.27",
+        NOISE_qh: "55.8",
         PM1_qh: "1.58",
         PM25_qh: "2.33",
         PM10_qh: "4.27",
+        NOISE_h: "54.6",
         PM1_h: "1.58",
         PM25_h: "2.33",
         PM10_h: "4.27",
         PM1_d: null,
         PM25_d: null,
         PM10_d: null,
+        NOISE_d: null,
         TEMP: "27.37",
         HUM: "35.84",
         latitude: "43.2965",
@@ -232,18 +237,22 @@ export class NebuleAirService extends BaseDataService {
         time: "2024-11-14 14:18:04",
         timeUTC: "2024-11-14 13:18:04",
         COV: "-1",
+        NOISE: "61.2",
         PM1: "2.5",
         PM25: "4.2",
         PM10: "10.8",
+        NOISE_qh: "60.7",
         PM1_qh: "2.38",
         PM25_qh: "4.18",
         PM10_qh: "11.73",
+        NOISE_h: "59.9",
         PM1_h: "2.15",
         PM25_h: "3.68",
         PM10_h: "7.45",
         PM1_d: null,
         PM25_d: null,
         PM10_d: null,
+        NOISE_d: null,
         TEMP: "-1",
         HUM: "-1",
         latitude: "43.2965",
@@ -262,19 +271,22 @@ export class NebuleAirService extends BaseDataService {
         time: "2025-02-07 18:29:43",
         timeUTC: "2025-02-07 17:29:43",
         COV: "-1",
-        NOISE: "58.2",
+        NOISE: "63.5",
         PM1: "7.50",
         PM25: "9.45",
         PM10: "9.70",
+        NOISE_qh: "62.9",
         PM1_qh: "7.33",
         PM25_qh: "8.86",
         PM10_qh: "12.01",
+        NOISE_h: "62.0",
         PM1_h: "7.43",
         PM25_h: "9.28",
         PM10_h: "12.46",
         PM1_d: null,
         PM25_d: null,
         PM10_d: null,
+        NOISE_d: null,
         TEMP: "27.16",
         HUM: "26.21",
         latitude: "48.79460480",
@@ -293,19 +305,22 @@ export class NebuleAirService extends BaseDataService {
         time: "2025-02-07 18:30:00",
         timeUTC: "2025-02-07 17:30:00",
         COV: "-1",
-        NOISE: "71.8",
+        NOISE: "57.1",
         PM1: "15.2",
         PM25: "18.7",
         PM10: "22.1",
+        NOISE_qh: "56.4",
         PM1_qh: "14.8",
         PM25_qh: "18.2",
         PM10_qh: "21.5",
+        NOISE_h: "55.7",
         PM1_h: "15.0",
         PM25_h: "18.5",
         PM10_h: "21.8",
         PM1_d: null,
         PM25_d: null,
         PM10_d: null,
+        NOISE_d: null,
         TEMP: "20.5",
         HUM: "45.2",
         latitude: "43.7102",
@@ -349,7 +364,16 @@ export class NebuleAirService extends BaseDataService {
     const propertyName = `${pollutant}${timeStepSuffix}`;
 
     // Récupérer la valeur depuis l'objet sensor
-    const value = (sensor as any)[propertyName];
+    let value = (sensor as any)[propertyName];
+
+    // Pour le bruit (NOISE), seules les valeurs instantanées sont disponibles pour le moment
+    if (
+      (value === null || value === undefined || value === "-1") &&
+      pollutant === "NOISE" &&
+      timeStepSuffix !== ""
+    ) {
+      value = (sensor as any)["NOISE"];
+    }
 
     if (value === null || value === undefined || value === "-1") {
       return null;
@@ -441,7 +465,7 @@ export class NebuleAirService extends BaseDataService {
       PM1: "Particules PM₁",
       PM25: "Particules PM₂.₅",
       PM10: "Particules PM₁₀",
-      NOISE: "Bruit environnemental",
+      NOISE: "Bruit",
     };
     return labels[pollutant] || pollutant;
   }
