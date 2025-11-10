@@ -77,6 +77,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             <PollutantDropdown
               selectedPollutant={selectedPollutant}
               onPollutantChange={onPollutantChange}
+              selectedTimeStep={selectedTimeStep}
             />
             <SourceDropdown
               selectedSources={selectedSources}

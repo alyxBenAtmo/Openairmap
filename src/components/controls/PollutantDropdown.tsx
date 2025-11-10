@@ -1,14 +1,19 @@
-import React, { useState, useRef, useEffect } from "react";
-import { pollutants } from "../../constants/pollutants";
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import {
+  pollutants,
+  isPollutantSupportedForTimeStep,
+} from "../../constants/pollutants";
 
 interface PollutantDropdownProps {
   selectedPollutant: string;
   onPollutantChange: (pollutant: string) => void;
+  selectedTimeStep?: string;
 }
 
 const PollutantDropdown: React.FC<PollutantDropdownProps> = ({
   selectedPollutant,
   onPollutantChange,
+  selectedTimeStep,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -32,9 +37,32 @@ const PollutantDropdown: React.FC<PollutantDropdownProps> = ({
     setIsOpen(false);
   };
 
+  const availablePollutants = useMemo(
+    () =>
+      Object.entries(pollutants).filter(([code]) =>
+        selectedTimeStep
+          ? isPollutantSupportedForTimeStep(code, selectedTimeStep)
+          : true
+      ),
+    [selectedTimeStep]
+  );
+
   const getDisplayText = () => {
     const pollutant = pollutants[selectedPollutant];
-    return pollutant ? `${pollutant.name}` : "Choisir un polluant";
+    const isSupported =
+      pollutant &&
+      (!selectedTimeStep ||
+        isPollutantSupportedForTimeStep(selectedPollutant, selectedTimeStep));
+
+    if (isSupported) {
+      return `${pollutant.name}`;
+    }
+
+    if (availablePollutants.length > 0) {
+      return `${availablePollutants[0][1].name}`;
+    }
+
+    return "Aucun polluant disponible";
   };
 
   return (
@@ -77,7 +105,7 @@ const PollutantDropdown: React.FC<PollutantDropdownProps> = ({
       {isOpen && (
         <div className="absolute z-[2000] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg right-0 top-full">
           <div className="p-1">
-            {Object.entries(pollutants).map(([code, pollutant]) => (
+            {availablePollutants.map(([code, pollutant]) => (
               <button
                 key={code}
                 type="button"

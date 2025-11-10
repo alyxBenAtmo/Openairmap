@@ -3,7 +3,12 @@ import AirQualityMap from "./components/map/AirQualityMap";
 import { useAirQualityData } from "./hooks/useAirQualityData";
 import { useTemporalVisualization } from "./hooks/useTemporalVisualization";
 import { useDomainConfig } from "./hooks/useDomainConfig";
-import { pollutants, getDefaultPollutant } from "./constants/pollutants";
+import {
+  pollutants,
+  getDefaultPollutant,
+  isPollutantSupportedForTimeStep,
+  getSupportedPollutantsForTimeStep,
+} from "./constants/pollutants";
 import { pasDeTemps } from "./constants/timeSteps";
 import { getDefaultSources } from "./constants/sources";
 import AutoRefreshControl from "./components/controls/AutoRefreshControl";
@@ -106,6 +111,22 @@ const App: React.FC = () => {
 
   // État pour l'auto-refresh - désactivé par défaut
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
+
+  useEffect(() => {
+    if (
+      !isPollutantSupportedForTimeStep(selectedPollutant, selectedTimeStep)
+    ) {
+      const supportedPollutants =
+        getSupportedPollutantsForTimeStep(selectedTimeStep);
+      if (supportedPollutants.length > 0) {
+        setSelectedPollutant((current) =>
+          supportedPollutants.includes(current)
+            ? current
+            : supportedPollutants[0]
+        );
+      }
+    }
+  }, [selectedPollutant, selectedTimeStep]);
 
   // Hook pour la visualisation temporelle
   const {
@@ -228,6 +249,7 @@ const App: React.FC = () => {
               <PollutantDropdown
                 selectedPollutant={selectedPollutant}
                 onPollutantChange={setSelectedPollutant}
+                selectedTimeStep={selectedTimeStep}
               />
               <SourceDropdown
                 selectedSources={selectedSources}

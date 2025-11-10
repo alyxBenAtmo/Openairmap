@@ -41,6 +41,7 @@ export interface Pollutant {
   code: string;
   unit: string;
   thresholds: Seuils;
+  supportedTimeSteps?: string[];
 }
 
 // Types pour les pas de temps
@@ -437,6 +438,7 @@ export interface NebuleAirSensor {
   time: string;
   timeUTC: string;
   COV: string;
+  NOISE?: string;
   PM1: string;
   PM25: string;
   PM10: string;
@@ -476,6 +478,7 @@ export const NEBULEAIR_POLLUTANT_MAPPING: Record<string, string> = {
   PM1: "pm1",
   PM25: "pm25",
   PM10: "pm10",
+  NOISE: "bruit",
   // Note: NebuleAir ne mesure que les particules fines (PM1, PM2.5, PM10)
   // Les autres polluants (NO2, O3, SO2) ne sont pas disponibles
 };

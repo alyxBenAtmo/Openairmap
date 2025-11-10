@@ -112,6 +112,7 @@ const MobileMenuBurger: React.FC<MobileMenuBurgerProps> = ({
               <PollutantDropdown
                 selectedPollutant={selectedPollutant}
                 onPollutantChange={onPollutantChange}
+                selectedTimeStep={selectedTimeStep}
               />
             </div>
 

@@ -50,6 +50,16 @@ export const seuilsSo2 = {
   extrMauvais: { code: "extrMauvais", min: 276, max: 9999 },
 };
 
+// Configuration des seuils pour le bruit (valeurs indicatives en dB(A))
+export const seuilsBruit = {
+  bon: { code: "bon", min: 0, max: 55 },
+  moyen: { code: "moyen", min: 56, max: 65 },
+  degrade: { code: "degrade", min: 66, max: 75 },
+  mauvais: { code: "mauvais", min: 76, max: 85 },
+  tresMauvais: { code: "tresMauvais", min: 86, max: 95 },
+  extrMauvais: { code: "extrMauvais", min: 96, max: 150 },
+};
+
 export const pollutants: Record<string, Pollutant> = {
   pm1: {
     name: "PM₁",
@@ -87,6 +97,13 @@ export const pollutants: Record<string, Pollutant> = {
     unit: "µg/m³",
     thresholds: seuilsO3,
   },
+  bruit: {
+    name: "Bruit",
+    code: "bruit",
+    unit: "dB(A)",
+    thresholds: seuilsBruit,
+    supportedTimeSteps: ["instantane", "deuxMin"],
+  },
 };
 
 // Configuration des polluants avec leur état d'activation
@@ -97,6 +114,7 @@ export const mesures = {
   no2: { name: "NO₂", code: "no2", activated: false }, // Dioxyde d'azote
   so2: { name: "SO₂", code: "so2", activated: false }, // Dioxyde de soufre
   o3: { name: "O₃", code: "o3", activated: false }, // Ozone
+  bruit: { name: "Bruit", code: "bruit", activated: false }, // Bruit environnemental
 };
 
 // Fonction pour obtenir le polluant par défaut
@@ -117,4 +135,28 @@ export const POLLUTANT_COLORS = {
   so2: "#D4A5A5",
   h2s: "#9B59B6",
   nh3: "#3498DB",
+  bruit: "#FF8C42",
+};
+
+export const isPollutantSupportedForTimeStep = (
+  pollutantCode: string,
+  timeStep: string
+): boolean => {
+  const pollutant = pollutants[pollutantCode];
+  if (!pollutant) return false;
+  if (!pollutant.supportedTimeSteps || pollutant.supportedTimeSteps.length === 0)
+    return true;
+  return pollutant.supportedTimeSteps.includes(timeStep);
+};
+
+export const getSupportedPollutantsForTimeStep = (
+  timeStep: string
+): string[] => {
+  return Object.entries(pollutants)
+    .filter(([, pollutant]) => {
+      if (!pollutant.supportedTimeSteps || pollutant.supportedTimeSteps.length === 0)
+        return true;
+      return pollutant.supportedTimeSteps.includes(timeStep);
+    })
+    .map(([code]) => code);
 };
