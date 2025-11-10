@@ -246,6 +246,10 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
 }
 
+.leaflet-control-attribution.oam-attribution-hidden {
+  display: none !important;
+}
+
 /* Ajustement pour les petits écrans en mode paysage */
 @media (max-width: 1024px) and (orientation: landscape) {
   .leaflet-control-attribution {

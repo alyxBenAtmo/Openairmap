@@ -22,6 +22,7 @@ import {
   MobileAirRoute,
   MobileAirDataPoint,
   ComparisonState,
+  WildfireReport,
 } from "../../types";
 import { baseLayers, BaseLayerKey } from "../../constants/mapLayers";
 import BaseLayerControl from "../controls/BaseLayerControl";
@@ -57,6 +58,8 @@ import { QUALITY_COLORS } from "../../constants/qualityColors";
 import { AtmoRefService } from "../../services/AtmoRefService";
 import { AtmoMicroService } from "../../services/AtmoMicroService";
 import { NebuleAirService } from "../../services/NebuleAirService";
+import { FeuxDeForetService } from "../../services/FeuxDeForetService";
+import { featureFlags } from "../../config/featureFlags";
 import MarkerClusterGroup from "react-leaflet-cluster";
 
 // Correction pour les icônes Leaflet
@@ -205,6 +208,10 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
       }
     >
   >({});
+  const [wildfireReports, setWildfireReports] = useState<WildfireReport[]>([]);
+  const [wildfireLoading, setWildfireLoading] = useState(false);
+  const [wildfireError, setWildfireError] = useState<string | null>(null);
+  const isWildfireLayerEnabled = featureFlags.wildfireLayer;
 
 
   const [selectedMobileAirRoute, setSelectedMobileAirRoute] =
@@ -223,6 +230,86 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
 
   // État pour forcer un nouveau choix lors de la réactivation
   const [forceNewChoice, setForceNewChoice] = useState(false);
+
+  useEffect(() => {
+    if (!isWildfireLayerEnabled) {
+      setWildfireReports([]);
+      setWildfireError(null);
+      setWildfireLoading(false);
+      console.debug(
+        "[AirQualityMap] Couche incendies désactivée – aucun chargement effectué."
+      );
+      return;
+    }
+
+    let isCancelled = false;
+    const service = new FeuxDeForetService();
+
+    const loadWildfires = async () => {
+      if (!isCancelled) {
+        setWildfireLoading(true);
+        setWildfireError(null);
+      }
+
+      try {
+        const data = await service.fetchTodaySignalements();
+
+        if (!isCancelled) {
+          setWildfireReports(data);
+          console.debug(
+            "[AirQualityMap] Signalements d'incendies chargés:",
+            data.length,
+            data.map((item) => ({
+              id: item.id,
+              commune: item.commune,
+              date: item.date,
+              postModified: item.postModified,
+            }))
+          );
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement des signalements feux:", error);
+
+        if (!isCancelled) {
+          setWildfireError(
+            "Impossible de charger les signalements d'incendies pour le moment."
+          );
+        }
+      } finally {
+        if (!isCancelled) {
+          setWildfireLoading(false);
+        }
+      }
+    };
+
+    loadWildfires();
+
+    const intervalId = window.setInterval(loadWildfires, 5 * 60 * 1000);
+
+    return () => {
+      isCancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [isWildfireLayerEnabled]);
+
+  useEffect(() => {
+    if (!isWildfireLayerEnabled) {
+      return;
+    }
+
+    if (wildfireReports.length > 0) {
+      console.debug(
+        "[AirQualityMap] Signalements d'incendies prêts à l'affichage:",
+        wildfireReports.map((item) => ({
+          id: item.id,
+          position: [item.latitude, item.longitude],
+          commune: item.commune,
+        }))
+      );
+    } else {
+      console.debug("[AirQualityMap] Aucun signalement d'incendie à afficher");
+    }
+  }, [wildfireReports, isWildfireLayerEnabled]);
 
   // Effet pour extraire les routes MobileAir des devices
   useEffect(() => {
@@ -735,6 +822,44 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
     comparisonState.isComparisonMode &&
     comparisonState.comparedStations.length > 0;
 
+  const shouldHideLeafletAttribution =
+    (isSidePanelOpen && panelSize !== "hidden") ||
+    (isComparisonPanelVisible && panelSize !== "hidden") ||
+    (isMobileAirSelectionPanelOpen &&
+      mobileAirSelectionPanelSize !== "hidden") ||
+    (isMobileAirDetailPanelOpen && mobileAirDetailPanelSize !== "hidden");
+
+  useEffect(() => {
+    const toggleAttributionVisibility = () => {
+      const attributionElement = document.querySelector(
+        ".leaflet-control-attribution"
+      );
+      if (!attributionElement) {
+        return;
+      }
+
+      if (shouldHideLeafletAttribution) {
+        attributionElement.classList.add("oam-attribution-hidden");
+      } else {
+        attributionElement.classList.remove("oam-attribution-hidden");
+      }
+    };
+
+    // Tenter immédiatement
+    toggleAttributionVisibility();
+
+    // Éventuels re-render tardifs
+    const timer = window.setTimeout(toggleAttributionVisibility, 100);
+
+    return () => {
+      window.clearTimeout(timer);
+      const attributionElement = document.querySelector(
+        ".leaflet-control-attribution"
+      );
+      attributionElement?.classList.remove("oam-attribution-hidden");
+    };
+  }, [shouldHideLeafletAttribution]);
+
   // Effet pour redimensionner la carte quand les panneaux latéraux changent de taille
   useEffect(() => {
     if (mapRef.current) {
@@ -1064,6 +1189,33 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
     });
   };
 
+  const createWildfireIcon = (report: WildfireReport) => {
+    const container = document.createElement("div");
+    container.className = "custom-marker-container wildfire-marker";
+
+    if (wildfireLoading && wildfireReports.length === 0) {
+      container.style.opacity = "0.85";
+      container.style.transform = "scale(0.96)";
+      container.style.transition = "all 0.3s ease";
+    }
+
+    const img = document.createElement("img");
+    img.src = "/markers/wildfire/fire_pin.svg";
+    img.alt = `Incendie ${report.title}`;
+    img.style.width = "36px";
+    img.style.height = "46px";
+    img.style.objectFit = "contain";
+
+    container.appendChild(img);
+
+    return L.divIcon({
+      html: container.outerHTML,
+      className: "custom-marker-div wildfire-marker",
+      iconSize: [36, 46],
+      iconAnchor: [18, 46],
+    });
+  };
+
   // // Fonction pour formater la valeur affichée
   // const formatValue = (device: MeasurementDevice) => {
   //   if (device.status === "inactive") {
@@ -1089,6 +1241,20 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  const formatWildfireDate = (report: WildfireReport) => {
+    if (report.date) {
+      return new Date(report.date).toLocaleString("fr-FR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+
+    return report.dateText;
   };
 
   const handleMarkerClick = async (device: MeasurementDevice) => {
@@ -1645,7 +1811,7 @@ const handleOpenMobileAirDetailPanel = () => {
   };
 
   return (
-    <div className="w-full h-full flex">
+    <div className="w-full h-full flex items-stretch">
       {/* Side Panel - Comparaison */}
       {comparisonState.isComparisonMode &&
         comparisonState.comparedStations.length > 0 && (
@@ -1883,6 +2049,56 @@ const handleOpenMobileAirDetailPanel = () => {
             highlightedPoint={highlightedMobileAirPoint}
           />
 
+          {/* Marqueurs pour les incendies en cours */}
+          {isWildfireLayerEnabled &&
+            wildfireReports.map((incident) => (
+              <Marker
+                key={`wildfire-${incident.id}`}
+                position={[incident.latitude, incident.longitude]}
+                icon={createWildfireIcon(incident)}
+              >
+                <Popup>
+                  <div className="device-popup min-w-[280px]">
+                    <h3 className="font-bold text-lg mb-2">{incident.title}</h3>
+                    <div className="space-y-2 text-sm">
+                      <p>
+                        <strong>Commune:</strong> {incident.commune}
+                      </p>
+                      <p>
+                        <strong>Type:</strong> {incident.type || "Non spécifié"}
+                      </p>
+                      <p>
+                        <strong>Statut:</strong> {incident.status || "Inconnu"}
+                      </p>
+                      {incident.fireState && (
+                        <p>
+                          <strong>État du feu:</strong> {incident.fireState}
+                        </p>
+                      )}
+                      <p>
+                        <strong>Déclaré:</strong> {formatWildfireDate(incident)}
+                      </p>
+                      {incident.description && (
+                        <p className="whitespace-pre-line">
+                          <strong>Description:</strong> {incident.description}
+                        </p>
+                      )}
+                      <p>
+                        <a
+                          href={incident.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-700 underline"
+                        >
+                          Voir le signalement complet
+                        </a>
+                      </p>
+                    </div>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
+
           {/* Marqueurs pour les signalements SignalAir */}
           {reports.map((report) => (
             <Marker
@@ -2010,6 +2226,9 @@ const handleOpenMobileAirDetailPanel = () => {
             selectedPollutant={selectedPollutant}
             isSidePanelOpen={isSidePanelOpen}
             panelSize={panelSize}
+            isComparisonPanelVisible={
+              isComparisonPanelVisible && panelSize !== "hidden"
+            }
           />
         )}
 
@@ -2034,6 +2253,20 @@ const handleOpenMobileAirDetailPanel = () => {
           </div>
         )}
 
+        {isWildfireLayerEnabled &&
+          wildfireLoading &&
+          wildfireReports.length === 0 && (
+          <div className="absolute top-24 right-4 z-[1000] max-w-xs bg-white border border-orange-200 text-orange-700 text-xs px-3 py-2 rounded-md shadow-lg">
+            Chargement des signalements d'incendies…
+          </div>
+          )}
+
+        {isWildfireLayerEnabled && wildfireError && (
+          <div className="absolute top-36 right-4 z-[1000] max-w-xs bg-white border border-red-200 text-red-700 text-xs px-3 py-2 rounded-md shadow-lg">
+            {wildfireError}
+          </div>
+        )}
+
         {/* Informations de la carte (nombre d'appareils et de signalements) */}
         <div
           className={`absolute ${
@@ -2049,6 +2282,12 @@ const handleOpenMobileAirDetailPanel = () => {
                 • {reports.length} signalement{reports.length > 1 ? "s" : ""}
               </span>
             )}
+            {isWildfireLayerEnabled && wildfireReports.length > 0 && (
+              <span className="ml-2">
+                • {wildfireReports.length} incendie
+                {wildfireReports.length > 1 ? "s" : ""} en cours
+              </span>
+            )}
           </p>
         </div>
 
@@ -2056,11 +2295,20 @@ const handleOpenMobileAirDetailPanel = () => {
       </div>
 
       {/* Bouton pour rouvrir le panel masqué */}
-      {isSidePanelOpen && panelSize === "hidden" && (
+      {(isSidePanelOpen || isComparisonPanelVisible) && panelSize === "hidden" && (
         <button
           onClick={() => handleSidePanelSizeChange("normal")}
           className="fixed top-1/2 -translate-y-1/2 left-2 z-[2001] bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
-          title="Rouvrir le panneau de données"
+          title={
+            comparisonState.isComparisonMode
+              ? "Rouvrir le panneau de comparaison"
+              : "Rouvrir le panneau de données"
+          }
+          aria-label={
+            comparisonState.isComparisonMode
+              ? "Rouvrir le panneau de comparaison"
+              : "Rouvrir le panneau de données"
+          }
         >
           <svg
             className="w-5 h-5"

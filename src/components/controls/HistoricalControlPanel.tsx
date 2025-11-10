@@ -382,6 +382,7 @@ const HistoricalControlPanel: React.FC<
                     }
                     disabled={state.loading}
                     dataPointsCount={state.data.length}
+                    dataPoints={state.data}
                   />
                 </div>
               )}

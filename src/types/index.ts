@@ -104,6 +104,23 @@ export interface SignalAirReport {
   signalDescription: string;
 }
 
+export interface WildfireReport {
+  id: number;
+  title: string;
+  latitude: number;
+  longitude: number;
+  type: string;
+  commune: string;
+  dateText: string;
+  date: string | null;
+  url: string;
+  status: string;
+  fireState: string;
+  postStatus: string;
+  description: string;
+  postModified: string;
+}
+
 // Types pour les services de données
 export interface DataService {
   fetchData(params: {

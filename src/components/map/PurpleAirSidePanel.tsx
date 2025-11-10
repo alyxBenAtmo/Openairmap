@@ -141,8 +141,8 @@ const PurpleAirSidePanel: React.FC<PurpleAirSidePanelProps> = ({
   const purpleAirUrl = `https://www.purpleair.com/map?select=${selectedStation.id}`;
 
   const getPanelClasses = () => {
-    const baseClasses =
-      "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300 h-[calc(100vh-64px)]";
+  const baseClasses =
+    "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300 h-full md:h-[calc(100vh-64px)]";
 
     switch (currentPanelSize) {
       case "fullscreen":

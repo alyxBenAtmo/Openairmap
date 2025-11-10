@@ -1,4 +1,5 @@
 import React from "react";
+import { TemporalDataPoint } from "../../types";
 
 interface TemporalPlaybackControlsProps {
   isPlaying: boolean;
@@ -14,6 +15,7 @@ interface TemporalPlaybackControlsProps {
   onNext: () => void;
   disabled?: boolean;
   dataPointsCount: number;
+  dataPoints: TemporalDataPoint[];
 }
 
 const TemporalPlaybackControls: React.FC<TemporalPlaybackControlsProps> = ({
@@ -30,6 +32,7 @@ const TemporalPlaybackControls: React.FC<TemporalPlaybackControlsProps> = ({
   onNext,
   disabled = false,
   dataPointsCount,
+  dataPoints,
 }) => {
   // Vitesses de lecture disponibles
   const speeds = [
@@ -42,7 +45,15 @@ const TemporalPlaybackControls: React.FC<TemporalPlaybackControlsProps> = ({
 
   // Formater la date pour l'affichage
   const formatDate = (dateString: string): string => {
+    if (!dateString) {
+      return "--";
+    }
+
     const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) {
+      return "--";
+    }
+
     return date.toLocaleDateString("fr-FR", {
       day: "2-digit",
       month: "2-digit",
@@ -54,13 +65,33 @@ const TemporalPlaybackControls: React.FC<TemporalPlaybackControlsProps> = ({
 
   // Calculer le pourcentage de progression
   const getProgressPercentage = (): number => {
-    if (!startDate || !endDate || !currentDate) return 0;
+    if (!currentDate) {
+      return 0;
+    }
+
+    const currentIndex = dataPoints.findIndex(
+      (point) => point.timestamp === currentDate
+    );
+
+    if (dataPoints.length > 1 && currentIndex >= 0) {
+      return (currentIndex / (dataPoints.length - 1)) * 100;
+    }
+
+    if (dataPoints.length === 1 && currentIndex === 0) {
+      return 100;
+    }
+
+    if (!startDate || !endDate) {
+      return 0;
+    }
 
     const start = new Date(startDate).getTime();
     const end = new Date(endDate).getTime();
     const current = new Date(currentDate).getTime();
 
-    if (end <= start) return 0;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+      return 0;
+    }
 
     return Math.max(
       0,

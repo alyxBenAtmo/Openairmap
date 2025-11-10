@@ -56,7 +56,6 @@ const App: React.FC = () => {
   );
   const [currentModelingLayer, setCurrentModelingLayer] =
     useState<ModelingLayerType | null>(null);
-  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
   // États pour MobileAir
   const [mobileAirPeriod, setMobileAirPeriod] = useState(
@@ -65,6 +64,7 @@ const App: React.FC = () => {
   const [selectedMobileAirSensor, setSelectedMobileAirSensor] = useState<
     string | null
   >(null);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
   // Fonction wrapper pour gérer le changement de période SignalAir
   const handleSignalAirPeriodChange = (startDate: string, endDate: string) => {
@@ -196,81 +196,78 @@ const App: React.FC = () => {
             </h1>
           </div>
 
-          <div className="flex items-center space-x-2">
-            {/* Contrôles intégrés dans l'en-tête - Desktop uniquement */}
-            <div className="hidden lg:flex items-center space-x-2">
-              <div className="flex items-center space-x-3">
-                <ModelingLayerControl
-                  currentModelingLayer={currentModelingLayer}
-                  onModelingLayerChange={setCurrentModelingLayer}
-                  selectedPollutant={selectedPollutant}
-                  selectedTimeStep={selectedTimeStep}
-                />
-                <PollutantDropdown
-                  selectedPollutant={selectedPollutant}
-                  onPollutantChange={setSelectedPollutant}
-                />
-                <SourceDropdown
-                  selectedSources={selectedSources}
-                  onSourceChange={setSelectedSources}
-                />
-                <TimeStepDropdown
-                  selectedTimeStep={selectedTimeStep}
-                  selectedSources={selectedSources}
-                  onTimeStepChange={setSelectedTimeStep}
-                />
-              </div>
+          {/* Menu burger sur mobile */}
+          <MobileMenuBurger
+            selectedPollutant={selectedPollutant}
+            onPollutantChange={setSelectedPollutant}
+            selectedSources={selectedSources}
+            onSourceChange={setSelectedSources}
+            selectedTimeStep={selectedTimeStep}
+            onTimeStepChange={setSelectedTimeStep}
+            signalAirPeriod={signalAirPeriod}
+            onSignalAirPeriodChange={handleSignalAirPeriodChange}
+            isHistoricalModeActive={isHistoricalModeActive}
+            onToggleHistoricalMode={toggleHistoricalMode}
+            autoRefreshEnabled={autoRefreshEnabled}
+            onToggleAutoRefresh={setAutoRefreshEnabled}
+            lastRefresh={lastRefresh}
+            loading={loading}
+            currentModelingLayer={currentModelingLayer}
+            onModelingLayerChange={setCurrentModelingLayer}
+          />
 
-              <div className="flex items-center space-x-4 border-gray-300 pl-6 text-xs text-gray-600">
-                <AutoRefreshControl
-                  enabled={autoRefreshEnabled && !isHistoricalModeActive}
-                  onToggle={setAutoRefreshEnabled}
-                  lastRefresh={lastRefresh}
-                  loading={loading}
-                  selectedTimeStep={selectedTimeStep}
-                />
-
-                <SignalAirPeriodSelector
-                  startDate={signalAirPeriod.startDate}
-                  endDate={signalAirPeriod.endDate}
-                  onPeriodChange={handleSignalAirPeriodChange}
-                  isVisible={selectedSources.includes("signalair")}
-                />
-              </div>
-
-              <div className="flex items-center space-x-3 border-l border-gray-300 pl-6">
-                <HistoricalModeButton
-                  isActive={isHistoricalModeActive}
-                  onToggle={toggleHistoricalMode}
-                />
-              </div>
+          {/* Contrôles intégrés dans l'en-tête - Desktop uniquement */}
+          <div className="hidden lg:flex items-center space-x-2">
+            <div className="flex items-center space-x-3">
+              <ModelingLayerControl
+                currentModelingLayer={currentModelingLayer}
+                onModelingLayerChange={setCurrentModelingLayer}
+                selectedPollutant={selectedPollutant}
+                selectedTimeStep={selectedTimeStep}
+              />
+              <PollutantDropdown
+                selectedPollutant={selectedPollutant}
+                onPollutantChange={setSelectedPollutant}
+              />
+              <SourceDropdown
+                selectedSources={selectedSources}
+                onSourceChange={setSelectedSources}
+              />
+              <TimeStepDropdown
+                selectedTimeStep={selectedTimeStep}
+                selectedSources={selectedSources}
+                onTimeStepChange={setSelectedTimeStep}
+              />
             </div>
 
-            {/* Menu burger sur mobile */}
-            <MobileMenuBurger
-              selectedPollutant={selectedPollutant}
-              onPollutantChange={setSelectedPollutant}
-              selectedSources={selectedSources}
-              onSourceChange={setSelectedSources}
-              selectedTimeStep={selectedTimeStep}
-              onTimeStepChange={setSelectedTimeStep}
-              signalAirPeriod={signalAirPeriod}
-              onSignalAirPeriodChange={handleSignalAirPeriodChange}
-              isHistoricalModeActive={isHistoricalModeActive}
-              onToggleHistoricalMode={toggleHistoricalMode}
-              autoRefreshEnabled={autoRefreshEnabled}
-              onToggleAutoRefresh={setAutoRefreshEnabled}
-              lastRefresh={lastRefresh}
-              loading={loading}
-              currentModelingLayer={currentModelingLayer}
-              onModelingLayerChange={setCurrentModelingLayer}
-            />
+            <div className="flex items-center space-x-4 border-gray-300 pl-6 text-xs text-gray-600">
+              <AutoRefreshControl
+                enabled={autoRefreshEnabled && !isHistoricalModeActive}
+                onToggle={setAutoRefreshEnabled}
+                lastRefresh={lastRefresh}
+                loading={loading}
+                selectedTimeStep={selectedTimeStep}
+              />
+              
+              <SignalAirPeriodSelector
+                startDate={signalAirPeriod.startDate}
+                endDate={signalAirPeriod.endDate}
+                onPeriodChange={handleSignalAirPeriodChange}
+                isVisible={selectedSources.includes("signalair")}
+              />
+            </div>
 
-            {/* Bouton d'information */}
+            <div className="flex items-center space-x-3 border-l border-gray-300 pl-6">
+              
+              <HistoricalModeButton
+                isActive={isHistoricalModeActive}
+                onToggle={toggleHistoricalMode}
+              />
+            </div>
             <button
               type="button"
               onClick={() => setIsInfoModalOpen(true)}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-sm font-semibold text-gray-600 transition hover:bg-gray-100 hover:text-gray-900"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-[#325A96] text-sm font-semibold text-[#325A96] transition hover:bg-gray-100 hover:text-gray-900"
               aria-label="Informations sur OpenAirMap"
             >
               i

@@ -15,7 +15,7 @@ const HistoricalModeButton: React.FC<HistoricalModeButtonProps> = ({
         ${
           isActive
             ? "bg-[#4271B3] text-white border-2 border-[#4271B3] hover:bg-[#325a96]"
-            : "bg-white text-gray-700 border-2 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
+            : "bg-white text-gray-700 border-2 border-[#325A96] hover:bg-gray-50 hover:border-[#4271B3]"
         }
       `}
       title={

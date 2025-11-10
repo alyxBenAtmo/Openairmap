@@ -16,6 +16,7 @@ import {
   exportDataAsCSV,
   generateExportFilename,
 } from "../../utils/exportUtils";
+import { featureFlags } from "../../config/featureFlags";
 
 interface HistoricalChartProps {
   data: Record<string, HistoricalDataPoint[]>;
@@ -187,6 +188,10 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
 
   // Référence vers le graphique pour l'exportation
   const chartRef = useRef<any>(null);
+
+  const useSolidNebuleAirLines =
+    featureFlags.solidLineNebuleAir &&
+    (source?.toLowerCase() === "nebuleair");
 
   // Créer une clé stable basée sur les IDs des stations pour éviter les recréations inutiles
   // Cette clé change uniquement si les IDs des stations changent, pas si c'est un nouvel array
@@ -621,7 +626,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
                 )}
 
                 {/* Ligne des données brutes (trait discontinu) - affichée seulement si showRawData est true */}
-                {hasRawData && showRawData && (
+                {hasRawData && (showRawData || !hasCorrectedData) && (
                   <Line
                     type="linear"
                     dataKey={`${pollutant}_raw`}
@@ -640,6 +645,18 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
                   />
                 )}
               </>
+            ) : useSolidNebuleAirLines ? (
+              <Line
+                type="linear"
+                dataKey={pollutant}
+                yAxisId={yAxisId}
+                stroke={pollutantColor}
+                strokeWidth={2}
+                strokeDasharray="0" // Trait plein forcé
+                dot={false}
+                activeDot={activeDotNormal}
+                name={pollutantName}
+              />
             ) : (
               /* Autres sources : trait discontinu par défaut */
               <Line
@@ -661,7 +678,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     // Utiliser stationsKey au lieu de stations directement pour éviter les recréations dues aux changements de référence
     // stations est utilisé dans le code mais stationsKey dans les dépendances pour la stabilité
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source, stationsKey, selectedPollutants, unitKeys, unitGroups, pollutantDataFlags, showRawData, activeDotNormal, activeDotSmall]);
+  }, [source, stationsKey, selectedPollutants, unitKeys, unitGroups, pollutantDataFlags, showRawData, activeDotNormal, activeDotSmall, useSolidNebuleAirLines]);
 
   // Notifier le composant parent si des données corrigées sont disponibles
   React.useEffect(() => {

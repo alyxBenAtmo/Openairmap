@@ -358,7 +358,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
 
   const getPanelClasses = () => {
     const baseClasses =
-      "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300 h-[calc(100vh-64px)]";
+      "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300 h-full md:h-[calc(100vh-64px)] relative z-[1500]";
 
     switch (currentPanelSize) {
       case "fullscreen":
@@ -376,7 +376,6 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
   if (!isOpen || !selectedStation) {
     return null;
   }
-  console.log(selectedStation);
   return (
     <div className={getPanelClasses()}>
       {/* Header */}

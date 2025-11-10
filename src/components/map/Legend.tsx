@@ -6,12 +6,14 @@ interface LegendProps {
   selectedPollutant: string;
   isSidePanelOpen?: boolean;
   panelSize?: "normal" | "fullscreen" | "hidden";
+  isComparisonPanelVisible?: boolean;
 }
 
 const Legend: React.FC<LegendProps> = ({
   selectedPollutant,
   isSidePanelOpen = false,
   panelSize = "normal",
+  isComparisonPanelVisible = false,
 }) => {
   // Utiliser les couleurs centralisées
   const colors = QUALITY_COLORS;
@@ -75,12 +77,16 @@ const Legend: React.FC<LegendProps> = ({
     return "absolute bottom-8 right-2 lg:bottom-0 lg:left-1/2 lg:right-auto lg:transform lg:-translate-x-1/2 lg:ml-[-20px]";
   };
 
+  const visibilityClass =
+    isComparisonPanelVisible && panelSize !== "hidden"
+      ? "hidden"
+      : isSidePanelOpen && panelSize !== "hidden"
+      ? "hidden md:block"
+      : "block";
+
   return (
     <div
-      className={`${getLegendPosition()} z-[1000] transition-all duration-300 ease-in-out max-w-[95vw] md:max-w-none ${
-        // Cacher sur mobile quand le side panel est ouvert (sauf si masqué)
-        isSidePanelOpen && panelSize !== "hidden" ? "hidden md:block" : "block"
-      }`}
+      className={`${getLegendPosition()} z-[1000] transition-all duration-300 ease-in-out max-w-[95vw] md:max-w-none ${visibilityClass}`}
     >
       <div className="bg-white/90 backdrop-blur-sm rounded-md shadow-sm border border-gray-200/50 px-2 py-1.5 lg:px-3 lg:py-2">
         {/* Grille des seuils - verticale sur mobile et petits écrans, horizontale sur grands écrans */}

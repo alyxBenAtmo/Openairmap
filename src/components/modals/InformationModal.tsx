@@ -67,19 +67,25 @@ const DATA_SOURCES: DataSourceItem[] = [
         <span>
           Microcapteurs déployés par AtmoSud. Les données horaires sont consolidées
         </span>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 16 16"
-          className="h-10 w-10 text-[#0074d9]"
-          role="img"
-          aria-label="Données consolidées"
-        >
-          <path
-            fill="currentColor"
-            fillRule="evenodd"
-            d="M8 0c-.69 0-1.406.148-2.09.424L2.64 1.93A1 1 0 0 0 2 2.91v4.212c0 2.707 1.657 5.437 4.97 7.135l.53.27.53-.27C12.343 12.56 14 9.83 14 7.122V2.91a1 1 0 0 0-.64-.98L10.09.424A5.373 5.373 0 0 0 8 0m3.854 5.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 1 1 .708-.708L8.5 7.793l2.646-2.647a.5.5 0 0 1 .708 0"
-          />
-        </svg>
+        <span className="inline-flex h-5 w-6 items-center justify-center rounded-full bg-[#0074d9] leading-none">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 16 16"
+            className="h-5 w-5 text-white"
+            role="img"
+            aria-label="Données consolidées"
+          >
+            <path
+              fill="currentColor"
+              d="M5.338 1.59a61.44 61.44 0 0 0-2.837.856.481.481 0 0 0-.328.39c-.554 4.157.726 7.19 2.253 9.188a10.725 10.725 0 0 0 2.287 2.233c.346.244.652.42.893.533.12.057.218.095.293.118a.55.55 0 0 0 .101.025.615.615 0 0 0 .1-.025c.076-.023.174-.061.294-.118.24-.113.547-.29.893-.533a10.726 10.726 0 0 0 2.287-2.233c1.527-1.997 2.807-5.031 2.253-9.188a.48.48 0 0 0-.328-.39c-.651-.213-1.75-.56-2.837-.855C9.552 1.29 8.531 1.067 8 1.067c-.53 0-1.552.223-2.662.524zM5.072.56C6.157.265 7.31 0 8 0s1.843.265 2.928.56c1.11.3 2.229.655 2.887.87a1.54 1.54 0 0 1 1.044 1.262c.596 4.477-.787 7.795-2.465 9.99a11.775 11.775 0 0 1-2.517 2.453 7.159 7.159 0 0 1-1.048.625c-.28.132-.581.24-.829.24s-.548-.108-.829-.24a7.158 7.158 0 0 1-1.048-.625 11.777 11.777 0 0 1-2.517-2.453C1.928 10.487.545 7.169 1.141 2.692A1.54 1.54 0 0 1 2.185 1.43 62.456 62.456 0 0 1 5.072.56z"
+            />
+            <path
+              fill="currentColor"
+              d="M10.854 5.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 1 1 .708-.708L7.5 7.793l2.646-2.647a.5.5 0 0 1 .708 0z"
+            />
+          </svg>
+        </span>
       </span>
     ),
     provider: { label: "AtmoSud", href: "https://www.atmosud.org" },
@@ -250,7 +256,7 @@ const InformationModal: React.FC<InformationModalProps> = ({
                 n'hésitez pas à déposer un message sur le GitHub du projet.
               </p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col items-center gap-4">
               <img
                 src={domainConfig.logo2}
                 alt="Logo AirCarto"
@@ -273,7 +279,7 @@ const InformationModal: React.FC<InformationModalProps> = ({
                 A noter que pour certains appareils, la donnée n'est pas disponible pour tous les pas de temps (2 minutes, quart-horaire, horaire et journalier). Dans ce cas l'icône est grisée.
               </p>
             </div>
-            <div className="grid grid-cols-12 gap-4 border-b border-slate-100 bg-slate-50 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <div className="hidden border-b border-slate-100 bg-slate-50 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 sm:grid sm:grid-cols-12 sm:gap-4">
               <div className="col-span-3">Type de mesure</div>
               <div className="col-span-1">Icône</div>
               <div className="col-span-4">Pas de temps</div>
@@ -284,7 +290,7 @@ const InformationModal: React.FC<InformationModalProps> = ({
               {DATA_SOURCES.map((item) => (
                 <div
                   key={item.id}
-                  className="grid grid-cols-12 gap-4 px-6 py-4 text-sm text-slate-700"
+                  className="flex flex-col gap-4 px-4 py-5 text-sm text-slate-700 sm:grid sm:grid-cols-12 sm:gap-4 sm:px-6"
                 >
                   <div className="col-span-12 flex flex-col gap-1 sm:col-span-3">
                     <span className="text-sm font-semibold text-slate-800">
@@ -306,42 +312,60 @@ const InformationModal: React.FC<InformationModalProps> = ({
                       </div>
                     )}
                   </div>
-                  <div className="col-span-6 flex items-center sm:col-span-1">
-                    {renderIcon(item.icon)}
+                  <div className="col-span-12 flex flex-col sm:col-span-1 sm:flex-row sm:items-center sm:justify-center">
+                    <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:hidden">
+                      Icône
+                    </span>
+                    <div className="mt-1 sm:mt-0 flex items-center justify-start">
+                      {renderIcon(item.icon)}
+                    </div>
                   </div>
-                  <div className="col-span-12 flex flex-wrap items-start gap-2 sm:col-span-4">
-                    {item.timeSteps.map((step) => (
-                      <div key={step.label} className="flex flex-col items-start">
-                        <span
-                          className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${STEP_STYLES[step.status]}`}
-                        >
-                          {step.label}
-                        </span>
-                        {step.note && (
-                          <span className="mt-1 text-[11px] text-slate-500">
-                            {step.note}
+                  <div className="col-span-12 sm:col-span-4">
+                    <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:hidden">
+                      Pas de temps
+                    </span>
+                    <div className="mt-1 flex flex-wrap items-start gap-2">
+                      {item.timeSteps.map((step) => (
+                        <div key={step.label} className="flex flex-col items-start">
+                          <span
+                            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${STEP_STYLES[step.status]}`}
+                          >
+                            {step.label}
                           </span>
-                        )}
-                      </div>
-                    ))}
+                          {step.note && (
+                            <span className="mt-1 text-[11px] text-slate-500">
+                              {step.note}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div className="col-span-12 sm:col-span-3">
-                    <div className="text-sm leading-snug text-slate-600">
+                    <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:hidden">
+                      Description
+                    </span>
+                    <div className="mt-1 text-sm leading-snug text-slate-600 sm:mt-0">
                       {item.description}
                     </div>
                   </div>
-                  <div className="col-span-12 flex items-start justify-start sm:col-span-1 sm:justify-center">
+                  <div className="col-span-12 flex flex-col items-start justify-start sm:col-span-1 sm:flex-row sm:items-center sm:justify-center">
+                    <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:hidden">
+                      Source
+                    </span>
                     {item.provider.href ? (
-                      <a
-                        href={item.provider.href}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center justify-center rounded-md bg-[#4271B3] px-1.5 py-0.5 text-[0.58rem] font-semibold leading-tight text-white shadow-sm transition hover:bg-[#325a96] whitespace-nowrap"
-                      >
-                        {item.provider.label}
-                      </a>
+                      <div className="mt-1 sm:mt-0">
+                        <a
+                          href={item.provider.href}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center justify-center rounded-md bg-[#4271B3] px-1.5 py-0.5 text-[0.58rem] font-semibold leading-tight text-white shadow-sm transition hover:bg-[#325a96] whitespace-nowrap"
+                        >
+                          {item.provider.label}
+                        </a>
+                      </div>
                     ) : (
-                      <span className="text-xs font-medium text-slate-500">
+                      <span className="mt-2 text-xs font-medium text-slate-500 sm:mt-0">
                         {item.provider.label}
                       </span>
                     )}

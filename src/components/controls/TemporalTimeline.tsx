@@ -24,12 +24,19 @@ const TemporalTimeline: React.FC<TemporalTimelineProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [hoverPosition, setHoverPosition] = useState<number | null>(null);
 
+  const effectiveStartDate =
+    dataPoints.length > 0 ? dataPoints[0].timestamp : startDate;
+  const effectiveEndDate =
+    dataPoints.length > 0
+      ? dataPoints[dataPoints.length - 1].timestamp
+      : endDate;
+
   // Calculer la position du curseur en pourcentage
   const getCurrentPosition = (): number => {
-    if (!startDate || !endDate || !currentDate) return 0;
+    if (!effectiveStartDate || !effectiveEndDate || !currentDate) return 0;
 
-    const start = new Date(startDate).getTime();
-    const end = new Date(endDate).getTime();
+    const start = new Date(effectiveStartDate).getTime();
+    const end = new Date(effectiveEndDate).getTime();
     const current = new Date(currentDate).getTime();
 
     if (end <= start) return 0;
@@ -42,10 +49,10 @@ const TemporalTimeline: React.FC<TemporalTimelineProps> = ({
 
   // Calculer la position d'un timestamp en pourcentage
   const getTimestampPosition = (timestamp: string): number => {
-    if (!startDate || !endDate) return 0;
+    if (!effectiveStartDate || !effectiveEndDate) return 0;
 
-    const start = new Date(startDate).getTime();
-    const end = new Date(endDate).getTime();
+    const start = new Date(effectiveStartDate).getTime();
+    const end = new Date(effectiveEndDate).getTime();
     const time = new Date(timestamp).getTime();
 
     if (end <= start) return 0;
@@ -55,10 +62,10 @@ const TemporalTimeline: React.FC<TemporalTimelineProps> = ({
 
   // Convertir une position en pourcentage en timestamp
   const positionToTimestamp = (position: number): string => {
-    if (!startDate || !endDate) return currentDate;
+    if (!effectiveStartDate || !effectiveEndDate) return currentDate;
 
-    const start = new Date(startDate).getTime();
-    const end = new Date(endDate).getTime();
+    const start = new Date(effectiveStartDate).getTime();
+    const end = new Date(effectiveEndDate).getTime();
     const time = start + (position / 100) * (end - start);
 
     return new Date(time).toISOString();
@@ -130,11 +137,19 @@ const TemporalTimeline: React.FC<TemporalTimelineProps> = ({
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, onSeek, startDate, endDate]);
+  }, [isDragging, onSeek, effectiveStartDate, effectiveEndDate]);
 
   // Formater la date pour l'affichage
   const formatDate = (dateString: string): string => {
+    if (!dateString) {
+      return "--";
+    }
+
     const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) {
+      return "--";
+    }
+
     return date.toLocaleDateString("fr-FR", {
       day: "2-digit",
       month: "2-digit",
@@ -223,13 +238,13 @@ const TemporalTimeline: React.FC<TemporalTimelineProps> = ({
 
         {/* Labels de dates */}
         <div className="flex justify-between mt-2 text-xs text-gray-600">
-          <span>{formatDate(startDate)}</span>
+          <span>{formatDate(effectiveStartDate)}</span>
           <span className="font-bold text-blue-600">
             {hoverTimestamp
               ? formatDate(hoverTimestamp)
               : formatDate(currentDate)}
           </span>
-          <span>{formatDate(endDate)}</span>
+          <span>{formatDate(effectiveEndDate)}</span>
         </div>
       </div>
 
