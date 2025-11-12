@@ -37,6 +37,7 @@ export class NebuleAirService extends BaseDataService {
     signalAirPeriod?: { startDate: string; endDate: string };
     mobileAirPeriod?: { startDate: string; endDate: string };
     selectedSensors?: string[];
+    signalAirSelectedTypes?: string[];
   }): Promise<MeasurementDevice[]> {
     try {
       // Vérifier si le polluant est supporté par NebuleAir

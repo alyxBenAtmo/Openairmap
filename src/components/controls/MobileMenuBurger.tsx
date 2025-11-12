@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import PollutantDropdown from "./PollutantDropdown";
 import SourceDropdown from "./SourceDropdown";
 import TimeStepDropdown from "./TimeStepDropdown";
-import SignalAirPeriodSelector from "./SignalAirPeriodSelector";
 import HistoricalModeButton from "./HistoricalModeButton";
 import AutoRefreshControl from "./AutoRefreshControl";
 import ModelingLayerControl from "./ModelingLayerControl";
@@ -15,11 +14,6 @@ interface MobileMenuBurgerProps {
   onSourceChange: (sources: string[]) => void;
   selectedTimeStep: string;
   onTimeStepChange: (timeStep: string) => void;
-  signalAirPeriod: {
-    startDate: string;
-    endDate: string;
-  };
-  onSignalAirPeriodChange: (startDate: string, endDate: string) => void;
   isHistoricalModeActive: boolean;
   onToggleHistoricalMode: () => void;
   autoRefreshEnabled: boolean;
@@ -37,8 +31,6 @@ const MobileMenuBurger: React.FC<MobileMenuBurgerProps> = ({
   onSourceChange,
   selectedTimeStep,
   onTimeStepChange,
-  signalAirPeriod,
-  onSignalAirPeriodChange,
   isHistoricalModeActive,
   onToggleHistoricalMode,
   autoRefreshEnabled,
@@ -140,21 +132,6 @@ const MobileMenuBurger: React.FC<MobileMenuBurgerProps> = ({
             </div>
 
             {/* Période SignalAir */}
-            {selectedSources.includes("signalair") && (
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-gray-700">
-                  Période SignalAir
-                </label>
-                <SignalAirPeriodSelector
-                  startDate={signalAirPeriod.startDate}
-                  endDate={signalAirPeriod.endDate}
-                  onPeriodChange={onSignalAirPeriodChange}
-                  isVisible={true}
-                />
-              </div>
-            )}
-
-            {/* Carte de modélisation */}
             <div className="space-y-1">
               <label className="text-sm font-medium text-gray-700">
                 Carte de modélisation

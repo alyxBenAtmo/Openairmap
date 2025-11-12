@@ -22,6 +22,7 @@ export class SensorCommunityService extends BaseDataService {
     signalAirPeriod?: { startDate: string; endDate: string };
     mobileAirPeriod?: { startDate: string; endDate: string };
     selectedSensors?: string[];
+    signalAirSelectedTypes?: string[];
   }): Promise<MeasurementDevice[]> {
     console.log(`🔍 [SensorCommunity] fetchData appelé avec:`, {
       pollutant: params.pollutant,

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import AirQualityMap from "./components/map/AirQualityMap";
 import { useAirQualityData } from "./hooks/useAirQualityData";
 import { useTemporalVisualization } from "./hooks/useTemporalVisualization";
@@ -15,7 +15,6 @@ import AutoRefreshControl from "./components/controls/AutoRefreshControl";
 import PollutantDropdown from "./components/controls/PollutantDropdown";
 import SourceDropdown from "./components/controls/SourceDropdown";
 import TimeStepDropdown from "./components/controls/TimeStepDropdown";
-import SignalAirPeriodSelector from "./components/controls/SignalAirPeriodSelector";
 import HistoricalModeButton from "./components/controls/HistoricalModeButton";
 import HistoricalControlPanel from "./components/controls/HistoricalControlPanel";
 import MobileMenuBurger from "./components/controls/MobileMenuBurger";
@@ -47,6 +46,11 @@ const App: React.FC = () => {
     };
   }, []);
 
+  const SIGNAL_AIR_DEFAULT_TYPES = useMemo(
+    () => ["odeur", "bruit", "brulage", "visuel"],
+    []
+  );
+
   // États pour les contrôles avec polluant par défaut
   const [selectedPollutant, setSelectedPollutant] = useState<string>(
     getDefaultPollutant()
@@ -59,8 +63,26 @@ const App: React.FC = () => {
   const [signalAirPeriod, setSignalAirPeriod] = useState(
     defaultSignalAirPeriod
   );
+  const [signalAirDraftPeriod, setSignalAirDraftPeriod] = useState(
+    defaultSignalAirPeriod
+  );
+  const [signalAirSelectedTypes, setSignalAirSelectedTypes] = useState<string[]>(
+    SIGNAL_AIR_DEFAULT_TYPES
+  );
+  const [signalAirLoadTrigger, setSignalAirLoadTrigger] = useState(0);
   const [currentModelingLayer, setCurrentModelingLayer] =
     useState<ModelingLayerType | null>(null);
+
+  const resetSignalAirSettings = useCallback(() => {
+    const resetPeriod = {
+      startDate: defaultSignalAirPeriod.startDate,
+      endDate: defaultSignalAirPeriod.endDate,
+    };
+    setSignalAirSelectedTypes([...SIGNAL_AIR_DEFAULT_TYPES]);
+    setSignalAirLoadTrigger(0);
+    setSignalAirPeriod(resetPeriod);
+    setSignalAirDraftPeriod(resetPeriod);
+  }, [SIGNAL_AIR_DEFAULT_TYPES, defaultSignalAirPeriod]);
 
   // États pour MobileAir
   const [mobileAirPeriod, setMobileAirPeriod] = useState(
@@ -72,8 +94,26 @@ const App: React.FC = () => {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
   // Fonction wrapper pour gérer le changement de période SignalAir
-  const handleSignalAirPeriodChange = (startDate: string, endDate: string) => {
-    setSignalAirPeriod({ startDate, endDate });
+  const handleSignalAirDraftPeriodChange = (
+    startDate: string,
+    endDate: string
+  ) => {
+    setSignalAirDraftPeriod({ startDate, endDate });
+  };
+
+  const handleSignalAirTypesChange = (types: string[]) => {
+    setSignalAirSelectedTypes(types);
+  };
+
+  const handleSignalAirLoadRequest = () => {
+    if (signalAirSelectedTypes.length === 0) {
+      return;
+    }
+    setSignalAirPeriod({
+      startDate: signalAirDraftPeriod.startDate,
+      endDate: signalAirDraftPeriod.endDate,
+    });
+    setSignalAirLoadTrigger((prev) => prev + 1);
   };
 
   // Fonction pour gérer la sélection d'un capteur MobileAir
@@ -98,6 +138,13 @@ const App: React.FC = () => {
     setMobileAirPeriod(defaultSignalAirPeriod);
   };
 
+  const handleSignalAirSourceDeselected = () => {
+    setSelectedSources((sources) =>
+      sources.filter((source) => source !== "signalair")
+    );
+    resetSignalAirSettings();
+  };
+
   // Effet pour ouvrir automatiquement le side panel MobileAir quand la source est sélectionnée
   useEffect(() => {
     if (
@@ -109,8 +156,25 @@ const App: React.FC = () => {
     }
   }, [selectedSources, selectedMobileAirSensor]);
 
+  useEffect(() => {
+    if (!selectedSources.includes("signalair")) {
+      resetSignalAirSettings();
+    }
+  }, [selectedSources, resetSignalAirSettings]);
+
   // État pour l'auto-refresh - désactivé par défaut
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
+
+  const isSignalAirSelected = selectedSources.includes("signalair");
+
+  const signalAirOptions = useMemo(
+    () => ({
+      selectedTypes: signalAirSelectedTypes,
+      loadTrigger: signalAirLoadTrigger,
+      isSourceSelected: isSignalAirSelected,
+    }),
+    [signalAirSelectedTypes, signalAirLoadTrigger, isSignalAirSelected]
+  );
 
   useEffect(() => {
     if (
@@ -161,11 +225,20 @@ const App: React.FC = () => {
     signalAirPeriod,
     mobileAirPeriod,
     selectedMobileAirSensor,
+    signalAirOptions,
     autoRefreshEnabled: autoRefreshEnabled && !isHistoricalModeActive, // Désactiver l'auto-refresh en mode historique
   });
 
   // Déterminer quelles données utiliser selon le mode
   const devices = isHistoricalModeActive ? getCurrentDevices() : normalDevices;
+
+  const signalAirReports = useMemo(
+    () => reports.filter((report) => report.source === "signalair"),
+    [reports]
+  );
+
+  const isSignalAirLoading = loadingSources.includes("signalair");
+  const hasSignalAirLoaded = signalAirLoadTrigger > 0;
 
   // Fonction pour gérer le chargement des données historiques
   const handleLoadHistoricalData = () => {
@@ -225,8 +298,6 @@ const App: React.FC = () => {
             onSourceChange={setSelectedSources}
             selectedTimeStep={selectedTimeStep}
             onTimeStepChange={setSelectedTimeStep}
-            signalAirPeriod={signalAirPeriod}
-            onSignalAirPeriodChange={handleSignalAirPeriodChange}
             isHistoricalModeActive={isHistoricalModeActive}
             onToggleHistoricalMode={toggleHistoricalMode}
             autoRefreshEnabled={autoRefreshEnabled}
@@ -269,13 +340,6 @@ const App: React.FC = () => {
                 lastRefresh={lastRefresh}
                 loading={loading}
                 selectedTimeStep={selectedTimeStep}
-              />
-              
-              <SignalAirPeriodSelector
-                startDate={signalAirPeriod.startDate}
-                endDate={signalAirPeriod.endDate}
-                onPeriodChange={handleSignalAirPeriodChange}
-                isVisible={selectedSources.includes("signalair")}
               />
             </div>
 
@@ -356,6 +420,15 @@ const App: React.FC = () => {
           selectedTimeStep={selectedTimeStep}
           currentModelingLayer={currentModelingLayer}
           loading={loading || temporalState.loading}
+          signalAirPeriod={signalAirDraftPeriod}
+          signalAirSelectedTypes={signalAirSelectedTypes}
+          onSignalAirPeriodChange={handleSignalAirDraftPeriodChange}
+          onSignalAirTypesChange={handleSignalAirTypesChange}
+          onSignalAirLoadRequest={handleSignalAirLoadRequest}
+          isSignalAirLoading={isSignalAirLoading}
+          signalAirHasLoaded={hasSignalAirLoaded}
+          signalAirReportsCount={signalAirReports.length}
+          onSignalAirSourceDeselected={handleSignalAirSourceDeselected}
           onMobileAirSensorSelected={handleMobileAirSensorSelected}
           onMobileAirSourceDeselected={handleMobileAirSourceDeselected}
         />

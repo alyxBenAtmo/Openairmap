@@ -25,6 +25,7 @@ export class AtmoMicroService extends BaseDataService {
     signalAirPeriod?: { startDate: string; endDate: string };
     mobileAirPeriod?: { startDate: string; endDate: string };
     selectedSensors?: string[];
+    signalAirSelectedTypes?: string[];
   }): Promise<MeasurementDevice[]> {
     try {
       // Mapping du polluant vers le format AtmoMicro
@@ -468,12 +469,16 @@ export class AtmoMicroService extends BaseDataService {
   ): string {
     const date = new Date(dateString);
 
-    if (isEndDate) {
-      // Date de fin : toujours à 23:59:59 UTC
-      date.setUTCHours(23, 59, 59, 999);
-    } else {
-      // Date de début : toujours à 00:00:00 UTC
-      date.setUTCHours(0, 0, 0, 0);
+    // Conserver l'heure lorsque la chaîne d'origine contient une composante horaire.
+    // Utiliser l'arrondi à la journée uniquement pour les dates sans heure (ex: "2025-11-12").
+    const hasTimeComponent = /T\d{2}:\d{2}/.test(dateString);
+
+    if (!hasTimeComponent) {
+      if (isEndDate) {
+        date.setUTCHours(23, 59, 59, 999);
+      } else {
+        date.setUTCHours(0, 0, 0, 0);
+      }
     }
 
     return date.toISOString();

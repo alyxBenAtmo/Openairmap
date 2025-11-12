@@ -49,6 +49,7 @@ import ComparisonSidePanel from "./ComparisonSidePanel";
 import MobileAirSidePanel from "./MobileAirSidePanel";
 import MobileAirSelectionPanel from "./MobileAirSelectionPanel";
 import MobileAirDetailPanel from "./MobileAirDetailPanel";
+import SignalAirSelectionPanel from "./SignalAirSelectionPanel";
 import MobileAirRoutes from "./MobileAirRoutes";
 import SpiderfiedMarkers from "./SpiderfiedMarkers";
 import CustomSpiderfiedMarkers from "./CustomSpiderfiedMarkers";
@@ -83,6 +84,15 @@ interface AirQualityMapProps {
   selectedTimeStep: string;
   currentModelingLayer: "icaireh" | "pollutant" | "vent" | null;
   loading?: boolean;
+  signalAirPeriod: { startDate: string; endDate: string };
+  signalAirSelectedTypes: string[];
+  onSignalAirPeriodChange: (startDate: string, endDate: string) => void;
+  onSignalAirTypesChange: (types: string[]) => void;
+  onSignalAirLoadRequest: () => void;
+  isSignalAirLoading?: boolean;
+  signalAirHasLoaded?: boolean;
+  signalAirReportsCount?: number;
+  onSignalAirSourceDeselected?: () => void;
   onMobileAirSensorSelected?: (
     sensorId: string,
     period: { startDate: string; endDate: string }
@@ -116,6 +126,15 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   selectedTimeStep,
   currentModelingLayer,
   loading,
+  signalAirPeriod,
+  signalAirSelectedTypes,
+  onSignalAirPeriodChange,
+  onSignalAirTypesChange,
+  onSignalAirLoadRequest,
+  isSignalAirLoading = false,
+  signalAirHasLoaded = false,
+  signalAirReportsCount = 0,
+  onSignalAirSourceDeselected,
   onMobileAirSensorSelected,
   onMobileAirSourceDeselected,
 }) => {
@@ -179,6 +198,12 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
     loading: false,
     error: null,
   });
+
+  const [isSignalAirPanelOpen, setIsSignalAirPanelOpen] = useState(false);
+  const [signalAirPanelSize, setSignalAirPanelSize] = useState<
+    "normal" | "fullscreen" | "hidden"
+  >("normal");
+  const signalAirLoadPendingRef = useRef(false);
 
   // États pour MobileAir
   const [mobileAirRoutes, setMobileAirRoutes] = useState<MobileAirRoute[]>([]);
@@ -310,6 +335,29 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
       console.debug("[AirQualityMap] Aucun signalement d'incendie à afficher");
     }
   }, [wildfireReports, isWildfireLayerEnabled]);
+
+  useEffect(() => {
+    const isSignalAirSourceSelected = selectedSources.includes("signalair");
+
+    if (!isSignalAirSourceSelected) {
+      signalAirLoadPendingRef.current = false;
+      setIsSignalAirPanelOpen(false);
+      setSignalAirPanelSize("normal");
+      return;
+    }
+
+    if (signalAirLoadPendingRef.current) {
+      if (signalAirHasLoaded) {
+        signalAirLoadPendingRef.current = false;
+      } else {
+        return;
+      }
+    }
+
+    if (!signalAirHasLoaded) {
+      setIsSignalAirPanelOpen(true);
+    }
+  }, [selectedSources, signalAirHasLoaded]);
 
   // Effet pour extraire les routes MobileAir des devices
   useEffect(() => {
@@ -1672,6 +1720,31 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
     };
   };
 
+  const handleSignalAirLoad = () => {
+    signalAirLoadPendingRef.current = true;
+    if (onSignalAirLoadRequest) {
+      onSignalAirLoadRequest();
+    }
+    setIsSignalAirPanelOpen(false);
+    setSignalAirPanelSize("normal");
+  };
+
+  const handleCloseSignalAirPanel = () => {
+    setIsSignalAirPanelOpen(false);
+    setSignalAirPanelSize("normal");
+
+    if (onSignalAirSourceDeselected) {
+      onSignalAirSourceDeselected();
+    }
+  };
+
+  const handleSignalAirPanelSizeChange = (
+    newSize: "normal" | "fullscreen" | "hidden"
+  ) => {
+    setSignalAirPanelSize(newSize);
+
+  };
+
   // Callbacks pour MobileAir
   const handleMobileAirSensorsSelected = (
     sensorId: string,
@@ -1906,6 +1979,23 @@ const handleOpenMobileAirDetailPanel = () => {
             initialPollutant={selectedPollutant}
           />
         )}
+
+      {/* Side Panel - SignalAir Selection */}
+      <SignalAirSelectionPanel
+        isOpen={isSignalAirPanelOpen}
+        selectedPollutant={selectedPollutant}
+        selectedTypes={signalAirSelectedTypes}
+        period={signalAirPeriod}
+        onClose={handleCloseSignalAirPanel}
+        onTypesChange={onSignalAirTypesChange}
+        onPeriodChange={onSignalAirPeriodChange}
+        onLoadReports={handleSignalAirLoad}
+        onSizeChange={handleSignalAirPanelSizeChange}
+        panelSize={signalAirPanelSize}
+        isLoading={isSignalAirLoading}
+        hasLoaded={signalAirHasLoaded}
+        reportsCount={signalAirReportsCount}
+      />
 
       {/* Side Panel - MobileAir Selection (droite) */}
       <MobileAirSelectionPanel

@@ -14,6 +14,7 @@ export abstract class BaseDataService implements DataService {
     signalAirPeriod?: { startDate: string; endDate: string };
     mobileAirPeriod?: { startDate: string; endDate: string };
     selectedSensors?: string[];
+    signalAirSelectedTypes?: string[];
   }): Promise<MeasurementDevice[] | SignalAirReport[]>;
 
   protected createDevice(

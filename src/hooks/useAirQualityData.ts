@@ -10,6 +10,11 @@ interface UseAirQualityDataProps {
   signalAirPeriod?: { startDate: string; endDate: string };
   mobileAirPeriod?: { startDate: string; endDate: string };
   selectedMobileAirSensor?: string | null;
+  signalAirOptions?: {
+    selectedTypes: string[];
+    loadTrigger: number;
+    isSourceSelected?: boolean;
+  };
   autoRefreshEnabled?: boolean;
 }
 
@@ -38,6 +43,7 @@ export const useAirQualityData = ({
   signalAirPeriod,
   mobileAirPeriod,
   selectedMobileAirSensor,
+  signalAirOptions,
   autoRefreshEnabled = true,
 }: UseAirQualityDataProps) => {
   const [devices, setDevices] = useState<MeasurementDevice[]>([]);
@@ -49,24 +55,11 @@ export const useAirQualityData = ({
 
   // Référence pour stocker l'intervalle
   const intervalRef = useRef<number | null>(null);
+  const signalAirLastTriggerRef = useRef(0);
 
   const fetchData = useCallback(async () => {
-    if (selectedSources.length === 0) {
-      setDevices([]);
-      setReports([]);
-      return;
-    }
-
-    // Mettre à jour le timestamp du dernier rafraîchissement
     const now = new Date();
     setLastRefresh(now);
-
-    // Nettoyer complètement les données avant le nouvel appel
-    setDevices([]);
-    setReports([]);
-    setLoading(true);
-    setError(null);
-    setLoadingSources(selectedSources);
 
     try {
       // Mapper les sources communautaires vers leurs codes de service réels
@@ -76,6 +69,67 @@ export const useAirQualityData = ({
         }
         return source;
       });
+
+      if (selectedSources.length === 0) {
+        setDevices([]);
+        setReports([]);
+        setLoading(false);
+        setLoadingSources([]);
+        return;
+      }
+
+      const isSignalAirSourceSelected =
+        signalAirOptions?.isSourceSelected ?? mappedSources.includes("signalair");
+      let shouldFetchSignalAir =
+        isSignalAirSourceSelected &&
+        signalAirOptions &&
+        signalAirOptions.loadTrigger > signalAirLastTriggerRef.current;
+
+      if (!isSignalAirSourceSelected) {
+        setReports([]);
+      } else if (!shouldFetchSignalAir) {
+        setReports((prevReports) =>
+          prevReports.length > 0
+            ? prevReports.filter((report) => report.source !== "signalair")
+            : prevReports
+        );
+      } else {
+        // L'utilisateur vient de demander un chargement explicite
+        setReports((prevReports) =>
+          prevReports.length > 0
+            ? prevReports.filter((report) => report.source !== "signalair")
+            : prevReports
+        );
+      }
+
+      // Indices des sources à réellement charger (on saute SignalAir tant que l'utilisateur n'a pas demandé)
+      const fetchableIndexes = mappedSources.reduce<number[]>(
+        (indexes, mappedSource, index) => {
+          if (mappedSource === "signalair" && !shouldFetchSignalAir) {
+            return indexes;
+          }
+          indexes.push(index);
+          return indexes;
+        },
+        []
+      );
+
+      const fetchableSources = fetchableIndexes.map(
+        (index) => selectedSources[index]
+      );
+
+      // Réinitialiser les devices avant de recharger de nouvelles données
+      setDevices([]);
+
+      if (fetchableSources.length === 0) {
+        setLoading(false);
+        setLoadingSources([]);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      setLoadingSources(fetchableSources);
 
       // console.log("🔍 [HOOK] Mapping des sources:", {
       //   selectedSources,
@@ -144,10 +198,10 @@ export const useAirQualityData = ({
       }
 
       // Traiter chaque service individuellement pour un affichage progressif
-      for (let i = 0; i < services.length; i++) {
-        const service = services[i];
-        const sourceCode = selectedSources[i]; // Code original pour l'affichage
-        const mappedSourceCode = mappedSources[i]; // Code réel du service
+      for (const index of fetchableIndexes) {
+        const service = services[index];
+        const sourceCode = selectedSources[index]; // Code original pour l'affichage
+        const mappedSourceCode = mappedSources[index]; // Code réel du service
 
         try {
           const data = await service.fetchData({
@@ -155,6 +209,7 @@ export const useAirQualityData = ({
             timeStep: selectedTimeStep,
             sources: mappedSources, // Utiliser les sources mappées, pas les sources originales
             signalAirPeriod,
+            signalAirSelectedTypes: signalAirOptions?.selectedTypes,
             mobileAirPeriod,
             selectedSensors: selectedMobileAirSensor
               ? [selectedMobileAirSensor]
@@ -214,6 +269,10 @@ export const useAirQualityData = ({
           );
         }
       }
+
+      if (shouldFetchSignalAir && signalAirOptions) {
+        signalAirLastTriggerRef.current = signalAirOptions.loadTrigger;
+      }
     } catch (err) {
       setError(
         err instanceof Error
@@ -230,6 +289,7 @@ export const useAirQualityData = ({
     signalAirPeriod,
     mobileAirPeriod,
     selectedMobileAirSensor,
+    signalAirOptions,
   ]);
 
   // Effet pour gérer l'auto-refresh

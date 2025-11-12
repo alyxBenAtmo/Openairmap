@@ -77,6 +77,7 @@ export class SignalAirService extends BaseDataService {
     signalAirPeriod?: { startDate: string; endDate: string };
     mobileAirPeriod?: { startDate: string; endDate: string };
     selectedSensors?: string[];
+    signalAirSelectedTypes?: string[];
   }): Promise<SignalAirReport[]> {
     try {
       // Utiliser la période par défaut si non fournie (2 derniers jours)
@@ -102,10 +103,23 @@ export class SignalAirService extends BaseDataService {
       // Récupérer tous les types de signalements
       const allReports: SignalAirReport[] = [];
 
-      for (const [signalType, baseUrl] of Object.entries(this.SIGNAL_URLS)) {
+      const selectedTypes =
+        params.signalAirSelectedTypes && params.signalAirSelectedTypes.length > 0
+          ? params.signalAirSelectedTypes
+          : Object.keys(this.SIGNAL_URLS);
+
+      for (const signalTypeKey of selectedTypes) {
+        const baseUrl = this.SIGNAL_URLS[signalTypeKey as keyof typeof this.SIGNAL_URLS];
+        if (!baseUrl) {
+          continue;
+        }
+
         try {
           // Utiliser la nouvelle méthode fetchSignalAirData qui gère les proxys
-          const response = await this.fetchSignalAirData(signalType, period);
+          const response = await this.fetchSignalAirData(
+            signalTypeKey,
+            period
+          );
 
           if (
             response &&
@@ -116,7 +130,7 @@ export class SignalAirService extends BaseDataService {
             // Extraire le type de signalement depuis l'URL
             const urlCode = baseUrl.split("/").pop() || "";
             const extractedSignalType =
-              this.URL_TO_TYPE_MAPPING[urlCode] || signalType;
+              this.URL_TO_TYPE_MAPPING[urlCode] || signalTypeKey;
 
             const reports = this.transformSignalAirData(
               response,

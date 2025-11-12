@@ -86,10 +86,20 @@ const HistoricalTimeRangeSelector: React.FC<
     }
   };
 
-  const handleQuickSelect = (days: number) => {
+  const handleQuickSelect = (option: { type: "days" | "months"; value: number }) => {
     const end = new Date();
     const start = new Date();
-    start.setDate(start.getDate() - days);
+
+    if (option.type === "days") {
+      start.setDate(start.getDate() - option.value);
+    } else {
+      const currentDay = start.getDate();
+      start.setMonth(start.getMonth() - option.value);
+      // Corriger les mois avec moins de jours en se rabattant sur le dernier jour disponible
+      if (start.getDate() !== currentDay) {
+        start.setDate(0);
+      }
+    }
 
     const formatDateForInput = (date: Date): string => {
       return date.toISOString().split("T")[0];
@@ -101,7 +111,6 @@ const HistoricalTimeRangeSelector: React.FC<
     setCustomStartDate(startDateStr);
     setCustomEndDate(endDateStr);
 
-    // Charger immédiatement pour les sélections rapides
     onTimeRangeChange({
       type: "custom",
       custom: {
@@ -235,34 +244,20 @@ const HistoricalTimeRangeSelector: React.FC<
               <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
                 Sélections rapides
               </div>
-              <div className="grid grid-cols-2 gap-1">
+              <div className="grid grid-cols-1 gap-1">
                 <button
                   type="button"
-                  onClick={() => handleQuickSelect(1)}
+                  onClick={() => handleQuickSelect({ type: "days", value: 30 })}
                   className="text-left px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 rounded transition-colors"
                 >
-                  24h
+                  30 derniers jours
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickSelect(2)}
+                  onClick={() => handleQuickSelect({ type: "months", value: 3 })}
                   className="text-left px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 rounded transition-colors"
                 >
-                  2 jours
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickSelect(7)}
-                  className="text-left px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 rounded transition-colors"
-                >
-                  1 semaine
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickSelect(30)}
-                  className="text-left px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 rounded transition-colors"
-                >
-                  1 mois
+                  3 derniers mois
                 </button>
               </div>
             </div>
