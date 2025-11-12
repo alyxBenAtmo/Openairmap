@@ -279,7 +279,6 @@ export class AtmoRefService extends BaseDataService {
     endDate: string;
   }): Promise<TemporalDataPoint[]> {
     try {
-      console.log("🕒 [AtmoRef] Récupération des données temporelles:", params);
 
       // Mapping du polluant vers le nom AtmoSud
       const atmoRefPollutantName = this.getAtmoRefPollutantName(
@@ -326,10 +325,6 @@ export class AtmoRefService extends BaseDataService {
       );
       const chunks = Math.ceil(totalDays / chunkSize);
 
-      console.log(
-        `📊 [AtmoRef] Division en ${chunks} tranches de ${chunkSize} jours`
-      );
-
       // Traiter chaque chunk
       for (let i = 0; i < chunks; i++) {
         const chunkStart = new Date(start);
@@ -342,12 +337,6 @@ export class AtmoRefService extends BaseDataService {
         if (chunkEnd > end) {
           chunkEnd.setTime(end.getTime());
         }
-
-        console.log(
-          `📅 [AtmoRef] Traitement tranche ${i + 1}/${chunks}: ${
-            chunkStart.toISOString().split("T")[0]
-          } à ${chunkEnd.toISOString().split("T")[0]}`
-        );
 
         try {
           const chunkData = await this.fetchTemporalDataChunk(
@@ -372,10 +361,6 @@ export class AtmoRefService extends BaseDataService {
       temporalData.sort(
         (a, b) =>
           new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      );
-
-      console.log(
-        `✅ [AtmoRef] ${temporalData.length} points temporels récupérés`
       );
 
       return temporalData;
@@ -516,10 +501,6 @@ export class AtmoRefService extends BaseDataService {
           });
         }
       }
-
-      console.log(
-        `✅ [AtmoRef] Tranche traitée: ${measuresByTimestamp.size} timestamps`
-      );
 
       return temporalDataPoints;
     } catch (error) {

@@ -24,33 +24,17 @@ export class SensorCommunityService extends BaseDataService {
     selectedSensors?: string[];
     signalAirSelectedTypes?: string[];
   }): Promise<MeasurementDevice[]> {
-    console.log(`🔍 [SensorCommunity] fetchData appelé avec:`, {
-      pollutant: params.pollutant,
-      timeStep: params.timeStep,
-      sources: params.sources,
-      sourceCode: this.sourceCode,
-    });
+
 
     try {
       // Vérifier si cette source est activée
       if (!params.sources.includes(this.sourceCode)) {
-        console.log(
-          `⚠️ [SensorCommunity] Source ${this.sourceCode} non activée. Sources sélectionnées:`,
-          params.sources
-        );
         return [];
       }
 
       // Vérifier si le pas de temps est supporté
       const supportedTimeSteps = ["instantane", "deuxMin"];
       if (!supportedTimeSteps.includes(params.timeStep)) {
-        console.log(
-          `⚠️ [SensorCommunity] Pas de temps ${
-            params.timeStep
-          } non supporté. Pas de temps supportés: ${supportedTimeSteps.join(
-            ", "
-          )}`
-        );
         return [];
       }
 
@@ -68,7 +52,6 @@ export class SensorCommunityService extends BaseDataService {
       // L'API retourne directement un tableau JSON
       const url = "https://data.sensor.community/airrohr/v1/filter/country=FR";
 
-      console.log(`Requête Sensor Community: ${url}`);
 
       // Faire la requête
       const response = await this.makeRequest(url);
@@ -79,13 +62,7 @@ export class SensorCommunityService extends BaseDataService {
       }
 
       // Transformer les données
-      console.log(
-        `🔄 [SensorCommunity] Début de la transformation de ${response.length} enregistrements`
-      );
       const transformedData = this.transformData(response, params.pollutant);
-      console.log(
-        `✅ [SensorCommunity] Transformation terminée: ${transformedData.length} capteurs transformés`
-      );
       return transformedData;
     } catch (error) {
       console.error(
@@ -139,10 +116,6 @@ export class SensorCommunityService extends BaseDataService {
           pollutantConfig.thresholds
         );
 
-        console.log(
-          `🎨 [SensorCommunity] Capteur ${sensorId}: valeur=${numericValue}, niveau=${qualityLevel}`
-        );
-
         // Créer l'appareil de mesure
         const device = this.createDevice(
           sensorId,
@@ -179,9 +152,6 @@ export class SensorCommunityService extends BaseDataService {
       }
     }
 
-    console.log(
-      `Sensor Community: ${devices.length} capteurs transformés pour ${pollutant}`
-    );
     return devices;
   }
 }

@@ -410,8 +410,7 @@ const InformationModal: React.FC<InformationModalProps> = ({
           <footer className="flex flex-col items-start justify-between gap-3 border-t border-slate-200 bg-white px-6 py-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:px-10">
               <span>
                 OpenAirMap est en amélioration continue. Partagez vos retours via
-                notre <a href="https://github.com/OpenAirMap/openairmap" className="text-[#4271B3] hover:underline">GitHub</a> ou contactez-nous depuis le site
-                d'AtmoSud.
+                notre site <a className="text-[#4271B3] hover:underline" href={`${domainConfig.links.website}/contact`}>{domainConfig.organization}</a>.
               </span>
               <button
                 onClick={onClose}
