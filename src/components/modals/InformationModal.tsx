@@ -375,23 +375,32 @@ const InformationModal: React.FC<InformationModalProps> = ({
             </div>
           </section>
 
-          <section className="rounded-xl border border-slate-200 bg-slate-50 px-6 py-4 text-sm text-slate-600 shadow-inner">
+          <section className="rounded-xl border border-slate-200 bg-white px-6 py-6 text-sm text-slate-600 shadow-sm">
             <h3 className="text-base font-semibold text-slate-800">
-              Comment profiter au mieux de ces données ?
+              Découvrir le mode historique
             </h3>
-            <ul className="mt-2 list-disc space-y-1 pl-5">
-              <li>
-                Combinez les stations de référence et la modélisation pour avoir une
-                vision globale en temps réel et en prévisionnel.
-              </li>
-              <li>
-                Activez les microcapteurs pour zoomer sur les conditions locales et
-                détecter les variations rapides de qualité de l'air.
-              </li>
-              <li>
-                Utilisez le mode historique pour comparer les épisodes passés et
-                valider vos hypothèses.
-              </li>
+            <p className="mt-2 leading-relaxed">
+              Le mode historique vous permet de rejouer la chronologie d&apos;un épisode de pollution ou d&apos;une journée type. Sélectionnez une date passée puis utilisez le curseur temporel pour faire défiler les mesures disponibles pas à pas. Les données se mettent à jour sur la carte ainsi que dans les panneaux associés afin de visualiser l&apos;évolution du phénomène dans le temps.
+            </p>
+            <ul className="mt-3 list-disc space-y-1 pl-5">
+              <li>Choisissez d&apos;abord la période dans le sélecteur dédié.</li>
+              <li>Réglez ensuite la vitesse de lecture ou parcourez manuellement grâce au curseur.</li>
+              <li>Lancer la lecture en cliquant sur le bouton "Play".</li>
+              <li>Quitter le mode historique en cliquant à nouveau sur le bouton "Mode Historique".</li>
+            </ul>
+          </section>
+
+          <section className="rounded-xl border border-slate-200 bg-white px-6 py-6 text-sm text-slate-600 shadow-sm">
+            <h3 className="text-base font-semibold text-slate-800">
+              Utiliser la comparaison multi-capteurs
+            </h3>
+            <p className="mt-2 leading-relaxed">
+              La comparaison multi-capteurs facilite l&apos;analyse simultanée des mesures de plusieurs dispositifs. Activez ce mode depuis le panneau latéral pour sélectionner jusqu&apos;à cinque capteurs ou stations et afficher leurs séries temporelles côte à côte dans les graphiques.
+            </p>
+            <ul className="mt-3 list-disc space-y-1 pl-5">
+              <li>Sélectionnez les capteurs directement sur la carte.</li>
+              <li>Les donnés s'ajoutent automatiquement dans le graphique de comparaison.</li>
+              <li>Quitter le mode comparaison en cliquant sur le bouton "Désactiver comparaison".</li>
             </ul>
           </section>
 
