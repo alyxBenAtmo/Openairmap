@@ -310,13 +310,7 @@ const App: React.FC = () => {
 
           {/* Contrôles intégrés dans l'en-tête - Desktop uniquement */}
           <div className="hidden lg:flex items-center space-x-2">
-            <div className="flex items-center space-x-3">
-              <ModelingLayerControl
-                currentModelingLayer={currentModelingLayer}
-                onModelingLayerChange={setCurrentModelingLayer}
-                selectedPollutant={selectedPollutant}
-                selectedTimeStep={selectedTimeStep}
-              />
+            <div className="flex items-center space-x-3">              
               <PollutantDropdown
                 selectedPollutant={selectedPollutant}
                 onPollutantChange={setSelectedPollutant}
@@ -343,13 +337,19 @@ const App: React.FC = () => {
               />
             </div>
 
-            <div className="flex items-center space-x-3 border-l border-gray-300 pl-6">
+            <div className="flex items-center space-x-3 border-l border-r border-gray-300 pl-6 pr-6">
               
               <HistoricalModeButton
                 isActive={isHistoricalModeActive}
                 onToggle={toggleHistoricalMode}
               />
             </div>
+            <ModelingLayerControl
+                currentModelingLayer={currentModelingLayer}
+                onModelingLayerChange={setCurrentModelingLayer}
+                selectedPollutant={selectedPollutant}
+                selectedTimeStep={selectedTimeStep}
+              />
             <button
               type="button"
               onClick={() => setIsInfoModalOpen(true)}
