@@ -337,7 +337,7 @@ const App: React.FC = () => {
               />
             </div>
 
-            <div className="flex items-center space-x-3 border-l border-r border-gray-300 pl-6 pr-6">
+            <div className="flex items-center space-x-3 border-l border-r border-gray-300 pl-2 pr-2">
               
               <HistoricalModeButton
                 isActive={isHistoricalModeActive}

@@ -18,12 +18,28 @@ interface SignalAirFeature {
     id: string;
     type: "odeur" | "bruit" | "brulage" | "pollen" | "visuel";
     created_at?: string;
+    date?: string;
     "duree-de-la-nuisance"?: string;
     "avez-vous-des-symptomes-"?: string;
     "si-oui-quels-symptomes-"?: string;
-    description?: string;
+    "description-des-eventuels-autres-symptomes"?: string;
+    "description-de-lorigine-de-la-nuisance"?: string;
+    "remarque-commentaire"?: string;
+    "origine-de-la-nuisance"?: string;
+    "source-industrielle-potentielle-de-la-nuisance-declaratif-"?: string;
+    "niveau-de-gene"?: string;
+    city?: string;
+    citycode?: string;
+    zipcode?: string;
+    countrycode?: string;
     address?: string;
+    lieu?: string;
+    nom_group?: string;
+    id_group?: string;
+    id_declaration?: string;
+    photographie?: string;
     department?: string;
+    description?: string;
   };
 }
 
@@ -142,7 +158,7 @@ export class SignalAirService extends BaseDataService {
           }
         } catch (error) {
           console.warn(
-            `⚠️ SignalAir - Erreur pour le type ${signalType}:`,
+            `⚠️ SignalAir - Erreur pour le type ${signalTypeKey}:`,
             error
           );
           // Continuer avec les autres types même si un échoue
@@ -179,6 +195,18 @@ export class SignalAirService extends BaseDataService {
   ): SignalAirReport[] {
     const reports: SignalAirReport[] = [];
 
+    const buildName = (properties: SignalAirFeature["properties"]) => {
+      if (properties.nom_group) {
+        return properties.nom_group.replace(/_/g, " ");
+      }
+
+      if (properties.city) {
+        return `Signalement ${signalType} · ${properties.city}`;
+      }
+
+      return `Signalement ${signalType}`;
+    };
+
     for (const feature of geoJson.features) {
       const { geometry, properties } = feature;
 
@@ -187,25 +215,47 @@ export class SignalAirService extends BaseDataService {
 
       reports.push({
         id:
+          properties.id_declaration ||
           properties.id ||
           `signalair-${signalType}-${Date.now()}-${Math.random()}`,
-        name: `Signalement ${signalType}`,
+        name: buildName(properties),
         latitude,
         longitude,
         source: this.sourceCode,
         signalType,
-        timestamp: properties["created_at"] || new Date().toISOString(),
+        timestamp: properties.created_at || new Date().toISOString(),
         status: "active",
         // Propriétés supplémentaires pour le marqueur
         qualityLevel: signalType, // Utiliser le type de signalement pour le marqueur
-        address: properties.address || "",
+        address: properties.address || properties.lieu || "",
         departmentId: properties.department || "",
         // Propriétés spécifiques à SignalAir
-        signalCreatedAt: properties["created_at"] || "",
+        signalCreatedAt: properties.created_at || "",
+        signalDate: properties.date || "",
         signalDuration: properties["duree-de-la-nuisance"] || "",
         signalHasSymptoms: properties["avez-vous-des-symptomes-"] || "",
         signalSymptoms: properties["si-oui-quels-symptomes-"] || "",
         signalDescription: properties.description || "",
+        symptomsDetails:
+          properties["description-des-eventuels-autres-symptomes"] || "",
+        nuisanceOrigin: properties["origine-de-la-nuisance"] || "",
+        nuisanceOriginDescription:
+          properties["description-de-lorigine-de-la-nuisance"] || "",
+        nuisanceLevel: properties["niveau-de-gene"] || "",
+        industrialSource:
+          properties[
+            "source-industrielle-potentielle-de-la-nuisance-declaratif-"
+          ] || "",
+        city: properties.city || "",
+        cityCode: properties.citycode || "",
+        postalCode: properties.zipcode || "",
+        countryCode: properties.countrycode || "",
+        locationHint: properties.lieu || "",
+        groupName: properties.nom_group || "",
+        groupId: properties.id_group || "",
+        declarationId: properties.id_declaration || "",
+        photoUrl: properties.photographie || "",
+        remarks: properties["remarque-commentaire"] || "",
       });
     }
 

@@ -18,7 +18,6 @@ import {
   MeasurementDevice,
   SignalAirReport,
   StationInfo,
-  SignalAirProperties,
   MobileAirRoute,
   MobileAirDataPoint,
   ComparisonState,
@@ -50,6 +49,7 @@ import MobileAirSidePanel from "./MobileAirSidePanel";
 import MobileAirSelectionPanel from "./MobileAirSelectionPanel";
 import MobileAirDetailPanel from "./MobileAirDetailPanel";
 import SignalAirSelectionPanel from "./SignalAirSelectionPanel";
+import SignalAirDetailPanel from "./SignalAirDetailPanel";
 import MobileAirRoutes from "./MobileAirRoutes";
 import SpiderfiedMarkers from "./SpiderfiedMarkers";
 import CustomSpiderfiedMarkers from "./CustomSpiderfiedMarkers";
@@ -203,7 +203,17 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
   const [signalAirPanelSize, setSignalAirPanelSize] = useState<
     "normal" | "fullscreen" | "hidden"
   >("normal");
+  const [userClosedSignalAirPanel, setUserClosedSignalAirPanel] =
+    useState(false);
+  const [selectedSignalAirReport, setSelectedSignalAirReport] =
+    useState<SignalAirReport | null>(null);
+  const [isSignalAirDetailPanelOpen, setIsSignalAirDetailPanelOpen] =
+    useState(false);
+  const [signalAirDetailPanelSize, setSignalAirDetailPanelSize] = useState<
+    "normal" | "fullscreen" | "hidden"
+  >("normal");
   const signalAirLoadPendingRef = useRef(false);
+  const [signalAirFeedback, setSignalAirFeedback] = useState<string | null>(null);
 
   // États pour MobileAir
   const [mobileAirRoutes, setMobileAirRoutes] = useState<MobileAirRoute[]>([]);
@@ -343,6 +353,11 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
       signalAirLoadPendingRef.current = false;
       setIsSignalAirPanelOpen(false);
       setSignalAirPanelSize("normal");
+      setIsSignalAirDetailPanelOpen(false);
+      setSignalAirDetailPanelSize("normal");
+      setSelectedSignalAirReport(null);
+      setSignalAirFeedback(null);
+      setUserClosedSignalAirPanel(false);
       return;
     }
 
@@ -356,8 +371,44 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
 
     if (!signalAirHasLoaded) {
       setIsSignalAirPanelOpen(true);
+      setSignalAirPanelSize("normal");
+      setUserClosedSignalAirPanel(false);
     }
   }, [selectedSources, signalAirHasLoaded]);
+
+  useEffect(() => {
+    if (signalAirHasLoaded && signalAirReportsCount === 0) {
+      setSignalAirFeedback(
+        "Aucun signalement SignalAir n’a été trouvé pour la période sélectionnée."
+      );
+      setIsSignalAirDetailPanelOpen(false);
+      setSelectedSignalAirReport(null);
+    } else if (signalAirReportsCount > 0) {
+      setSignalAirFeedback(null);
+    }
+  }, [signalAirHasLoaded, signalAirReportsCount]);
+
+  useEffect(() => {
+    if (isSignalAirLoading) {
+      setSignalAirFeedback(null);
+    }
+  }, [isSignalAirLoading]);
+
+  useEffect(() => {
+    if (!selectedSignalAirReport) {
+      return;
+    }
+
+    const exists = reports.some(
+      (report) => report.id === selectedSignalAirReport.id
+    );
+
+    if (!exists) {
+      setSelectedSignalAirReport(null);
+      setIsSignalAirDetailPanelOpen(false);
+      setSignalAirDetailPanelSize("normal");
+    }
+  }, [reports, selectedSignalAirReport]);
 
   // Effet pour extraire les routes MobileAir des devices
   useEffect(() => {
@@ -1281,16 +1332,6 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
   //   return `${device.value} ${device.unit}`;
   // };
 
-  const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString("fr-FR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
   const formatWildfireDate = (report: WildfireReport) => {
     if (report.date) {
       return new Date(report.date).toLocaleString("fr-FR", {
@@ -1727,22 +1768,79 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
     }
     setIsSignalAirPanelOpen(false);
     setSignalAirPanelSize("normal");
+    setUserClosedSignalAirPanel(true);
   };
 
   const handleCloseSignalAirPanel = () => {
     setIsSignalAirPanelOpen(false);
     setSignalAirPanelSize("normal");
-
-    if (onSignalAirSourceDeselected) {
-      onSignalAirSourceDeselected();
-    }
+    setIsSignalAirDetailPanelOpen(false);
+    setSignalAirDetailPanelSize("normal");
+    setSelectedSignalAirReport(null);
+    setUserClosedSignalAirPanel(true);
   };
 
   const handleSignalAirPanelSizeChange = (
     newSize: "normal" | "fullscreen" | "hidden"
   ) => {
     setSignalAirPanelSize(newSize);
+    if (newSize === "hidden") {
+      setIsSignalAirPanelOpen(false);
+      setUserClosedSignalAirPanel(true);
+    } else {
+      setIsSignalAirPanelOpen(true);
+      setUserClosedSignalAirPanel(false);
+    }
+  };
 
+  const handleSignalAirPanelHidden = () => {
+    setSignalAirPanelSize("hidden");
+    setIsSignalAirPanelOpen(false);
+    setUserClosedSignalAirPanel(true);
+  };
+
+  const handleSignalAirMarkerClick = (report: SignalAirReport) => {
+    setSelectedSignalAirReport(report);
+    setIsSignalAirDetailPanelOpen(true);
+    setSignalAirDetailPanelSize("normal");
+
+    if (mapRef.current) {
+      mapRef.current.panTo([report.latitude, report.longitude], {
+        animate: true,
+        duration: 0.5,
+      });
+    }
+  };
+
+  const handleCloseSignalAirDetailPanel = () => {
+    setIsSignalAirDetailPanelOpen(false);
+    setSignalAirDetailPanelSize("normal");
+    setSelectedSignalAirReport(null);
+  };
+
+  const handleSignalAirDetailPanelSizeChange = (
+    newSize: "normal" | "fullscreen" | "hidden"
+  ) => {
+    setSignalAirDetailPanelSize(newSize);
+  };
+
+  const handleCenterOnSignalAirReport = (report: SignalAirReport) => {
+    if (mapRef.current) {
+      mapRef.current.panTo([report.latitude, report.longitude], {
+        animate: true,
+        duration: 0.5,
+      });
+    }
+  };
+
+  const handleDismissSignalAirFeedback = () => {
+    setSignalAirFeedback(null);
+  };
+
+  const handleOpenSignalAirPanel = () => {
+    setIsSignalAirPanelOpen(true);
+    setSignalAirPanelSize("normal");
+    setUserClosedSignalAirPanel(false);
   };
 
   // Callbacks pour MobileAir
@@ -1980,6 +2078,16 @@ const handleOpenMobileAirDetailPanel = () => {
           />
         )}
 
+      {/* Side Panel - SignalAir Detail */}
+      <SignalAirDetailPanel
+        isOpen={isSignalAirDetailPanelOpen}
+        report={selectedSignalAirReport}
+        onClose={handleCloseSignalAirDetailPanel}
+        onSizeChange={handleSignalAirDetailPanelSizeChange}
+        panelSize={signalAirDetailPanelSize}
+        onCenterMap={handleCenterOnSignalAirReport}
+      />
+
       {/* Side Panel - SignalAir Selection */}
       <SignalAirSelectionPanel
         isOpen={isSignalAirPanelOpen}
@@ -1991,6 +2099,7 @@ const handleOpenMobileAirDetailPanel = () => {
         onPeriodChange={onSignalAirPeriodChange}
         onLoadReports={handleSignalAirLoad}
         onSizeChange={handleSignalAirPanelSizeChange}
+        onHidden={handleSignalAirPanelHidden}
         panelSize={signalAirPanelSize}
         isLoading={isSignalAirLoading}
         hasLoaded={signalAirHasLoaded}
@@ -2196,96 +2305,93 @@ const handleOpenMobileAirDetailPanel = () => {
               position={[report.latitude, report.longitude]}
               icon={createSignalIcon(report)}
               eventHandlers={{
-                click: () => {},
+                click: () => handleSignalAirMarkerClick(report),
               }}
-            >
-              <Popup>
-                <div className="device-popup min-w-[280px]">
-                  <h3 className="font-bold text-lg mb-2">{report.name}</h3>
-                  <div className="space-y-2 text-sm">
-                    <p>
-                      <strong>Source:</strong> {report.source}
-                    </p>
-
-                    {/* Informations spécifiques à SignalAir */}
-                    <p>
-                      <strong>Type:</strong>{" "}
-                      {report.signalType || "Non spécifié"}
-                    </p>
-
-                    {/* Date de création */}
-                    <p>
-                      <strong>Date de création:</strong>{" "}
-                      {report.signalCreatedAt
-                        ? formatTimestamp(report.signalCreatedAt)
-                        : "Non spécifiée"}
-                    </p>
-
-                    {/* Durée de la nuisance */}
-                    <p>
-                      <strong>Durée de la nuisance:</strong>{" "}
-                      {report.signalDuration || "Non spécifiée"}
-                    </p>
-
-                    {/* Symptômes */}
-                    <p>
-                      <strong>Avez-vous des symptômes:</strong>{" "}
-                      {report.signalHasSymptoms || "Non spécifié"}
-                    </p>
-
-                    {/* Détail des symptômes si oui */}
-                    {report.signalHasSymptoms === "Oui" && (
-                      <p>
-                        <strong>Symptômes:</strong>{" "}
-                        {report.signalSymptoms
-                          ? report.signalSymptoms.split("|").join(", ")
-                          : "Non spécifiés"}
-                      </p>
-                    )}
-
-                    {/* Description */}
-                    {report.signalDescription && (
-                      <p>
-                        <strong>Description:</strong> {report.signalDescription}
-                      </p>
-                    )}
-
-                    {report.address && (
-                      <p>
-                        <strong>Adresse:</strong> {report.address}
-                      </p>
-                    )}
-
-                    {/* Bouton pour signaler une nuisance */}
-                    <div className="mt-4 pt-3 border-t border-gray-200">
-                      <a
-                        href="https://www.signalair.eu/fr/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center w-full px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-300 rounded-md hover:bg-gray-100 hover:border-gray-400 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
-                      >
-                        <svg
-                          className="w-4 h-4 mr-2"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                          />
-                        </svg>
-                        Signaler une nuisance
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
+            />
           ))}
         </MapContainer>
+
+        {signalAirFeedback && (
+          <div className="absolute top-24 right-4 z-[1000] max-w-sm bg-white border border-blue-200 text-blue-800 text-sm px-3 py-2 rounded-lg shadow-lg">
+            <div className="flex items-start space-x-2">
+              <svg
+                className="w-5 h-5 flex-shrink-0 mt-0.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div className="flex-1">
+                <p>{signalAirFeedback}</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleDismissSignalAirFeedback}
+                className="text-blue-600 hover:text-blue-800"
+                aria-label="Fermer le message SignalAir"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {selectedSources.includes("signalair") &&
+          !isSignalAirPanelOpen &&
+          userClosedSignalAirPanel && (
+          <button
+            onClick={handleOpenSignalAirPanel}
+            className="fixed top-1/3 right-2 z-[2001] bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
+            title="Rouvrir le panneau SignalAir"
+            aria-label="Rouvrir le panneau SignalAir"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <rect
+                x="5"
+                y="4"
+                width="14"
+                height="16"
+                rx="2"
+                ry="2"
+                strokeWidth={1.5}
+              />
+              <path
+                strokeLinecap="round"
+                strokeWidth={1.5}
+                d="M9 8h6M9 12h6M9 16h3"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M16 16c1.2-1 1.2-3 0-4"
+              />
+            </svg>
+          </button>
+        )}
 
         {/* Contrôles de la carte */}
         <div

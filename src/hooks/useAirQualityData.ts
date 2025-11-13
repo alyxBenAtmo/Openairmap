@@ -244,13 +244,21 @@ export const useAirQualityData = ({
             }
 
             // Mettre à jour les signalements (uniquement pour SignalAir)
-            if (signalReports.length > 0 && mappedSourceCode === "signalair") {
+            if (mappedSourceCode === "signalair") {
               setReports((prevReports) => {
-                // Filtrer les anciens signalements de cette source
                 const filteredReports = prevReports.filter(
                   (report) => report.source !== mappedSourceCode
                 );
-                // Ajouter les nouveaux signalements
+                if (signalReports.length === 0) {
+                  return filteredReports;
+                }
+                return [...filteredReports, ...signalReports];
+              });
+            } else if (signalReports.length > 0) {
+              setReports((prevReports) => {
+                const filteredReports = prevReports.filter(
+                  (report) => report.source !== mappedSourceCode
+                );
                 return [...filteredReports, ...signalReports];
               });
             }

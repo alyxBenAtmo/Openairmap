@@ -77,10 +77,26 @@ export interface MeasurementDevice {
 export interface SignalAirProperties {
   signalType: string;
   signalCreatedAt: string;
+  signalDate?: string;
   signalDuration: string;
   signalHasSymptoms: string;
   signalSymptoms: string;
   signalDescription: string;
+  symptomsDetails?: string;
+  nuisanceOrigin?: string;
+  nuisanceOriginDescription?: string;
+  nuisanceLevel?: string;
+  industrialSource?: string;
+  city?: string;
+  cityCode?: string;
+  postalCode?: string;
+  countryCode?: string;
+  locationHint?: string;
+  groupName?: string;
+  groupId?: string;
+  declarationId?: string;
+  photoUrl?: string;
+  remarks?: string;
 }
 
 // Nouveau type pour les signalements SignalAir
@@ -99,10 +115,26 @@ export interface SignalAirReport {
   departmentId?: string;
   // Propriétés spécifiques à SignalAir
   signalCreatedAt: string;
+  signalDate?: string;
   signalDuration: string;
   signalHasSymptoms: string;
   signalSymptoms: string;
   signalDescription: string;
+  symptomsDetails?: string;
+  nuisanceOrigin?: string;
+  nuisanceOriginDescription?: string;
+  nuisanceLevel?: string;
+  industrialSource?: string;
+  city?: string;
+  cityCode?: string;
+  postalCode?: string;
+  countryCode?: string;
+  locationHint?: string;
+  groupName?: string;
+  groupId?: string;
+  declarationId?: string;
+  photoUrl?: string;
+  remarks?: string;
 }
 
 export interface WildfireReport {
