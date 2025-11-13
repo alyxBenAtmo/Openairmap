@@ -288,6 +288,7 @@ export interface SidePanelState {
   historicalData: Record<string, HistoricalDataPoint[]>;
   loading: boolean;
   error: string | null;
+  infoMessage?: string | null;
 }
 
 // Types pour le mode comparaison

@@ -53,6 +53,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
     historicalData: {},
     loading: false,
     error: null,
+    infoMessage: null,
   });
 
   const [internalPanelSize, setInternalPanelSize] =
@@ -111,6 +112,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
         historicalData: {},
         loading: false,
         error: null,
+        infoMessage: null,
       }));
 
       // Réinitialiser la taille du panel
@@ -158,7 +160,12 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
       timeRange: TimeRange,
       timeStep: string
     ) => {
-      setState((prev) => ({ ...prev, loading: true, error: null }));
+      setState((prev) => ({
+        ...prev,
+        loading: true,
+        error: null,
+        infoMessage: null,
+      }));
 
       try {
         const { startDate, endDate } = getDateRange(timeRange);
@@ -176,10 +183,18 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
           newHistoricalData[pollutant] = data;
         }
 
+        const hasData = Object.values(newHistoricalData).some(
+          (dataPoints) => dataPoints && dataPoints.length > 0
+        );
+
         setState((prev) => ({
           ...prev,
           historicalData: newHistoricalData,
           loading: false,
+          error: null,
+          infoMessage: hasData
+            ? null
+            : "Aucune mesure disponible sur la période sélectionnée. Essayez d'élargir la période ou vérifiez si le capteur a changé de localisation.",
         }));
       } catch (error) {
         console.error(
@@ -190,6 +205,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
           ...prev,
           loading: false,
           error: "Erreur lors du chargement des données historiques",
+          infoMessage: null,
         }));
       }
     },
@@ -340,6 +356,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
 
   // Fonction pour formater le pas de temps en secondes vers un format lisible
   const formatTimeStep = (seconds: number | null): string => {
+    console.log("seconds", seconds);
     if (seconds === null) return "Scan";
 
     if (seconds < 60) {
@@ -686,6 +703,25 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                     </div>
                   )}
                 </div>
+
+                {state.infoMessage && (
+                  <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-blue-50 border border-blue-100 rounded-lg text-xs sm:text-sm text-blue-800 flex items-start space-x-2">
+                    <svg
+                      className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0 mt-0.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <span className="leading-normal">{state.infoMessage}</span>
+                  </div>
+                )}
 
                 {/* Graphique */}
                 <div className="h-80 sm:h-72 md:h-80 lg:h-96 mb-2 sm:mb-3 md:mb-4">

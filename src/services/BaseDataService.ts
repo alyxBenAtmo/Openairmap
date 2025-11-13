@@ -76,6 +76,20 @@ export abstract class BaseDataService implements DataService {
         );
       }
 
+      // Certaines API renvoient 204 ou un corps vide lorsqu'aucune donnée n'est disponible
+      if (response.status === 204) {
+        return null;
+      }
+
+      const contentLength = response.headers.get("content-length");
+      if (
+        response.status === 200 &&
+        contentLength !== null &&
+        Number(contentLength) === 0
+      ) {
+        return null;
+      }
+
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
         return await response.json();
@@ -84,6 +98,11 @@ export abstract class BaseDataService implements DataService {
       } else {
         // Essayer de parser comme JSON même si le content-type n'est pas exact
         const text = await response.text();
+
+        if (!text) {
+          return null;
+        }
+
         try {
           return JSON.parse(text);
         } catch {

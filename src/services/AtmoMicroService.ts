@@ -233,7 +233,7 @@ export class AtmoMicroService extends BaseDataService {
       { aggregation: string; delais: number }
     > = {
       instantane: { aggregation: "brute", delais: 181 }, // Scan -> brute avec délai 181 minutes
-      deuxMin: { aggregation: "brute", delais: 181 }, // ≤ 2 minutes -> brute avec délai 181 minutes
+      deuxMin: { aggregation: "brute", delais: 3 }, // ≤ 2 minutes -> brute avec délai 181 minutes
       quartHeure: { aggregation: "quart-horaire", delais: 19 }, // 15 minutes -> quart-horaire avec délai 19 minutes
       heure: { aggregation: "horaire", delais: 64 }, // Heure -> horaire avec délai 64 minutes
       // jour: Pas supporté par AtmoMicro
