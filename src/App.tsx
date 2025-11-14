@@ -336,7 +336,15 @@ const App: React.FC = () => {
                 selectedTimeStep={selectedTimeStep}
               />
             </div>
+            <div className="flex items-center space-x-4 border-gray-300 pl-2 border-l">
 
+              <ModelingLayerControl
+                  currentModelingLayer={currentModelingLayer}
+                  onModelingLayerChange={setCurrentModelingLayer}
+                  selectedPollutant={selectedPollutant}
+                  selectedTimeStep={selectedTimeStep}
+                />
+            </div>
             <div className="flex items-center space-x-3 border-l border-r border-gray-300 pl-2 pr-2">
               
               <HistoricalModeButton
@@ -344,12 +352,7 @@ const App: React.FC = () => {
                 onToggle={toggleHistoricalMode}
               />
             </div>
-            <ModelingLayerControl
-                currentModelingLayer={currentModelingLayer}
-                onModelingLayerChange={setCurrentModelingLayer}
-                selectedPollutant={selectedPollutant}
-                selectedTimeStep={selectedTimeStep}
-              />
+
             <button
               type="button"
               onClick={() => setIsInfoModalOpen(true)}
