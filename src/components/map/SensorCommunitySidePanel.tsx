@@ -270,7 +270,7 @@ const SensorCommunitySidePanel: React.FC<SensorCommunitySidePanelProps> = ({
                       { key: "3h", label: "3h", active: false },
                       { key: "24h", label: "24h", active: true },
                       { key: "7d", label: "7j", active: false },
-                      { key: "1y", label: "1an", active: false },
+                      { key: "30d", label: "30j", active: false },
                     ].map(({ key, label, active }) => (
                       <button
                         key={key}

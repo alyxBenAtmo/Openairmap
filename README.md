@@ -23,7 +23,7 @@ Une application React modulaire et responsive pour afficher des appareils de mes
 ### 📊 **Side Panels Spécialisés**
 
 - **MobileAir Panels** : Sélection d'un capteur et visualisation des différentes sessions de mesure de capteurs mobiles
-- **Périodes personnalisées** : 3h, 24h, 7j, 1an + sélecteur de dates personnalisées
+- **Périodes personnalisées** : 3h, 24h, 7j, 30j + sélecteur de dates personnalisées
 - **Redimensionnement** : Normal, plein écran, masqué
 - **🆕 Intercomparaison Multi-Sources** : Comparaison de jusqu'à 5 stations (AtmoRef/AtmoMicro) sur un même graphique
   - Détection automatique des polluants communs
@@ -237,7 +237,7 @@ L'application dispose d'un système d'auto-refresh intelligent qui s'adapte auto
 - **Affichage des informations de station** : Détails complets de la station sélectionnée (à venir)
 - **Graphiques historiques** : Visualisation des données sur différentes périodes
 - **Sélection de polluants** : Choix des polluants à afficher dans les graphiques
-- **Contrôles de période** : Sélection de la période d'analyse (3h, 24h, 7j, 1an)
+- **Contrôles de période** : Sélection de la période d'analyse (3h, 24h, 7j, 30j)
 - **Gestion des tailles** : Panel normal, plein écran ou masqué
 - **Support complet** : Intégration complète avec les données historiques AtmoRef
 
@@ -599,7 +599,7 @@ Le mode intercomparaison permet de **comparer jusqu'à 5 stations** (AtmoRef et/
    - Type de station : "Station de référence" (AtmoRef) ou "Microcapteur" (AtmoMicro)
 
 3. **Contrôles temporels** :
-   - **Période** : 3h, 24h, 7j, 1an, ou personnalisée
+   - **Période** : 3h, 24h, 7j, 30j, ou personnalisée
    - **Pas de temps** : Scan, 15min, 1h, 1j
 
 #### **Mode Scan - Résolutions variables**
@@ -645,7 +645,7 @@ Le mode intercomparaison permet de **comparer jusqu'à 5 stations** (AtmoRef et/
 ### Contrôles Communs des Side Panels
 
 - **Sélection de polluants** : Cochez/décochez les polluants à afficher
-- **Périodes** : Utilisez les boutons 3h, 24h, 7j, 1an pour changer la période
+- **Périodes** : Utilisez les boutons 3h, 24h, 7j, 30j pour changer la période
 - **Périodes personnalisées** : Sélecteur de dates pour analyses sur mesure
 - **Pas de temps** : Sélectionnez la granularité des données
 - **Redimensionnement** : Utilisez les boutons pour changer la taille du panel

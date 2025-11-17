@@ -272,7 +272,7 @@ export interface ChartControls {
   selectedPollutants: string[];
   timeRange: {
     type: "preset" | "custom";
-    preset?: "3h" | "24h" | "7d" | "1y";
+    preset?: "3h" | "24h" | "7d" | "30d";
     custom?: {
       startDate: string;
       endDate: string;
@@ -299,7 +299,7 @@ export interface ComparisonState {
   selectedPollutant: string;
   timeRange: {
     type: "preset" | "custom";
-    preset?: "3h" | "24h" | "7d" | "1y";
+    preset?: "3h" | "24h" | "7d" | "30d";
     custom?: {
       startDate: string;
       endDate: string;

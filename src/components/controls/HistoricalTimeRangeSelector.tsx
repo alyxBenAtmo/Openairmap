@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 
 export interface TimeRange {
   type: "preset" | "custom";
-  preset?: "3h" | "24h" | "7d" | "1y";
+  preset?: "3h" | "24h" | "7d" | "30d";
   custom?: {
     startDate: string;
     endDate: string;
@@ -13,15 +13,67 @@ interface HistoricalTimeRangeSelectorProps {
   timeRange: TimeRange;
   onTimeRangeChange: (timeRange: TimeRange) => void;
   className?: string;
+  timeStep?: string; // Pas de temps actuel pour valider les limites
 }
+
+// Fonction utilitaire pour calculer la limite maximale en jours selon le pas de temps
+export const getMaxHistoryDays = (timeStep?: string): number | null => {
+  if (!timeStep) return null;
+  
+  switch (timeStep) {
+    case "instantane":
+      return 60; // 2 mois = ~60 jours
+    case "quartHeure":
+      return 180; // 6 mois = ~180 jours
+    case "heure":
+    case "jour":
+      return null; // Pas de limite
+    default:
+      return null;
+  }
+};
+
+// Fonction pour calculer le nombre de jours entre deux dates
+const getDaysDifference = (startDate: string, endDate: string): number => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const diffTime = Math.abs(end.getTime() - start.getTime());
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+};
+
+// Fonction pour calculer le nombre de jours pour un preset
+const getPresetDays = (preset: "3h" | "24h" | "7d" | "30d"): number => {
+  switch (preset) {
+    case "3h":
+      return 0.125; // ~0.125 jour
+    case "24h":
+      return 1;
+    case "7d":
+      return 7;
+    case "30d":
+      return 30;
+  }
+};
 
 const HistoricalTimeRangeSelector: React.FC<
   HistoricalTimeRangeSelectorProps
-> = ({ timeRange, onTimeRangeChange, className = "" }) => {
+> = ({ timeRange, onTimeRangeChange, className = "", timeStep }) => {
   const [isCustomOpen, setIsCustomOpen] = useState(false);
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
+  const [validationError, setValidationError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Calculer la limite maximale selon le pas de temps
+  const maxDays = useMemo(() => getMaxHistoryDays(timeStep), [timeStep]);
+  
+  // Calculer la date maximale autorisée pour la date de début
+  const maxStartDate = useMemo(() => {
+    if (!maxDays) return null;
+    const now = new Date();
+    const maxDate = new Date(now.getTime() - maxDays * 24 * 60 * 60 * 1000);
+    return maxDate.toISOString().split("T")[0];
+  }, [maxDays]);
 
   // Initialiser les dates personnalisées si elles existent
   useEffect(() => {
@@ -38,6 +90,51 @@ const HistoricalTimeRangeSelector: React.FC<
     }
   }, [timeRange]);
 
+  // Vérifier si la période actuelle est valide quand le pas de temps change
+  useEffect(() => {
+    if (!maxDays) {
+      setValidationError(null);
+      return;
+    }
+
+    // Vérifier la période actuelle
+    if (timeRange.type === "preset" && timeRange.preset) {
+      const presetDays = getPresetDays(timeRange.preset);
+      if (presetDays > maxDays) {
+        setValidationError(
+          `La période sélectionnée (${timeRange.preset}) dépasse la limite de ${maxDays} jours pour le pas de temps "${timeStep}". Elle a été ajustée automatiquement.`
+        );
+        setTimeout(() => setValidationError(null), 5000);
+      } else {
+        setValidationError(null);
+      }
+    } else if (timeRange.type === "custom" && timeRange.custom) {
+      const daysDiff = getDaysDifference(
+        timeRange.custom.startDate,
+        timeRange.custom.endDate
+      );
+      if (daysDiff > maxDays) {
+        setValidationError(
+          `La période sélectionnée (${daysDiff} jours) dépasse la limite de ${maxDays} jours pour le pas de temps "${timeStep}". Elle a été ajustée automatiquement.`
+        );
+        setTimeout(() => setValidationError(null), 5000);
+      } else {
+        // Vérifier aussi si la date de début est trop ancienne
+        const now = new Date();
+        const maxStartDate = new Date(now.getTime() - maxDays * 24 * 60 * 60 * 1000);
+        const startDate = new Date(timeRange.custom.startDate);
+        if (startDate < maxStartDate) {
+          setValidationError(
+            `La période a été ajustée à ${maxDays} jours maximum pour le pas de temps "${timeStep}".`
+          );
+          setTimeout(() => setValidationError(null), 5000);
+        } else {
+          setValidationError(null);
+        }
+      }
+    }
+  }, [timeStep, maxDays, timeRange]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -52,7 +149,21 @@ const HistoricalTimeRangeSelector: React.FC<
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handlePresetChange = (preset: "3h" | "24h" | "7d" | "1y") => {
+  // Vérifier si un preset est valide selon la limite
+  const isPresetValid = (preset: "3h" | "24h" | "7d" | "30d"): boolean => {
+    if (!maxDays) return true; // Pas de limite
+    const presetDays = getPresetDays(preset);
+    return presetDays <= maxDays;
+  };
+
+  const handlePresetChange = (preset: "3h" | "24h" | "7d" | "30d") => {
+    if (!isPresetValid(preset)) {
+      setValidationError(
+        `Cette période n'est pas disponible pour le pas de temps "${timeStep}". Limite: ${maxDays} jours.`
+      );
+      return;
+    }
+    setValidationError(null);
     onTimeRangeChange({
       type: "preset",
       preset,
@@ -74,16 +185,39 @@ const HistoricalTimeRangeSelector: React.FC<
   };
 
   const handleLoadCustomRange = () => {
-    if (customStartDate && customEndDate) {
-      onTimeRangeChange({
-        type: "custom",
-        custom: {
-          startDate: customStartDate,
-          endDate: customEndDate,
-        },
-      });
-      setIsCustomOpen(false);
+    if (!customStartDate || !customEndDate) {
+      setValidationError("Veuillez sélectionner une date de début et une date de fin");
+      return;
     }
+
+    // Vérifier la limite si elle existe
+    if (maxDays) {
+      const daysDiff = getDaysDifference(customStartDate, customEndDate);
+      if (daysDiff > maxDays) {
+        setValidationError(
+          `La période sélectionnée (${daysDiff} jours) dépasse la limite autorisée de ${maxDays} jours pour le pas de temps "${timeStep}".`
+        );
+        return;
+      }
+    }
+
+    // Vérifier que la date de début n'est pas trop ancienne
+    if (maxStartDate && customStartDate < maxStartDate) {
+      setValidationError(
+        `La date de début ne peut pas être antérieure au ${new Date(maxStartDate).toLocaleDateString("fr-FR")} pour le pas de temps "${timeStep}".`
+      );
+      return;
+    }
+
+    setValidationError(null);
+    onTimeRangeChange({
+      type: "custom",
+      custom: {
+        startDate: customStartDate,
+        endDate: customEndDate,
+      },
+    });
+    setIsCustomOpen(false);
   };
 
   const handleQuickSelect = (option: { type: "days" | "months"; value: number }) => {
@@ -108,6 +242,33 @@ const HistoricalTimeRangeSelector: React.FC<
     const startDateStr = formatDateForInput(start);
     const endDateStr = formatDateForInput(end);
 
+    // Vérifier la limite si elle existe
+    if (maxDays) {
+      const daysDiff = getDaysDifference(startDateStr, endDateStr);
+      if (daysDiff > maxDays) {
+        // Ajuster automatiquement à la limite maximale
+        const adjustedStart = new Date(end.getTime() - maxDays * 24 * 60 * 60 * 1000);
+        const adjustedStartStr = formatDateForInput(adjustedStart);
+        setCustomStartDate(adjustedStartStr);
+        setCustomEndDate(endDateStr);
+        setValidationError(
+          `La période a été ajustée à ${maxDays} jours (limite pour le pas de temps "${timeStep}").`
+        );
+        setTimeout(() => setValidationError(null), 3000);
+        
+        onTimeRangeChange({
+          type: "custom",
+          custom: {
+            startDate: adjustedStartStr,
+            endDate: endDateStr,
+          },
+        });
+        setIsCustomOpen(false);
+        return;
+      }
+    }
+
+    setValidationError(null);
     setCustomStartDate(startDateStr);
     setCustomEndDate(endDateStr);
 
@@ -140,7 +301,7 @@ const HistoricalTimeRangeSelector: React.FC<
       "3h": "3h",
       "24h": "24h",
       "7d": "7j",
-      "1y": "1an",
+      "30d": "30j",
     };
 
     return presetLabels[timeRange.preset || "24h"] || "24h";
@@ -173,23 +334,52 @@ const HistoricalTimeRangeSelector: React.FC<
           { key: "3h", label: "3h" },
           { key: "24h", label: "24h" },
           { key: "7d", label: "7j" },
-          { key: "1y", label: "1an" },
-        ].map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() =>
-              handlePresetChange(key as "3h" | "24h" | "7d" | "1y")
-            }
-            className={`px-1.5 py-1 text-xs rounded-md transition-all duration-200 ${
-              timeRange.type === "preset" && timeRange.preset === key
-                ? "bg-[#4271B3] text-white shadow-sm"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+          { key: "30d", label: "30j" },
+        ].map(({ key, label }) => {
+          const isValid = isPresetValid(key as "3h" | "24h" | "7d" | "30d");
+          const isSelected = timeRange.type === "preset" && timeRange.preset === key;
+          
+          return (
+            <button
+              key={key}
+              onClick={() =>
+                handlePresetChange(key as "3h" | "24h" | "7d" | "30d")
+              }
+              disabled={!isValid}
+              title={
+                !isValid && maxDays
+                  ? `Limité à ${maxDays} jours pour ce pas de temps`
+                  : undefined
+              }
+              className={`px-1.5 py-1 text-xs rounded-md transition-all duration-200 ${
+                !isValid
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed opacity-60"
+                  : isSelected
+                  ? "bg-[#4271B3] text-white shadow-sm"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
+      
+      {/* Message d'avertissement sur les limites */}
+      {maxDays && (
+        <div className="mb-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
+          <p className="text-xs text-amber-700">
+            <span className="font-medium">Limite :</span> Maximum {maxDays} jours pour ce pas de temps
+          </p>
+        </div>
+      )}
+      
+      {/* Message d'erreur de validation */}
+      {validationError && (
+        <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-xs text-red-700">{validationError}</p>
+        </div>
+      )}
 
       {/* Bouton pour la sélection personnalisée */}
       <button
@@ -247,17 +437,37 @@ const HistoricalTimeRangeSelector: React.FC<
               <div className="grid grid-cols-1 gap-1">
                 <button
                   type="button"
-                  onClick={() => handleQuickSelect({ type: "days", value: 30 })}
-                  className="text-left px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 rounded transition-colors"
+                  onClick={() => handleQuickSelect({ type: "months", value: 3 })}
+                  className={`text-left px-2 py-1 text-xs rounded transition-colors ${
+                    maxDays && 90 > maxDays
+                      ? "text-gray-400 cursor-not-allowed opacity-50"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                  disabled={maxDays !== null && 90 > maxDays}
+                  title={
+                    maxDays && 90 > maxDays
+                      ? `Limité à ${maxDays} jours pour ce pas de temps`
+                      : undefined
+                  }
                 >
-                  30 derniers jours
+                  3 derniers mois
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickSelect({ type: "months", value: 3 })}
-                  className="text-left px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 rounded transition-colors"
+                  onClick={() => handleQuickSelect({ type: "days", value: 365 })}
+                  className={`text-left px-2 py-1 text-xs rounded transition-colors ${
+                    maxDays && 365 > maxDays
+                      ? "text-gray-400 cursor-not-allowed opacity-50"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                  disabled={maxDays !== null && 365 > maxDays}
+                  title={
+                    maxDays && 365 > maxDays
+                      ? `Limité à ${maxDays} jours pour ce pas de temps`
+                      : undefined
+                  }
                 >
-                  3 derniers mois
+                  365 derniers jours
                 </button>
               </div>
             </div>
@@ -285,7 +495,13 @@ const HistoricalTimeRangeSelector: React.FC<
                     max={
                       customEndDate || new Date().toISOString().split("T")[0]
                     }
+                    min={maxStartDate || undefined}
                   />
+                  {maxStartDate && (
+                    <p className="text-[10px] text-gray-500 mt-1">
+                      Date minimale : {new Date(maxStartDate).toLocaleDateString("fr-FR")}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">

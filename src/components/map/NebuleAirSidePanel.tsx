@@ -11,6 +11,7 @@ import { NebuleAirService } from "../../services/NebuleAirService";
 import HistoricalChart from "./HistoricalChart";
 import HistoricalTimeRangeSelector, {
   TimeRange,
+  getMaxHistoryDays,
 } from "../controls/HistoricalTimeRangeSelector";
 
 const NEBULEAIR_TIMESTEP_OPTIONS = [
@@ -345,8 +346,8 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
       case "7d":
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         break;
-      case "1y":
-        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+      case "30d":
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         break;
       default:
         startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -406,25 +407,135 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
       stackTrace: new Error().stack?.split("\n").slice(1, 4).join("\n"),
     });
 
-    setState((prev) => ({
-      ...prev,
-      chartControls: {
-        ...prev.chartControls,
+    setState((prev) => {
+      // Vérifier et ajuster la période si nécessaire selon le pas de temps actuel
+      const { adjustedRange: validatedTimeRange, wasAdjusted } = adjustTimeRangeIfNeeded(
         timeRange,
-      },
-    }));
+        prev.chartControls.timeStep
+      );
 
-    if (selectedStation) {
-      console.log(
-        "🚀 [NebuleAirSidePanel] Appel loadHistoricalData depuis handleTimeRangeChange"
+      // Si la période a été ajustée, afficher un message d'information
+      let infoMessage: string | null = null;
+      if (wasAdjusted) {
+        const maxDays = getMaxHistoryDays(prev.chartControls.timeStep);
+        if (maxDays) {
+          infoMessage = `La période a été automatiquement ajustée à ${maxDays} jours maximum pour le pas de temps sélectionné.`;
+          // Faire disparaître le message après 5 secondes
+          setTimeout(() => {
+            setState((current) => ({
+              ...current,
+              infoMessage: null,
+            }));
+          }, 5000);
+        }
+      }
+
+      // Charger les données avec la période validée
+      if (selectedStation) {
+        console.log(
+          "🚀 [NebuleAirSidePanel] Appel loadHistoricalData depuis handleTimeRangeChange"
+        );
+        loadHistoricalData(
+          selectedStation,
+          prev.chartControls.selectedPollutants,
+          validatedTimeRange,
+          prev.chartControls.timeStep
+        );
+      }
+
+      return {
+        ...prev,
+        chartControls: {
+          ...prev.chartControls,
+          timeRange: validatedTimeRange,
+        },
+        infoMessage,
+      };
+    });
+  };
+
+  // Vérifier si un pas de temps est valide selon la période actuelle
+  const isTimeStepValidForCurrentRange = (timeStep: string): boolean => {
+    const maxDays = getMaxHistoryDays(timeStep);
+    if (!maxDays) return true; // Pas de limite, toujours valide
+
+    const timeRange = state.chartControls.timeRange;
+    let currentDays: number;
+
+    if (timeRange.type === "preset" && timeRange.preset) {
+      const presetDays = {
+        "3h": 0.125,
+        "24h": 1,
+        "7d": 7,
+        "30d": 30,
+      }[timeRange.preset];
+      currentDays = presetDays;
+    } else if (timeRange.type === "custom" && timeRange.custom) {
+      const startDate = new Date(timeRange.custom.startDate);
+      const endDate = new Date(timeRange.custom.endDate);
+      currentDays = Math.ceil(
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
       );
-      loadHistoricalData(
-        selectedStation,
-        state.chartControls.selectedPollutants,
-        timeRange,
-        state.chartControls.timeStep
-      );
+    } else {
+      return true; // Pas de période définie, considérer comme valide
     }
+
+    return currentDays <= maxDays;
+  };
+
+  // Ajuster automatiquement la période si elle dépasse la limite du pas de temps
+  const adjustTimeRangeIfNeeded = (
+    timeRange: TimeRange,
+    timeStep: string
+  ): { adjustedRange: TimeRange; wasAdjusted: boolean } => {
+    const maxDays = getMaxHistoryDays(timeStep);
+    if (!maxDays) return { adjustedRange: timeRange, wasAdjusted: false };
+
+    const now = new Date();
+    let adjustedRange = { ...timeRange };
+    let wasAdjusted = false;
+
+    if (timeRange.type === "preset" && timeRange.preset) {
+      const presetDays = {
+        "3h": 0.125,
+        "24h": 1,
+        "7d": 7,
+        "30d": 30,
+      }[timeRange.preset];
+
+      if (presetDays > maxDays) {
+        // Convertir en période personnalisée limitée
+        const maxStartDate = new Date(now.getTime() - maxDays * 24 * 60 * 60 * 1000);
+        adjustedRange = {
+          type: "custom",
+          custom: {
+            startDate: maxStartDate.toISOString().split("T")[0],
+            endDate: now.toISOString().split("T")[0],
+          },
+        };
+        wasAdjusted = true;
+      }
+    } else if (timeRange.type === "custom" && timeRange.custom) {
+      const startDate = new Date(timeRange.custom.startDate);
+      const endDate = new Date(timeRange.custom.endDate);
+      const daysDiff = Math.ceil(
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      if (daysDiff > maxDays) {
+        const maxStartDate = new Date(endDate.getTime() - maxDays * 24 * 60 * 60 * 1000);
+        adjustedRange = {
+          type: "custom",
+          custom: {
+            startDate: maxStartDate.toISOString().split("T")[0],
+            endDate: timeRange.custom.endDate,
+          },
+        };
+        wasAdjusted = true;
+      }
+    }
+
+    return { adjustedRange, wasAdjusted };
   };
 
   const supportedTimeSteps = useMemo(() => {
@@ -461,25 +572,55 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
       return;
     }
 
-    setState((prev) => ({
-      ...prev,
-      chartControls: {
-        ...prev.chartControls,
-        timeStep,
-      },
-    }));
-
-    if (selectedStation) {
-      console.log(
-        "🚀 [NebuleAirSidePanel] Appel loadHistoricalData depuis handleTimeStepChange"
-      );
-      loadHistoricalData(
-        selectedStation,
-        state.chartControls.selectedPollutants,
-        state.chartControls.timeRange,
+    setState((prev) => {
+      // Ajuster la période si nécessaire
+      const { adjustedRange: adjustedTimeRange, wasAdjusted } = adjustTimeRangeIfNeeded(
+        prev.chartControls.timeRange,
         timeStep
       );
-    }
+
+      // Si la période a été ajustée, afficher un message d'information
+      let infoMessage: string | null = null;
+      if (wasAdjusted) {
+        const maxDays = getMaxHistoryDays(timeStep);
+        if (maxDays) {
+          infoMessage = `La période a été automatiquement ajustée à ${maxDays} jours maximum pour le pas de temps sélectionné.`;
+          // Faire disparaître le message après 5 secondes
+          setTimeout(() => {
+            setState((current) => ({
+              ...current,
+              infoMessage: null,
+            }));
+          }, 5000);
+        }
+        console.log(
+          `⚠️ [NebuleAirSidePanel] Période ajustée automatiquement de ${prev.chartControls.timeRange} à ${adjustedTimeRange} pour le pas de temps ${timeStep}`
+        );
+      }
+
+      // Charger les données avec la période ajustée
+      if (selectedStation) {
+        console.log(
+          "🚀 [NebuleAirSidePanel] Appel loadHistoricalData depuis handleTimeStepChange"
+        );
+        loadHistoricalData(
+          selectedStation,
+          prev.chartControls.selectedPollutants,
+          adjustedTimeRange,
+          timeStep
+        );
+      }
+
+      return {
+        ...prev,
+        chartControls: {
+          ...prev.chartControls,
+          timeStep,
+          timeRange: adjustedTimeRange,
+        },
+        infoMessage,
+      };
+    });
   };
 
   const handlePanelSizeChange = (newSize: PanelSize) => {
@@ -747,6 +888,26 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                   )}
                 </div>
 
+                {/* Message d'information */}
+                {state.infoMessage && (
+                  <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-amber-50 border border-amber-200 rounded-lg text-xs sm:text-sm text-amber-800 flex items-start space-x-2">
+                    <svg
+                      className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 flex-shrink-0 mt-0.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                      />
+                    </svg>
+                    <span className="leading-normal">{state.infoMessage}</span>
+                  </div>
+                )}
+
                 {/* Graphique */}
                 <div className="h-80 sm:h-96 md:h-[28rem] mb-3 sm:mb-4">
                   <HistoricalChart
@@ -764,6 +925,7 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                     <HistoricalTimeRangeSelector
                       timeRange={state.chartControls.timeRange}
                       onTimeRangeChange={handleTimeRangeChange}
+                      timeStep={state.chartControls.timeStep}
                     />
                   </div>
 
@@ -794,33 +956,79 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                         { key: "heure", label: "1h" },
                         { key: "jour", label: "1j" },
                       ].map(({ key, label }) => {
-                        const isDisabled = !supportedTimeSteps.includes(key);
-                        const isSelected =
-                          state.chartControls.timeStep === key;
+                        const isDisabledBySupport = !supportedTimeSteps.includes(key);
+                        const isDisabledByRange = !isTimeStepValidForCurrentRange(key);
+                        const isDisabled = isDisabledBySupport || isDisabledByRange;
+                        const isSelected = state.chartControls.timeStep === key;
+                        const maxDays = getMaxHistoryDays(key);
+
+                        let tooltip = label;
+                        if (isDisabledByRange && maxDays) {
+                          tooltip = `Limité à ${maxDays} jours pour ce pas de temps. Réduisez la période historique.`;
+                        } else if (isDisabledBySupport) {
+                          tooltip = "Pas de temps non supporté pour les polluants sélectionnés";
+                        }
 
                         return (
-                        <button
-                          key={key}
-                          onClick={() => handleTimeStepChange(key)}
-                          disabled={isDisabled}
-                          className={`px-1.5 py-1 text-xs rounded-md transition-all duration-200 ${
-                            isDisabled
-                              ? "bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
-                              : isSelected
-                              ? "bg-[#4271B3] text-white shadow-sm"
-                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          }`}
-                        >
-                          {label}
-                        </button>
+                          <button
+                            key={key}
+                            onClick={() => !isDisabled && handleTimeStepChange(key)}
+                            disabled={isDisabled}
+                            title={tooltip}
+                            className={`px-1.5 py-1 text-xs rounded-md transition-all duration-200 ${
+                              isDisabled
+                                ? "bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
+                                : isSelected
+                                ? "bg-[#4271B3] text-white shadow-sm"
+                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            }`}
+                          >
+                            {label}
+                          </button>
                         );
                       })}
                     </div>
+                    
+                    {/* Message explicatif si des boutons sont désactivés à cause de la période */}
+                    {(() => {
+                      const disabledByRange = [
+                        { key: "instantane", label: "Scan" },
+                        { key: "quartHeure", label: "15min" },
+                        { key: "heure", label: "1h" },
+                        { key: "jour", label: "1j" },
+                      ].filter(({ key }) => {
+                        const isDisabledBySupport = !supportedTimeSteps.includes(key);
+                        const isDisabledByRange = !isTimeStepValidForCurrentRange(key);
+                        // On ne compte que ceux désactivés par la période, pas par le support
+                        return !isDisabledBySupport && isDisabledByRange;
+                      });
+
+                      if (disabledByRange.length > 0) {
+                        const timeStepLabels = disabledByRange
+                          .map(({ key, label }) => {
+                            const maxDays = getMaxHistoryDays(key);
+                            if (!maxDays) return null;
+                            const daysText = maxDays === 60 ? "2 mois" : maxDays === 180 ? "6 mois" : `${maxDays} jours`;
+                            return `${label} (max ${daysText})`;
+                          })
+                          .filter(Boolean);
+
+                        return (
+                          <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
+                            <p className="text-[11px] sm:text-xs text-amber-700">
+                              <span className="font-medium">Limitation :</span> Les pas de temps {timeStepLabels.join(" et ")} sont désactivés car la période sélectionnée dépasse leur limite. Réduisez la période historique pour les activer.
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                    
                     {hasRestrictedTimeSteps && restrictedPollutants.length > 0 && (
                       <p className="mt-2 text-[11px] sm:text-xs text-gray-500">
                         {
                           restrictedPollutants.includes("bruit")
-                            ? "Le bruit n’est disponible qu’en mode Scan (≤2 min), les autres pas de temps sont désactivés."
+                            ? "Le bruit n'est disponible qu'en mode Scan (≤2 min), les autres pas de temps sont désactivés."
                             : "Certains polluants sélectionnés ne sont pas disponibles pour tous les pas de temps."
                         }
                       </p>

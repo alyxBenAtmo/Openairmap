@@ -12,6 +12,7 @@ import { getSensorModelImage } from "../../constants/sensorModels";
 import HistoricalChart from "./HistoricalChart";
 import HistoricalTimeRangeSelector, {
   TimeRange,
+  getMaxHistoryDays,
 } from "../controls/HistoricalTimeRangeSelector";
 
 interface MicroSidePanelProps {
@@ -244,8 +245,8 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
       case "7d":
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         break;
-      case "1y":
-        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+      case "30d":
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         break;
       default:
         startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -299,41 +300,178 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
   };
 
   const handleTimeRangeChange = (timeRange: TimeRange) => {
-    setState((prev) => ({
-      ...prev,
-      chartControls: {
-        ...prev.chartControls,
+    setState((prev) => {
+      // Vérifier et ajuster la période si nécessaire selon le pas de temps actuel
+      const { adjustedRange: validatedTimeRange, wasAdjusted } = adjustTimeRangeIfNeeded(
         timeRange,
-      },
-    }));
-
-    if (selectedStation) {
-      loadHistoricalData(
-        selectedStation,
-        state.chartControls.selectedPollutants,
-        timeRange,
-        state.chartControls.timeStep
+        prev.chartControls.timeStep
       );
+
+      // Si la période a été ajustée, afficher un message d'information
+      let infoMessage: string | null = null;
+      if (wasAdjusted) {
+        const maxDays = getMaxHistoryDays(prev.chartControls.timeStep);
+        if (maxDays) {
+          infoMessage = `La période a été automatiquement ajustée à ${maxDays} jours maximum pour le pas de temps sélectionné.`;
+          // Faire disparaître le message après 5 secondes
+          setTimeout(() => {
+            setState((current) => ({
+              ...current,
+              infoMessage: null,
+            }));
+          }, 5000);
+        }
+      }
+
+      // Charger les données avec la période validée
+      if (selectedStation) {
+        loadHistoricalData(
+          selectedStation,
+          prev.chartControls.selectedPollutants,
+          validatedTimeRange,
+          prev.chartControls.timeStep
+        );
+      }
+
+      return {
+        ...prev,
+        chartControls: {
+          ...prev.chartControls,
+          timeRange: validatedTimeRange,
+        },
+        infoMessage,
+      };
+    });
+  };
+
+  // Vérifier si un pas de temps est valide selon la période actuelle
+  const isTimeStepValidForCurrentRange = (timeStep: string): boolean => {
+    const maxDays = getMaxHistoryDays(timeStep);
+    if (!maxDays) return true; // Pas de limite, toujours valide
+
+    const timeRange = state.chartControls.timeRange;
+    let currentDays: number;
+
+    if (timeRange.type === "preset" && timeRange.preset) {
+      const presetDays = {
+        "3h": 0.125,
+        "24h": 1,
+        "7d": 7,
+        "30d": 30,
+      }[timeRange.preset];
+      currentDays = presetDays;
+    } else if (timeRange.type === "custom" && timeRange.custom) {
+      const startDate = new Date(timeRange.custom.startDate);
+      const endDate = new Date(timeRange.custom.endDate);
+      currentDays = Math.ceil(
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+    } else {
+      return true; // Pas de période définie, considérer comme valide
     }
+
+    return currentDays <= maxDays;
+  };
+
+  // Ajuster automatiquement la période si elle dépasse la limite du pas de temps
+  const adjustTimeRangeIfNeeded = (
+    timeRange: TimeRange,
+    timeStep: string
+  ): { adjustedRange: TimeRange; wasAdjusted: boolean } => {
+    const maxDays = getMaxHistoryDays(timeStep);
+    if (!maxDays) return { adjustedRange: timeRange, wasAdjusted: false };
+
+    const now = new Date();
+    let adjustedRange = { ...timeRange };
+    let wasAdjusted = false;
+
+    if (timeRange.type === "preset" && timeRange.preset) {
+      const presetDays = {
+        "3h": 0.125,
+        "24h": 1,
+        "7d": 7,
+        "30d": 30,
+      }[timeRange.preset];
+
+      if (presetDays > maxDays) {
+        // Convertir en période personnalisée limitée
+        const maxStartDate = new Date(now.getTime() - maxDays * 24 * 60 * 60 * 1000);
+        adjustedRange = {
+          type: "custom",
+          custom: {
+            startDate: maxStartDate.toISOString().split("T")[0],
+            endDate: now.toISOString().split("T")[0],
+          },
+        };
+        wasAdjusted = true;
+      }
+    } else if (timeRange.type === "custom" && timeRange.custom) {
+      const startDate = new Date(timeRange.custom.startDate);
+      const endDate = new Date(timeRange.custom.endDate);
+      const daysDiff = Math.ceil(
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      if (daysDiff > maxDays) {
+        const maxStartDate = new Date(endDate.getTime() - maxDays * 24 * 60 * 60 * 1000);
+        adjustedRange = {
+          type: "custom",
+          custom: {
+            startDate: maxStartDate.toISOString().split("T")[0],
+            endDate: timeRange.custom.endDate,
+          },
+        };
+        wasAdjusted = true;
+      }
+    }
+
+    return { adjustedRange, wasAdjusted };
   };
 
   const handleTimeStepChange = (timeStep: string) => {
-    setState((prev) => ({
-      ...prev,
-      chartControls: {
-        ...prev.chartControls,
-        timeStep,
-      },
-    }));
-
-    if (selectedStation) {
-      loadHistoricalData(
-        selectedStation,
-        state.chartControls.selectedPollutants,
-        state.chartControls.timeRange,
+    setState((prev) => {
+      // Ajuster la période si nécessaire
+      const { adjustedRange: adjustedTimeRange, wasAdjusted } = adjustTimeRangeIfNeeded(
+        prev.chartControls.timeRange,
         timeStep
       );
-    }
+
+      // Si la période a été ajustée, afficher un message d'information
+      let infoMessage: string | null = null;
+      if (wasAdjusted) {
+        const maxDays = getMaxHistoryDays(timeStep);
+        if (maxDays) {
+          infoMessage = `La période a été automatiquement ajustée à ${maxDays} jours maximum pour le pas de temps sélectionné.`;
+          // Faire disparaître le message après 5 secondes
+          setTimeout(() => {
+            setState((current) => ({
+              ...current,
+              infoMessage: null,
+            }));
+          }, 5000);
+        }
+      }
+
+      // Charger les données avec la période ajustée
+      if (selectedStation) {
+        loadHistoricalData(
+          selectedStation,
+          prev.chartControls.selectedPollutants,
+          adjustedTimeRange,
+          timeStep
+        );
+      }
+
+      return {
+        ...prev,
+        chartControls: {
+          ...prev.chartControls,
+          timeStep,
+          timeRange: adjustedTimeRange,
+        },
+        infoMessage: infoMessage || prev.infoMessage, // Conserver le message existant si pas de nouveau message
+      };
+    });
   };
 
   const handlePanelSizeChange = (newSize: PanelSize) => {
@@ -742,6 +880,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                     <HistoricalTimeRangeSelector
                       timeRange={state.chartControls.timeRange}
                       onTimeRangeChange={handleTimeRangeChange}
+                      timeStep={state.chartControls.timeStep}
                     />
                   </div>
 
@@ -779,34 +918,76 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                         },
                         { key: "heure", label: "1h", shortLabel: "1h" },
                         { key: "jour", label: "1j", shortLabel: "1j" },
-                      ].map(({ key, label, shortLabel }) => (
-                        <button
-                          key={key}
-                          onClick={() => handleTimeStepChange(key)}
-                          className={`px-1.5 py-1 text-xs rounded-md transition-all duration-200 ${
-                            state.chartControls.timeStep === key
-                              ? "bg-[#4271B3] text-white shadow-sm"
-                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          }`}
-                          title={
-                            key === "instantane" && sensorTimeStep !== null
-                              ? formatTimeStep(sensorTimeStep)
-                              : label
-                          }
-                        >
-                          <span className="time-step-button-full">
-                            {key === "instantane" && sensorTimeStep !== null
-                              ? formatTimeStep(sensorTimeStep)
-                              : label}
-                          </span>
-                          <span className="time-step-button-short">
-                            {key === "instantane" && sensorTimeStep !== null
-                              ? formatTimeStep(sensorTimeStep)
-                              : shortLabel}
-                          </span>
-                        </button>
-                      ))}
+                      ].map(({ key, label, shortLabel }) => {
+                        const isDisabledByRange = !isTimeStepValidForCurrentRange(key);
+                        const isSelected = state.chartControls.timeStep === key;
+                        const maxDays = getMaxHistoryDays(key);
+
+                        let tooltip = key === "instantane" && sensorTimeStep !== null
+                          ? formatTimeStep(sensorTimeStep)
+                          : label;
+                        if (isDisabledByRange && maxDays) {
+                          tooltip = `Limité à ${maxDays} jours pour ce pas de temps. Réduisez la période historique.`;
+                        }
+
+                        return (
+                          <button
+                            key={key}
+                            onClick={() => !isDisabledByRange && handleTimeStepChange(key)}
+                            disabled={isDisabledByRange}
+                            className={`px-1.5 py-1 text-xs rounded-md transition-all duration-200 ${
+                              isDisabledByRange
+                                ? "bg-gray-200 text-gray-400 cursor-not-allowed opacity-60"
+                                : isSelected
+                                ? "bg-[#4271B3] text-white shadow-sm"
+                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            }`}
+                            title={tooltip}
+                          >
+                            <span className="time-step-button-full">
+                              {key === "instantane" && sensorTimeStep !== null
+                                ? formatTimeStep(sensorTimeStep)
+                                : label}
+                            </span>
+                            <span className="time-step-button-short">
+                              {key === "instantane" && sensorTimeStep !== null
+                                ? formatTimeStep(sensorTimeStep)
+                                : shortLabel}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
+                    
+                    {/* Message explicatif si des boutons sont désactivés à cause de la période */}
+                    {(() => {
+                      const disabledByRange = [
+                        { key: "instantane", label: "Scan" },
+                        { key: "quartHeure", label: "15min" },
+                        { key: "heure", label: "1h" },
+                        { key: "jour", label: "1j" },
+                      ].filter(({ key }) => !isTimeStepValidForCurrentRange(key));
+
+                      if (disabledByRange.length > 0) {
+                        const timeStepLabels = disabledByRange
+                          .map(({ key, label }) => {
+                            const maxDays = getMaxHistoryDays(key);
+                            if (!maxDays) return null;
+                            const daysText = maxDays === 60 ? "2 mois" : maxDays === 180 ? "6 mois" : `${maxDays} jours`;
+                            return `${label} (max: ${daysText})`;
+                          })
+                          .filter(Boolean);
+
+                        return (
+                          <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
+                            <p className="text-[11px] sm:text-xs text-amber-700">
+                              <span className="font-medium">Limitation :</span> Les pas de temps {timeStepLabels.join(" et ")} sont désactivés car la période sélectionnée dépasse leur limite. Réduisez la période historique pour les activer.
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </div>
               </div>

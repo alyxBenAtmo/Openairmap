@@ -553,7 +553,7 @@ export class NebuleAirService extends BaseDataService {
       }
 
       // Pour les boutons prédéfinis, toujours utiliser "now" pour stop
-      // (3h, 24h, 7d, 1y) car on veut toujours la période jusqu'au présent
+      // (3h, 24h, 7d, 30d) car on veut toujours la période jusqu'au présent
       stop = "now";
 
       // Convertir le pas de temps au format de l'API

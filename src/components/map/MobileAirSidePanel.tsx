@@ -146,8 +146,8 @@ const MobileAirSidePanel: React.FC<MobileAirSidePanelProps> = ({
       case "7d":
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         break;
-      case "1y":
-        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+      case "30d":
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         break;
       default:
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);

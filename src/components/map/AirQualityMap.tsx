@@ -271,9 +271,9 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
       setWildfireReports([]);
       setWildfireError(null);
       setWildfireLoading(false);
-      console.debug(
-        "[AirQualityMap] Couche incendies désactivée – aucun chargement effectué."
-      );
+      // console.debug(
+      //   "[AirQualityMap] Couche incendies désactivée – aucun chargement effectué."
+      // );
       return;
     }
 
@@ -1748,8 +1748,8 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
       case "7d":
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         break;
-      case "1y":
-        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+      case "30d":
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         break;
       default:
         startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
