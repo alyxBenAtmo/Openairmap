@@ -494,7 +494,6 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
 
   // Fonction pour formater le pas de temps en secondes vers un format lisible
   const formatTimeStep = (seconds: number | null): string => {
-    console.log("seconds", seconds);
     if (seconds === null) return "Scan";
 
     if (seconds < 60) {
@@ -617,7 +616,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                   {selectedStation.name}
                 </p>
                 <p className="text-xs text-gray-500 truncate">
-                  Microcapteur qualifié AtmoSud{selectedStation.address ? ` · ${selectedStation.address}` : ""}
+                  Microcapteur qualifié AtmoSud
                 </p>
               </div>
 
@@ -870,6 +869,8 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                     onHasCorrectedDataChange={handleHasCorrectedDataChange}
                     showRawData={showRawData}
                     stationInfo={selectedStation}
+                    timeStep={state.chartControls.timeStep}
+                    sensorTimeStep={sensorTimeStep}
                   />
                 </div>
 
@@ -981,7 +982,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                         return (
                           <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
                             <p className="text-[11px] sm:text-xs text-amber-700">
-                              <span className="font-medium">Limitation :</span> Les pas de temps {timeStepLabels.join(" et ")} sont désactivés car la période sélectionnée dépasse leur limite. Réduisez la période historique pour les activer.
+                              <span className="font-medium"></span> Les pas de temps {timeStepLabels.join(" et ")} sont désactivés car la période sélectionnée dépasse leur limite. Réduisez la période historique pour les activer.
                             </p>
                           </div>
                         );

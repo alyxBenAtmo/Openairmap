@@ -33,6 +33,14 @@ export const getMaxHistoryDays = (timeStep?: string): number | null => {
   }
 };
 
+// Fonction pour formater l'affichage de la limite maximale
+const formatMaxDaysDisplay = (maxDays: number): string => {
+  if (maxDays === 180) {
+    return "6 mois";
+  }
+  return `${maxDays} jours`;
+};
+
 // Fonction pour calculer le nombre de jours entre deux dates
 const getDaysDifference = (startDate: string, endDate: string): number => {
   const start = new Date(startDate);
@@ -102,7 +110,7 @@ const HistoricalTimeRangeSelector: React.FC<
       const presetDays = getPresetDays(timeRange.preset);
       if (presetDays > maxDays) {
         setValidationError(
-          `La période sélectionnée (${timeRange.preset}) dépasse la limite de ${maxDays} jours pour le pas de temps "${timeStep}". Elle a été ajustée automatiquement.`
+          `La période sélectionnée (${timeRange.preset}) dépasse la limite de ${formatMaxDaysDisplay(maxDays)} pour le pas de temps "${timeStep}". Elle a été ajustée automatiquement.`
         );
         setTimeout(() => setValidationError(null), 5000);
       } else {
@@ -115,7 +123,7 @@ const HistoricalTimeRangeSelector: React.FC<
       );
       if (daysDiff > maxDays) {
         setValidationError(
-          `La période sélectionnée (${daysDiff} jours) dépasse la limite de ${maxDays} jours pour le pas de temps "${timeStep}". Elle a été ajustée automatiquement.`
+          `La période sélectionnée (${daysDiff} jours) dépasse la limite de ${formatMaxDaysDisplay(maxDays)} pour le pas de temps "${timeStep}". Elle a été ajustée automatiquement.`
         );
         setTimeout(() => setValidationError(null), 5000);
       } else {
@@ -125,7 +133,7 @@ const HistoricalTimeRangeSelector: React.FC<
         const startDate = new Date(timeRange.custom.startDate);
         if (startDate < maxStartDate) {
           setValidationError(
-            `La période a été ajustée à ${maxDays} jours maximum pour le pas de temps "${timeStep}".`
+            `La période a été ajustée à ${formatMaxDaysDisplay(maxDays)} maximum pour le pas de temps "${timeStep}".`
           );
           setTimeout(() => setValidationError(null), 5000);
         } else {
@@ -159,7 +167,7 @@ const HistoricalTimeRangeSelector: React.FC<
   const handlePresetChange = (preset: "3h" | "24h" | "7d" | "30d") => {
     if (!isPresetValid(preset)) {
       setValidationError(
-        `Cette période n'est pas disponible pour le pas de temps "${timeStep}". Limite: ${maxDays} jours.`
+        `Cette période n'est pas disponible pour le pas de temps "${timeStep}". Limite: ${maxDays ? formatMaxDaysDisplay(maxDays) : "illimitée"}.`
       );
       return;
     }
@@ -195,7 +203,7 @@ const HistoricalTimeRangeSelector: React.FC<
       const daysDiff = getDaysDifference(customStartDate, customEndDate);
       if (daysDiff > maxDays) {
         setValidationError(
-          `La période sélectionnée (${daysDiff} jours) dépasse la limite autorisée de ${maxDays} jours pour le pas de temps "${timeStep}".`
+          `La période sélectionnée (${daysDiff} jours) dépasse la limite autorisée de ${formatMaxDaysDisplay(maxDays)} pour le pas de temps "${timeStep}".`
         );
         return;
       }
@@ -252,7 +260,7 @@ const HistoricalTimeRangeSelector: React.FC<
         setCustomStartDate(adjustedStartStr);
         setCustomEndDate(endDateStr);
         setValidationError(
-          `La période a été ajustée à ${maxDays} jours (limite pour le pas de temps "${timeStep}").`
+          `La période a été ajustée à ${formatMaxDaysDisplay(maxDays)} (limite pour le pas de temps "${timeStep}").`
         );
         setTimeout(() => setValidationError(null), 3000);
         
@@ -348,7 +356,7 @@ const HistoricalTimeRangeSelector: React.FC<
               disabled={!isValid}
               title={
                 !isValid && maxDays
-                  ? `Limité à ${maxDays} jours pour ce pas de temps`
+                  ? `Limité à ${formatMaxDaysDisplay(maxDays)} pour ce pas de temps`
                   : undefined
               }
               className={`px-1.5 py-1 text-xs rounded-md transition-all duration-200 ${
@@ -365,21 +373,7 @@ const HistoricalTimeRangeSelector: React.FC<
         })}
       </div>
       
-      {/* Message d'avertissement sur les limites */}
-      {maxDays && (
-        <div className="mb-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
-          <p className="text-xs text-amber-700">
-            <span className="font-medium">Limite :</span> Maximum {maxDays} jours pour ce pas de temps
-          </p>
-        </div>
-      )}
       
-      {/* Message d'erreur de validation */}
-      {validationError && (
-        <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-xs text-red-700">{validationError}</p>
-        </div>
-      )}
 
       {/* Bouton pour la sélection personnalisée */}
       <button
@@ -446,7 +440,7 @@ const HistoricalTimeRangeSelector: React.FC<
                   disabled={maxDays !== null && 90 > maxDays}
                   title={
                     maxDays && 90 > maxDays
-                      ? `Limité à ${maxDays} jours pour ce pas de temps`
+                      ? `Limité à ${formatMaxDaysDisplay(maxDays)} pour ce pas de temps`
                       : undefined
                   }
                 >
@@ -463,7 +457,7 @@ const HistoricalTimeRangeSelector: React.FC<
                   disabled={maxDays !== null && 365 > maxDays}
                   title={
                     maxDays && 365 > maxDays
-                      ? `Limité à ${maxDays} jours pour ce pas de temps`
+                      ? `Limité à ${formatMaxDaysDisplay(maxDays)} pour ce pas de temps`
                       : undefined
                   }
                 >
@@ -535,6 +529,21 @@ const HistoricalTimeRangeSelector: React.FC<
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {/* Message d'avertissement sur les limites */}
+      {maxDays && (
+        <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
+          <p className="text-xs text-amber-700">
+            <span className="font-medium"></span> Maximum {formatMaxDaysDisplay(maxDays)} pour ce pas de temps
+          </p>
+        </div>
+      )}
+      
+      {/* Message d'erreur de validation */}
+      {validationError && (
+        <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-xs text-red-700">{validationError}</p>
         </div>
       )}
     </div>

@@ -26,6 +26,8 @@ interface HistoricalChartProps {
   stations?: any[]; // Stations pour le mode comparaison
   showRawData?: boolean; // Contrôler l'affichage des données brutes
   stationInfo?: StationInfo | null; // Informations de la station pour les exports
+  timeStep?: string; // Pas de temps sélectionné (pour les métadonnées d'export)
+  sensorTimeStep?: number | null; // Pas de temps du capteur en secondes (pour le mode instantane)
 }
 
 interface ExportMenuProps {
@@ -180,6 +182,8 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   stations = [],
   showRawData = true,
   stationInfo = null,
+  timeStep,
+  sensorTimeStep,
 }) => {
   // État pour détecter le mode paysage sur mobile
   const [isLandscapeMobile, setIsLandscapeMobile] = useState(false);
@@ -633,14 +637,10 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
                     yAxisId={yAxisId}
                     stroke={pollutantColor}
                     strokeWidth={2}
-                    strokeDasharray="5 5" // Trait discontinu
+                    strokeDasharray="3 3" // Trait discontinu
                     dot={false}
                     activeDot={activeDotSmall}
-                    name={
-                      hasCorrectedData
-                        ? `${pollutantName} (brute)`
-                        : `${pollutantName}` 
-                    }
+                    name={`${pollutantName} (brute)`}
                     connectNulls={false}
                   />
                 )}
@@ -665,7 +665,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
                 yAxisId={yAxisId}
                 stroke={pollutantColor}
                 strokeWidth={2}
-                strokeDasharray="5 5" // Trait discontinu
+                strokeDasharray="3 3" // Trait discontinu
                 dot={false}
                 activeDot={activeDotNormal}
                 name={pollutantName}
@@ -704,7 +704,9 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
         stationInfo,
         selectedPollutants,
         source,
-        stations
+        stations,
+        timeStep,
+        sensorTimeStep
       );
     } catch (error) {
       console.error("Erreur lors de l'export PNG:", error);
@@ -733,7 +735,9 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
         source,
         stations,
         selectedPollutants,
-        stationInfo
+        stationInfo,
+        timeStep,
+        sensorTimeStep
       );
     } catch (error) {
       console.error("Erreur lors de l'export CSV:", error);
@@ -757,6 +761,35 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     // Marges normales pour les autres modes, avec espace pour le bouton burger en haut à droite
     return { top: 45, right: 30, left: 20, bottom: 5 };
   }, [isLandscapeMobile, isMobile]);
+
+  // Fonction helper pour déterminer le strokeDasharray dans la légende
+  const getStrokeDasharrayForLegend = (dataKey: string): string => {
+    // Mode comparaison : toutes les lignes sont pleines
+    if (source === "comparison") {
+      return "0";
+    }
+    
+    // Lignes avec _raw : trait discontinu
+    if (dataKey.endsWith("_raw")) {
+      return "3 3";
+    }
+    
+    // Lignes avec _corrected ou sans suffixe : dépend de la source
+    if (dataKey.endsWith("_corrected") || !dataKey.includes("_")) {
+      if (source === "atmoRef") {
+        return "0"; // AtmoRef : toujours trait plein
+      }
+      if (source === "atmoMicro" && dataKey.endsWith("_corrected")) {
+        return "0"; // AtmoMicro corrigé : trait plein
+      }
+      if (useSolidNebuleAirLines) {
+        return "0"; // NebuleAir avec flag : trait plein
+      }
+    }
+    
+    // Par défaut : trait discontinu
+    return "3 3";
+  };
 
   // Afficher un message si aucune donnée n'est disponible
   if (chartData.length === 0) {
@@ -928,7 +961,56 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
               }}
               iconSize={isMobile ? 10 : 12}
               fontSize={isMobile ? 9 : 12}
-              iconType="line"
+              content={({ payload }) => {
+                return (
+                  <ul className="recharts-default-legend" style={{ padding: 0, margin: 0, textAlign: 'center' }}>
+                    {payload?.map((entry: any, index: number) => {
+                      // Essayer de récupérer le dataKey depuis différentes propriétés possibles
+                      const dataKey = entry.dataKey || entry.payload?.dataKey || entry.value || '';
+                      const strokeDasharray = getStrokeDasharrayForLegend(dataKey);
+                      return (
+                        <li
+                          key={`item-${index}`}
+                          className="recharts-legend-item"
+                          style={{
+                            display: 'inline-block',
+                            marginRight: '10px',
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => entry.onClick?.()}
+                        >
+                          <svg
+                            className="recharts-surface"
+                            width={isMobile ? 10 : 12}
+                            height={isMobile ? 10 : 12}
+                            viewBox="0 0 12 12"
+                            style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '4px' }}
+                          >
+                            <line
+                              x1="0"
+                              y1="6"
+                              x2="12"
+                              y2="6"
+                              stroke={entry.color}
+                              strokeWidth="2"
+                              strokeDasharray={strokeDasharray}
+                            />
+                          </svg>
+                          <span
+                            className="recharts-legend-item-text"
+                            style={{
+                              color: entry.inactive ? '#ccc' : '#000',
+                              fontSize: isMobile ? 9 : 12,
+                            }}
+                          >
+                            {entry.value}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                );
+              }}
             />
 
             {/* Mode comparaison : une ligne par station */}

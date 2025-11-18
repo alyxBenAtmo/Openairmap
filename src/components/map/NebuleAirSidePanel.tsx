@@ -1016,7 +1016,7 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                         return (
                           <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
                             <p className="text-[11px] sm:text-xs text-amber-700">
-                              <span className="font-medium">Limitation :</span> Les pas de temps {timeStepLabels.join(" et ")} sont désactivés car la période sélectionnée dépasse leur limite. Réduisez la période historique pour les activer.
+                              <span className="font-medium"></span> Les pas de temps {timeStepLabels.join(" et ")} sont désactivés car la période sélectionnée dépasse leur limite. Réduisez la période historique pour les activer.
                             </p>
                           </div>
                         );

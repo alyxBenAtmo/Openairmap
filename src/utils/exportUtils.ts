@@ -8,12 +8,52 @@ import { pollutants } from "../constants/pollutants";
 import { StationInfo } from "../types";
 
 /**
+ * Formate le pas de temps pour l'affichage
+ * @param timeStep - Code du pas de temps (instantane, quartHeure, heure, jour)
+ * @param sensorTimeStep - Pas de temps du capteur en secondes (optionnel, pour le mode instantane)
+ * @returns string - Format lisible du pas de temps
+ */
+const formatTimeStepForExport = (timeStep?: string, sensorTimeStep?: number | null): string => {
+  if (!timeStep) return "";
+  
+  switch (timeStep) {
+    case "instantane":
+      if (sensorTimeStep !== null && sensorTimeStep !== undefined) {
+        if (sensorTimeStep < 60) {
+          return `Scan: ${sensorTimeStep}s`;
+        } else if (sensorTimeStep < 3600) {
+          const minutes = Math.round(sensorTimeStep / 60);
+          return `Scan: ${minutes}min`;
+        } else if (sensorTimeStep < 86400) {
+          const hours = Math.round(sensorTimeStep / 3600);
+          return `Scan: ${hours}h`;
+        } else {
+          const days = Math.round(sensorTimeStep / 86400);
+          return `Scan: ${days}j`;
+        }
+      }
+      return "Scan";
+    case "quartHeure":
+      return "15min";
+    case "heure":
+      return "1h";
+    case "jour":
+      return "1j";
+    default:
+      return timeStep;
+  }
+};
+
+/**
  * Exporte un graphique Recharts en image PNG
  * @param chartRef - Référence vers le composant ResponsiveContainer
  * @param filename - Nom du fichier (sans extension)
  * @param stationInfo - Informations de la station (optionnel)
  * @param selectedPollutants - Polluants sélectionnés (optionnel)
  * @param source - Source des données (optionnel)
+ * @param stations - Stations pour le mode comparaison (optionnel)
+ * @param timeStep - Pas de temps sélectionné (optionnel)
+ * @param sensorTimeStep - Pas de temps du capteur en secondes (optionnel, pour le mode instantane)
  * @returns Promise<void>
  */
 export const exportChartAsPNG = async (
@@ -22,7 +62,9 @@ export const exportChartAsPNG = async (
   stationInfo: StationInfo | null = null,
   selectedPollutants: string[] = [],
   source: string = "",
-  stations: any[] = []
+  stations: any[] = [],
+  timeStep?: string,
+  sensorTimeStep?: number | null
 ): Promise<void> => {
   if (!chartRef.current) {
     throw new Error("Référence du graphique non disponible");
@@ -94,13 +136,11 @@ export const exportChartAsPNG = async (
     let paddingTop = 20;
     if (stationInfo) {
       // Estimer la hauteur nécessaire (approximatif)
-      // Titre: 1 ligne (20px) + espace (25px)
-      let estimatedLines = 2; // Titre + espace
-      if (stationInfo.address) estimatedLines += 1;
-      if (selectedPollutants.length > 0) estimatedLines += 1;
-      if (stationInfo.sensorModel) estimatedLines += 1;
-      estimatedLines += 1; // Date d'export
-      paddingTop = estimatedLines * 25 + 30; // Marge de sécurité
+      // Nom appareil: 1 ligne (30px) + espace
+      let estimatedLines = 1; // Nom de l'appareil
+      if (stationInfo.sensorModel) estimatedLines += 1; // Modèle
+      if (timeStep) estimatedLines += 1; // Pas de temps
+      paddingTop = estimatedLines * 30 + 40; // Marge de sécurité
     } else if (isComparisonMode) {
       // Mode comparaison : titre + polluant + liste des stations + date
       let estimatedLines = 2; // Titre + espace
@@ -123,63 +163,40 @@ export const exportChartAsPNG = async (
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
 
-    // Fonction pour découper le texte en plusieurs lignes si nécessaire
-    const drawText = (text: string, x: number, y: number, maxWidth: number): number => {
-      const words = text.split(" ");
-      let line = "";
-      let currentY = y;
-      
-      for (let i = 0; i < words.length; i++) {
-        const testLine = line + words[i] + " ";
-        const metrics = ctx.measureText(testLine);
-        
-        if (metrics.width > maxWidth && i > 0) {
-          ctx.fillText(line, x, currentY);
-          line = words[i] + " ";
-          currentY += 20;
-        } else {
-          line = testLine;
-        }
-      }
-      ctx.fillText(line, x, currentY);
-      return currentY + 25;
+    // Fonction pour dessiner du texte centré
+    const drawCenteredText = (text: string, y: number, fontSize: string = "16px", isBold: boolean = false): number => {
+      ctx.font = isBold ? `bold ${fontSize} Arial, sans-serif` : `${fontSize} Arial, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText(text, finalCanvas.width / 2, y);
+      return y + (isBold ? 30 : 25);
     };
 
-    // Ajouter le titre et les métadonnées si disponibles
+    // Ajouter les métadonnées centrées au-dessus du graphique
     if (stationInfo) {
       ctx.fillStyle = "#000000";
-      ctx.font = "bold 20px Arial, sans-serif";
       
-      const maxTextWidth = finalCanvas.width - paddingLeft - paddingRight;
+      let yOffset = 30;
       
-      // Titre : nom de la station
-      let yOffset = drawText(stationInfo.name, paddingLeft, 30, maxTextWidth);
+      // Nom de l'appareil (en gras)
+      yOffset = drawCenteredText(stationInfo.name, yOffset, "18px", true);
       
-      // Informations supplémentaires
-      ctx.font = "14px Arial, sans-serif";
-      
-      if (stationInfo.address) {
-        yOffset = drawText(`Adresse: ${stationInfo.address}`, paddingLeft, yOffset, maxTextWidth);
-      }
-      
-      if (selectedPollutants.length > 0) {
-        const pollutantNames = selectedPollutants.map(
-          (p) => pollutants[p]?.name || p
-        ).join(", ");
-        yOffset = drawText(`Polluant(s): ${pollutantNames}`, paddingLeft, yOffset, maxTextWidth);
-      }
-      
+      // Modèle du capteur (si disponible)
       if (stationInfo.sensorModel) {
-        yOffset = drawText(`Modèle capteur: ${stationInfo.sensorModel}`, paddingLeft, yOffset, maxTextWidth);
+        yOffset = drawCenteredText(`Modèle: ${stationInfo.sensorModel}`, yOffset, "14px", false);
       }
       
-      const now = new Date();
-      drawText(
-        `Exporté le: ${now.toLocaleDateString("fr-FR")} à ${now.toLocaleTimeString("fr-FR")}`,
-        paddingLeft,
-        yOffset,
-        maxTextWidth
-      );
+      // Pas de temps (si disponible)
+      if (timeStep) {
+        const formattedTimeStep = formatTimeStepForExport(timeStep, sensorTimeStep);
+        if (formattedTimeStep) {
+          yOffset = drawCenteredText(`Pas de temps: ${formattedTimeStep}`, yOffset, "14px", false);
+        }
+      }
+      
+      // Réinitialiser l'alignement pour le reste du code
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
     } else if (isComparisonMode) {
       // Mode comparaison : afficher les informations de comparaison
       ctx.fillStyle = "#000000";
@@ -242,6 +259,8 @@ export const exportChartAsPNG = async (
  * @param stations - Stations (pour le mode comparaison)
  * @param selectedPollutants - Polluants sélectionnés
  * @param stationInfo - Informations de la station (optionnel)
+ * @param timeStep - Pas de temps sélectionné (optionnel)
+ * @param sensorTimeStep - Pas de temps du capteur en secondes (optionnel, pour le mode instantane)
  * @returns Promise<void>
  */
 export const exportDataAsCSV = (
@@ -250,7 +269,9 @@ export const exportDataAsCSV = (
   source: string = "",
   stations: any[] = [],
   selectedPollutants: string[] = [],
-  stationInfo: StationInfo | null = null
+  stationInfo: StationInfo | null = null,
+  timeStep?: string,
+  sensorTimeStep?: number | null
 ): void => {
   if (!data || data.length === 0) {
     throw new Error("Aucune donnée à exporter");
@@ -262,23 +283,22 @@ export const exportDataAsCSV = (
     const isComparisonMode = source === "comparison" && stations.length > 0;
     
     if (stationInfo) {
-      metadataLines.push(`Station: ${stationInfo.name}`);
-      if (stationInfo.address) {
-        metadataLines.push(`Adresse: ${stationInfo.address}`);
-      }
-      if (selectedPollutants.length > 0) {
-        const pollutantNames = selectedPollutants.map(
-          (p) => pollutants[p]?.name || p
-        ).join(", ");
-        metadataLines.push(`Polluant(s): ${pollutantNames}`);
-      }
+      // Nom de l'appareil
+      metadataLines.push(`Appareil: ${stationInfo.name}`);
+      
+      // Modèle du capteur (si disponible)
       if (stationInfo.sensorModel) {
-        metadataLines.push(`Modèle capteur: ${stationInfo.sensorModel}`);
+        metadataLines.push(`Modèle: ${stationInfo.sensorModel}`);
       }
-      const now = new Date();
-      metadataLines.push(
-        `Exporté le: ${now.toLocaleDateString("fr-FR")} à ${now.toLocaleTimeString("fr-FR")}`
-      );
+      
+      // Pas de temps (si disponible)
+      if (timeStep) {
+        const formattedTimeStep = formatTimeStepForExport(timeStep, sensorTimeStep);
+        if (formattedTimeStep) {
+          metadataLines.push(`Pas de temps: ${formattedTimeStep}`);
+        }
+      }
+      
       metadataLines.push(""); // Ligne vide avant les données
     } else if (isComparisonMode) {
       // Mode comparaison : ajouter les métadonnées de comparaison

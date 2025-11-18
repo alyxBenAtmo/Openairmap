@@ -732,6 +732,18 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
     }
   }, [currentBaseLayer]);
 
+  // Fonction pour charger la modélisation de vent depuis AtmoSud
+  const loadWindFromAtmoSud = useCallback(async (dateStr: string, hourStr: string) => {
+    const windUrl = `https://meteo.atmosud.org/${dateStr}/wind_field_${hourStr}.json`;
+    console.log("🌬️ [WIND-AtmoSud] Chargement des données de vent:", windUrl);
+
+    const response = await fetch(windUrl);
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP: ${response.status}`);
+    }
+    return await response.json();
+  }, []);
+
   // Fonction pour charger la modélisation de vent
   const loadWindModeling = useCallback(async () => {
     if (!mapRef.current) return;
@@ -754,21 +766,15 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
       const dd = String(now.getDate()).padStart(2, '0');
       const HH = String(now.getHours()).padStart(2, '0');
       const dateStr = `${yyyy}${MM}${dd}`;
-      const windUrl = `https://meteo.atmosud.org/${dateStr}/wind_field_${HH}.json`;
 
-      console.log("🌬️ [WIND] Chargement des données de vent:", windUrl);
-
-      // Charger les données avec fetch
-      const response = await fetch(windUrl);
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
-      }
-      const data = await response.json();
+      // Charger les données de vent depuis AtmoSud
+      const data = await loadWindFromAtmoSud(dateStr, HH);
+      console.log("✅ [WIND-AtmoSud] Données chargées avec succès");
 
       // Créer le LayerGroup pour le vent
       const windLayerGroup = L.layerGroup();
       
-      // Créer le layer Velocity
+      // Utiliser leaflet-velocity pour afficher les données de vent
       const velocityLayer = (L as any).velocityLayer({
         displayValues: false,
         displayOptions: false,
@@ -785,20 +791,20 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
 
       // Ajouter le layer au groupe
       velocityLayer.addTo(windLayerGroup);
+      windLayerRef.current = velocityLayer;
       
       // Ajouter le groupe à la carte
       if (mapRef.current) {
         windLayerGroup.addTo(mapRef.current);
-        windLayerRef.current = velocityLayer;
         windLayerGroupRef.current = windLayerGroup;
-        console.log("✅ [WIND] Layer de vent ajouté à la carte");
+        console.log(`✅ [WIND] Layer de vent ajouté à la carte`);
       }
     } catch (error) {
       console.error("❌ [WIND] Erreur lors du chargement des données de vent:", error);
       // Afficher un message d'erreur dans la console (vous pouvez adapter pour un système de notification)
-      alert("Impossible de charger les données de vent à cette heure.");
+      alert(`Impossible de charger les données de vent à cette heure.`);
     }
-  }, []);
+  }, [loadWindFromAtmoSud]);
 
   // Effet pour gérer les layers de modélisation WMTS
   useEffect(() => {
