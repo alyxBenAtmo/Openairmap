@@ -266,6 +266,7 @@ export interface StationInfo {
   source: string;
   variables: Record<string, StationVariable>;
   sensorModel?: string; // Modèle du capteur (pour AtmoMicro)
+  lastSeenSec?: number; // Dernière émission en secondes (pour NebuleAir uniquement)
 }
 
 export interface ChartControls {

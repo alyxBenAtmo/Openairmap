@@ -76,7 +76,7 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
 }) => {
   const initialTimeStep = getInitialTimeStepForPollutants(
     initialPollutant ? [initialPollutant] : [],
-    "instantane"
+    "heure"
   );
 
   const [state, setState] = useState<SidePanelState>({
@@ -660,6 +660,40 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
     }
   };
 
+  // Fonction pour formater last_seen_sec en date lisible
+  const formatLastSeen = (lastSeenSec?: number): string | null => {
+    if (lastSeenSec === undefined || lastSeenSec === null) {
+      return null;
+    }
+
+    const now = new Date();
+    const lastSeenDate = new Date(now.getTime() - lastSeenSec * 1000);
+    const diffInSeconds = lastSeenSec;
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    const diffInDays = Math.floor(diffInHours / 24);
+
+    // Format relatif pour les périodes récentes
+    if (diffInMinutes < 1) {
+      return `Il y a moins d'une minute`;
+    } else if (diffInMinutes < 60) {
+      return `Il y a ${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''}`;
+    } else if (diffInHours < 24) {
+      return `Il y a ${diffInHours} heure${diffInHours > 1 ? 's' : ''}`;
+    } else if (diffInDays < 7) {
+      return `Il y a ${diffInDays} jour${diffInDays > 1 ? 's' : ''}`;
+    } else {
+      // Pour les périodes plus longues, afficher la date complète
+      return `Dernière émission : ${lastSeenDate.toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })}`;
+    }
+  };
+
   if (!isOpen || !selectedStation) {
     return null;
   }
@@ -672,6 +706,11 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
           <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
             {selectedStation.id}, Microcapteur AirCarto
           </h2>
+          {selectedStation.lastSeenSec !== undefined && (
+            <p className="text-xs sm:text-sm text-gray-500 mt-1">
+              {formatLastSeen(selectedStation.lastSeenSec) || 'Information non disponible'}
+            </p>
+          )}
         </div>
 
         {/* Contrôles unifiés du panel */}

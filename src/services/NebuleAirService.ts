@@ -461,6 +461,38 @@ export class NebuleAirService extends BaseDataService {
     }
   }
 
+  // Méthode pour récupérer les métadonnées complètes d'un capteur (variables + last_seen_sec)
+  async fetchSiteInfo(
+    sensorId: string
+  ): Promise<{
+    variables: Record<string, { label: string; code_iso: string; en_service: boolean }>;
+    lastSeenSec?: number;
+  }> {
+    try {
+      console.log("🔍 [NebuleAir] fetchSiteInfo appelé pour:", sensorId);
+
+      // Récupérer les variables
+      const variables = await this.fetchSiteVariables(sensorId);
+
+      // Récupérer les métadonnées du capteur pour obtenir last_seen_sec
+      const sensorsMetadata = await this.getCachedSensorsMetadata();
+      const sensor = sensorsMetadata.find((s) => s.sensorId === sensorId);
+
+      return {
+        variables,
+        lastSeenSec: sensor?.last_seen_sec,
+      };
+    } catch (error) {
+      console.error(
+        `❌ [NebuleAir] Erreur lors de la récupération des infos pour ${sensorId}:`,
+        error
+      );
+      // En cas d'erreur, retourner au moins les variables
+      const variables = await this.fetchSiteVariables(sensorId);
+      return { variables };
+    }
+  }
+
   private getPollutantLabel(pollutant: string): string {
     const labels: Record<string, string> = {
       PM1: "Particules PM₁",

@@ -1447,6 +1447,7 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
 
       // Récupérer les informations détaillées selon la source
       let sensorModel: string | undefined;
+      let lastSeenSec: number | undefined;
 
       if (device.source === "atmoRef") {
         const atmoRefService = new AtmoRefService();
@@ -1458,7 +1459,9 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
         sensorModel = siteInfo.sensorModel;
       } else if (device.source === "nebuleair") {
         const nebuleAirService = new NebuleAirService();
-        variables = await nebuleAirService.fetchSiteVariables(device.id);
+        const siteInfo = await nebuleAirService.fetchSiteInfo(device.id);
+        variables = siteInfo.variables;
+        lastSeenSec = siteInfo.lastSeenSec;
       }
 
       const stationInfo: StationInfo = {
@@ -1469,6 +1472,7 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
         source: device.source,
         variables,
         sensorModel,
+        ...(lastSeenSec !== undefined && { lastSeenSec }),
       };
 
       setSelectedStation(stationInfo);
@@ -1586,6 +1590,7 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
 
       // Récupérer les informations détaillées selon la source
       let sensorModel: string | undefined;
+      let lastSeenSec: number | undefined;
 
       if (device.source === "atmoRef") {
         const atmoRefService = new AtmoRefService();
@@ -1595,6 +1600,11 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
         const siteInfo = await atmoMicroService.fetchSiteVariables(device.id);
         variables = siteInfo.variables;
         sensorModel = siteInfo.sensorModel;
+      } else if (device.source === "nebuleair") {
+        const nebuleAirService = new NebuleAirService();
+        const siteInfo = await nebuleAirService.fetchSiteInfo(device.id);
+        variables = siteInfo.variables;
+        lastSeenSec = siteInfo.lastSeenSec;
       }
 
       const stationInfo: StationInfo = {
@@ -1605,6 +1615,7 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
         source: device.source,
         variables,
         sensorModel,
+        ...(lastSeenSec !== undefined && { lastSeenSec }),
       };
 
       setComparisonState((prev) => ({
