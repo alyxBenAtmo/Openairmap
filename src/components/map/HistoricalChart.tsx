@@ -387,6 +387,8 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
           const point: any = {
             timestamp,
             rawTimestamp: timestampMs,
+            // Utiliser rawTimestamp comme clé principale pour le positionnement précis
+            timestampValue: timestampMs,
           };
 
           // Ajouter les valeurs pour chaque station
@@ -444,9 +446,12 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
             minute: "2-digit",
           });
       
+      const dateMs = new Date(timestamp).getTime();
       const point: any = {
         timestamp: timestampFormatted,
         rawTimestamp: timestamp,
+        // Utiliser rawTimestamp comme clé principale pour le positionnement précis
+        timestampValue: dateMs,
       };
 
       // Ajouter les valeurs pour chaque polluant (corrigées et brutes)
@@ -512,6 +517,313 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     const interval = Math.floor(chartData.length / targetLabels);
     return interval > 0 ? interval : 0;
   }, [isMobile, chartData.length]);
+
+  // Déterminer le format optimal pour les labels de l'axe X selon la plage de dates
+  const xAxisDateFormat = useMemo(() => {
+    if (chartData.length === 0) {
+      return { type: 'hour', format: (date: Date) => date.toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit" }) };
+    }
+
+    // Récupérer les dates min et max
+    const dates = chartData
+      .map((point: any) => {
+        // Utiliser timestampValue en priorité, sinon rawTimestamp
+        const timestamp = point.timestampValue !== undefined 
+          ? point.timestampValue 
+          : point.rawTimestamp;
+        if (typeof timestamp === 'number') {
+          return new Date(timestamp);
+        }
+        return new Date(timestamp);
+      })
+      .filter((date) => !isNaN(date.getTime()));
+
+    if (dates.length === 0) {
+      return { type: 'hour', format: (date: Date) => date.toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit" }) };
+    }
+
+    const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
+    const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+    
+    // Calculer la différence en millisecondes
+    const diffMs = maxDate.getTime() - minDate.getTime();
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    const diffMonths = (maxDate.getFullYear() - minDate.getFullYear()) * 12 + (maxDate.getMonth() - minDate.getMonth());
+    const diffYears = maxDate.getFullYear() - minDate.getFullYear();
+
+    // Déterminer le format selon la plage
+    if (diffYears > 0) {
+      // Plusieurs années : afficher année et mois
+      return {
+        type: 'year-month',
+        format: (date: Date) => {
+          if (isMobile) {
+            return `${date.getMonth() + 1}/${date.getFullYear()}`;
+          }
+          return date.toLocaleString("fr-FR", { month: "short", year: "numeric" });
+        }
+      };
+    } else if (diffMonths > 3) {
+      // Plusieurs mois (plus de 3) : afficher uniquement le mois
+      return {
+        type: 'month',
+        format: (date: Date) => {
+          if (isMobile) {
+            return `${date.getMonth() + 1}/${date.getFullYear()}`;
+          }
+          return date.toLocaleString("fr-FR", { month: "short", year: "numeric" });
+        }
+      };
+    } else if (diffMonths > 0) {
+      // Quelques mois (1-3) : afficher mois et jour
+      return {
+        type: 'month-day',
+        format: (date: Date) => {
+          if (isMobile) {
+            return `${date.getDate()}/${date.getMonth() + 1}`;
+          }
+          return date.toLocaleString("fr-FR", { month: "short", day: "2-digit" });
+        }
+      };
+    } else if (diffDays > 1) {
+      // Plusieurs jours : afficher seulement le jour
+      return {
+        type: 'day',
+        format: (date: Date) => {
+          if (isMobile) {
+            return `${date.getDate()}/${date.getMonth() + 1}`;
+          }
+          return date.toLocaleString("fr-FR", { day: "2-digit", month: "short" });
+        }
+      };
+    } else if (diffDays > 0) {
+      // Un seul jour : afficher jour, mois et heure
+      return {
+        type: 'day-hour',
+        format: (date: Date) => {
+          if (isMobile) {
+            return `${date.getDate()}/${date.getMonth() + 1} ${date.getHours()}h`;
+          }
+          return date.toLocaleString("fr-FR", { 
+            day: "2-digit", 
+            month: "short", 
+            hour: "2-digit", 
+            minute: "2-digit" 
+          });
+        }
+      };
+    } else {
+      // Moins d'un jour : afficher heure et minute
+      return {
+        type: 'hour',
+        format: (date: Date) => {
+          if (isMobile) {
+            return `${date.getHours()}h`;
+          }
+          return date.toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+        }
+      };
+    }
+  }, [chartData, isMobile]);
+
+  // Générer des ticks personnalisés pour un meilleur positionnement
+  const xAxisTicks = useMemo(() => {
+    if (chartData.length === 0) return undefined;
+
+    const dates = chartData
+      .map((point: any) => {
+        const timestamp = point.timestampValue !== undefined 
+          ? point.timestampValue 
+          : point.rawTimestamp;
+        if (typeof timestamp === 'number') {
+          return new Date(timestamp);
+        }
+        return new Date(timestamp);
+      })
+      .filter((date) => !isNaN(date.getTime()));
+
+    if (dates.length === 0) return undefined;
+
+    const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
+    const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+    
+    const diffMs = maxDate.getTime() - minDate.getTime();
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    const diffMonths = (maxDate.getFullYear() - minDate.getFullYear()) * 12 + (maxDate.getMonth() - minDate.getMonth());
+    const diffYears = maxDate.getFullYear() - minDate.getFullYear();
+
+    const ticks: number[] = [];
+    const maxTicks = isMobile ? 6 : 10; // Limiter le nombre de ticks
+
+    if (diffYears > 0) {
+      // Plusieurs années : ticks au début de chaque mois
+      const current = new Date(minDate);
+      current.setDate(1); // Premier du mois
+      current.setHours(0, 0, 0, 0);
+      while (current <= maxDate && ticks.length < maxTicks * 3) {
+        ticks.push(current.getTime());
+        current.setMonth(current.getMonth() + 1);
+      }
+    } else if (diffMonths > 3) {
+      // Plusieurs mois (plus de 3) : ticks au début de chaque mois
+      const current = new Date(minDate);
+      current.setDate(1); // Premier du mois
+      current.setHours(0, 0, 0, 0);
+      while (current <= maxDate && ticks.length < maxTicks * 3) {
+        ticks.push(current.getTime());
+        current.setMonth(current.getMonth() + 1);
+      }
+    } else if (diffMonths > 0) {
+      // Quelques mois (1-3) : ticks au début de chaque jour
+      const current = new Date(minDate);
+      current.setHours(0, 0, 0, 0);
+      while (current <= maxDate && ticks.length < maxTicks * 3) {
+        ticks.push(current.getTime());
+        current.setDate(current.getDate() + 1);
+      }
+    } else if (diffDays > 1) {
+      // Plusieurs jours : ticks à minuit de chaque jour
+      // Le label affiche le jour, et les données du jour sont positionnées après le label
+      const current = new Date(minDate);
+      current.setHours(0, 0, 0, 0);
+      // Inclure le premier jour
+      ticks.push(current.getTime());
+      current.setDate(current.getDate() + 1);
+      while (current <= maxDate && ticks.length < maxTicks * 3) {
+        ticks.push(current.getTime());
+        current.setDate(current.getDate() + 1);
+      }
+    } else if (diffDays > 0) {
+      // Un seul jour : ticks toutes les heures
+      const current = new Date(minDate);
+      current.setMinutes(0, 0, 0);
+      while (current <= maxDate && ticks.length < maxTicks * 2) {
+        ticks.push(current.getTime());
+        current.setHours(current.getHours() + 1);
+      }
+    } else {
+      // Moins d'un jour : ticks toutes les heures ou toutes les 30 minutes selon la durée
+      const current = new Date(minDate);
+      if (diffMs > 6 * 60 * 60 * 1000) {
+        // Plus de 6 heures : ticks toutes les heures
+        current.setMinutes(0, 0, 0);
+        while (current <= maxDate && ticks.length < maxTicks * 2) {
+          ticks.push(current.getTime());
+          current.setHours(current.getHours() + 1);
+        }
+      } else {
+        // Moins de 6 heures : ticks toutes les 30 minutes
+        current.setMinutes(Math.floor(current.getMinutes() / 30) * 30, 0, 0);
+        while (current <= maxDate && ticks.length < maxTicks * 2) {
+          ticks.push(current.getTime());
+          current.setMinutes(current.getMinutes() + 30);
+        }
+      }
+    }
+
+    // Si trop de ticks, les échantillonner uniformément
+    if (ticks.length > maxTicks) {
+      // Pour les pas de temps fins, utiliser les ticks originaux et les échantillonner
+      // Pour les grandes plages, calculer directement les positions optimales
+      const timeSpan = maxDate.getTime() - minDate.getTime();
+      const numTicks = Math.min(maxTicks, ticks.length);
+      const sampledTicks: number[] = [];
+      
+      // Pour les grandes plages (années, mois), calculer directement les positions
+      if (diffYears > 0 || diffMonths > 3) {
+        // Distribuer uniformément dans le temps et arrondir au début du mois
+        for (let i = 0; i < numTicks; i++) {
+          const ratio = numTicks > 1 ? i / (numTicks - 1) : 0;
+          const tickTime = minDate.getTime() + ratio * timeSpan;
+          const tickDate = new Date(tickTime);
+          tickDate.setDate(1);
+          tickDate.setHours(0, 0, 0, 0);
+          sampledTicks.push(tickDate.getTime());
+        }
+      } else if (diffMonths > 0 || diffDays > 1) {
+        // Distribuer uniformément dans le temps et arrondir au début du jour
+        for (let i = 0; i < numTicks; i++) {
+          const ratio = numTicks > 1 ? i / (numTicks - 1) : 0;
+          const tickTime = minDate.getTime() + ratio * timeSpan;
+          const tickDate = new Date(tickTime);
+          tickDate.setHours(0, 0, 0, 0);
+          sampledTicks.push(tickDate.getTime());
+        }
+      } else {
+        // Pour les pas de temps fins, échantillonner les ticks originaux uniformément
+        // Cela préserve la granularité fine sans arrondir trop agressivement
+        const step = (ticks.length - 1) / (numTicks - 1);
+        for (let i = 0; i < numTicks; i++) {
+          const index = Math.round(i * step);
+          if (index < ticks.length) {
+            sampledTicks.push(ticks[index]);
+          }
+        }
+      }
+      
+      // Dédupliquer et trier
+      const uniqueTicks = Array.from(new Set(sampledTicks)).sort((a, b) => a - b);
+      
+      // S'assurer qu'on a au moins le premier et le dernier
+      if (uniqueTicks.length > 0) {
+        // Utiliser les timestamps réels des données, pas les ticks arrondis
+        const firstDataTime = minDate.getTime();
+        const lastDataTime = maxDate.getTime();
+        
+        if (uniqueTicks[0] !== firstDataTime && uniqueTicks[0] > firstDataTime) {
+          uniqueTicks.unshift(firstDataTime);
+        }
+        if (uniqueTicks[uniqueTicks.length - 1] !== lastDataTime && uniqueTicks[uniqueTicks.length - 1] < lastDataTime) {
+          uniqueTicks.push(lastDataTime);
+        }
+      }
+      
+      return uniqueTicks.length > 0 ? uniqueTicks : undefined;
+    }
+
+    return ticks.length > 0 ? ticks : undefined;
+  }, [chartData, isMobile]);
+
+  // Créer une Map pour un accès rapide timestampValue -> rawTimestamp
+  const timestampMap = useMemo(() => {
+    const map = new Map<number, number | string>();
+    chartData.forEach((point: any) => {
+      if (point.timestampValue !== undefined && point.rawTimestamp) {
+        map.set(point.timestampValue, point.rawTimestamp);
+      }
+    });
+    return map;
+  }, [chartData]);
+
+  // Fonction pour formater les labels de l'axe X
+  const formatXAxisLabel = useCallback((tickItem: number | string) => {
+    if (tickItem === undefined || tickItem === null) return '';
+    
+    let date: Date;
+    
+    // Si tickItem est un nombre (timestampValue), utiliser directement
+    if (typeof tickItem === 'number') {
+      const rawTimestamp = timestampMap.get(tickItem);
+      if (rawTimestamp !== undefined) {
+        date = typeof rawTimestamp === 'number' 
+          ? new Date(rawTimestamp) 
+          : new Date(rawTimestamp);
+      } else {
+        // Si pas trouvé dans la map, utiliser directement le nombre comme timestamp
+        date = new Date(tickItem);
+      }
+    } else {
+      // Fallback : essayer de parser depuis le label formaté
+      date = new Date(tickItem);
+    }
+    
+    if (isNaN(date.getTime())) {
+      // Si le parsing échoue, retourner le label original
+      return String(tickItem);
+    }
+    
+    return xAxisDateFormat.format(date);
+  }, [timestampMap, xAxisDateFormat]);
 
   // Détecter si des données corrigées sont disponibles (seulement pour AtmoMicro) - Mémorisé
   const hasCorrectedData = useMemo(() => {
@@ -815,15 +1127,18 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
           <LineChart data={chartData} margin={chartMargins}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis
-              dataKey="timestamp"
+              dataKey="timestampValue"
+              type="number"
               angle={isMobile ? 0 : -45}
               textAnchor={isMobile ? "middle" : "end"}
               height={isMobile ? 20 : isLandscapeMobile ? 60 : 80}
               fontSize={isMobile ? 8 : isLandscapeMobile ? 10 : 12}
-              interval={xAxisInterval}
               tick={{ fill: "#666" }}
               tickMargin={isMobile ? 2 : 5}
-              
+              tickFormatter={formatXAxisLabel}
+              domain={['dataMin', 'dataMax']}
+              ticks={xAxisTicks}
+              allowDecimals={false}
             />
 
             {/* Axe Y principal (première unité) */}
@@ -944,7 +1259,22 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
                 
                 return compositeOrder;
               }}
-              labelFormatter={(label) => `Date: ${label}`}
+              labelFormatter={(label) => {
+                // Si label est un nombre (timestampValue), le formater comme date
+                if (typeof label === 'number') {
+                  const date = new Date(label);
+                  if (!isNaN(date.getTime())) {
+                    return `Date: ${date.toLocaleString("fr-FR", {
+                      year: "numeric",
+                      month: "2-digit",
+                      day: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}`;
+                  }
+                }
+                return `Date: ${label}`;
+              }}
               contentStyle={{
                 backgroundColor: "white",
                 border: "1px solid #ccc",

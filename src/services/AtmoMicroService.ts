@@ -97,10 +97,11 @@ export class AtmoMicroService extends BaseDataService {
               measure.valeur ??
               0;
             // Détecter si c'est une valeur corrigée
+            // Si valeur et valeur_brute existent toutes les deux, une correction a été appliquée
+            // même si les valeurs sont égales (correction appliquée mais résultat identique)
             hasCorrection =
               measure.valeur !== null &&
-              measure.valeur_brute !== null &&
-              measure.valeur !== measure.valeur_brute;
+              measure.valeur_brute !== null;
             correctedValue =
               hasCorrection && measure.valeur !== null
                 ? measure.valeur
@@ -109,9 +110,11 @@ export class AtmoMicroService extends BaseDataService {
               measure.valeur_brute !== null ? measure.valeur_brute : undefined;
           } else {
             // Pour horaire et autres : utiliser valeur comme avant
+            // Si valeur et valeur_brute existent toutes les deux, une correction a été appliquée
+            // même si les valeurs sont égales (correction appliquée mais résultat identique)
             hasCorrection =
               measure.valeur !== null &&
-              measure.valeur !== measure.valeur_brute;
+              measure.valeur_brute !== null;
             displayValue =
               measure.valeur !== null ? measure.valeur : measure.valeur_brute;
             correctedValue =
@@ -393,15 +396,20 @@ export class AtmoMicroService extends BaseDataService {
           value =
             measure.valeur_ref ?? measure.valeur_brute ?? measure.valeur ?? 0;
           // Détecter si c'est une valeur corrigée
+          // Si valeur et valeur_brute existent toutes les deux, une correction a été appliquée
+          // même si les valeurs sont égales (correction appliquée mais résultat identique)
           hasCorrection =
             measure.valeur !== null &&
-            measure.valeur_brute !== null &&
-            measure.valeur !== measure.valeur_brute;
+            measure.valeur_brute !== null;
           correctedValue = hasCorrection ? measure.valeur : undefined;
           rawValue = measure.valeur_brute;
         } else {
           // Pour horaire et autres : utiliser valeur comme avant
-          hasCorrection = measure.valeur !== null;
+          // Si valeur et valeur_brute existent toutes les deux, une correction a été appliquée
+          // même si les valeurs sont égales (correction appliquée mais résultat identique)
+          hasCorrection =
+            measure.valeur !== null &&
+            measure.valeur_brute !== null;
           correctedValue = hasCorrection ? measure.valeur : undefined;
           rawValue = measure.valeur_brute;
           value = hasCorrection ? measure.valeur! : measure.valeur_brute;
@@ -595,18 +603,21 @@ export class AtmoMicroService extends BaseDataService {
               displayValue =
                 measure.valeur_ref ?? measure.valeur_brute ?? measure.valeur;
               // Détecter si c'est une valeur corrigée
+              // Si valeur et valeur_brute existent toutes les deux, une correction a été appliquée
+              // même si les valeurs sont égales (correction appliquée mais résultat identique)
               hasCorrection =
                 measure.valeur !== null &&
-                measure.valeur_brute !== null &&
-                measure.valeur !== measure.valeur_brute;
+                measure.valeur_brute !== null;
               correctedValue = hasCorrection ? measure.valeur : undefined;
               rawValue = measure.valeur_brute;
             } else {
               // Pour horaire et autres : utiliser valeur comme avant
+              // Si valeur et valeur_brute existent toutes les deux, une correction a été appliquée
+              // même si les valeurs sont égales (correction appliquée mais résultat identique)
               displayValue = measure.valeur;
               hasCorrection =
                 measure.valeur !== null &&
-                measure.valeur !== measure.valeur_brute;
+                measure.valeur_brute !== null;
               correctedValue = hasCorrection ? measure.valeur : undefined;
               rawValue = measure.valeur_brute;
             }

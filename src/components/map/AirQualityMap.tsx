@@ -26,6 +26,7 @@ import {
 import { baseLayers, BaseLayerKey } from "../../constants/mapLayers";
 import BaseLayerControl from "../controls/BaseLayerControl";
 import ClusterControl from "../controls/ClusterControl";
+import CustomSearchControl from "../controls/CustomSearchControl";
 import {
   getModelingLayerHour,
   formatHourLayerName,
@@ -179,7 +180,6 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
   const [spiderfyConfig, setSpiderfyConfig] = useState(defaultSpiderfyConfig);
   const [currentZoom, setCurrentZoom] = useState(zoom);
   const [isSpiderfyActive, setIsSpiderfyActive] = useState(false);
-  const [searchControl, setSearchControl] = useState<L.Control | null>(null);
 
   const shouldShowStandardLegend =
     selectedSources.length > 0 || currentModelingWMTSLayer === null;
@@ -983,68 +983,6 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
     isComparisonPanelVisible,
   ]);
 
-  // Effet pour initialiser le contrôle de recherche IGN
-  useEffect(() => {
-    if (mapRef.current && !searchControl) {
-      try {
-        // Créer le contrôle de recherche IGN
-        const searchCtrl = (L as any).geoportalControl.SearchEngine({
-          placeholder: "Rechercher une adresse...",
-          position: "topright",
-          // Configuration pour la France
-          resultFormat: "json",
-          maxResults: 5,
-          // Style personnalisé pour s'intégrer à votre design
-          style: {
-            width: "300px",
-            height: "40px",
-          }
-        });
-        
-        // Ajouter le contrôle à la carte
-        searchCtrl.addTo(mapRef.current);
-        setSearchControl(searchCtrl);
-        
-        // Écouter les résultats de recherche
-        searchCtrl.on('search:locationfound', (e: any) => {
-          console.log('Localisation trouvée:', e.location);
-          
-          if (mapRef.current) {
-            const result = e.location;
-            const zoomLevel = getOptimalZoomLevel(result);
-            
-            console.log(`Zoom adaptatif: niveau ${zoomLevel} pour "${result.name || result.address}" (type: ${result.type || 'non spécifié'})`);
-            
-            // Centrer automatiquement sur le résultat avec le zoom adapté
-            mapRef.current.setView([result.lat, result.lng], zoomLevel, {
-              animate: true,
-              duration: 1.5
-            });
-          }
-        });
-
-        // Gérer les erreurs de recherche
-        searchCtrl.on('search:error', (e: any) => {
-          console.warn('Erreur lors de la recherche:', e.error);
-        });
-        
-      } catch (error) {
-        console.error('Erreur lors de l\'initialisation du contrôle de recherche IGN:', error);
-      }
-    }
-    
-    // Nettoyer lors du démontage
-    return () => {
-      if (searchControl && mapRef.current) {
-        try {
-          mapRef.current.removeControl(searchControl);
-        } catch (error) {
-          console.warn('Erreur lors de la suppression du contrôle de recherche:', error);
-        }
-      }
-    };
-  }, [mapRef.current, searchControl]);
-
   const handleBaseLayerChange = (layerKey: BaseLayerKey) => {
     setCurrentBaseLayer(layerKey);
   };
@@ -1489,6 +1427,23 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
       );
     }
   };
+
+  // Callback pour la sélection d'un capteur depuis la recherche
+  const handleSensorSelected = useCallback(
+    (device: MeasurementDevice) => {
+      // Centrer la carte sur le capteur
+      if (mapRef.current) {
+        mapRef.current.setView([device.latitude, device.longitude], 16, {
+          animate: true,
+          duration: 1.5,
+        });
+      }
+
+      // Sélectionner le capteur et ouvrir le sidepanel
+      handleMarkerClick(device);
+    },
+    [handleMarkerClick]
+  );
 
   const handleCloseSidePanel = () => {
     setIsSidePanelOpen(false);
@@ -2153,6 +2108,13 @@ const handleOpenMobileAirDetailPanel = () => {
 
       {/* Conteneur de la carte */}
       <div className="flex-1 relative">
+        {/* Contrôle de recherche personnalisé */}
+        <CustomSearchControl
+          devices={devices}
+          mapRef={mapRef}
+          onSensorSelected={handleSensorSelected}
+        />
+
         <MapContainer
           center={center}
           zoom={zoom}
