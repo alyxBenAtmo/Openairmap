@@ -273,7 +273,7 @@ const App: React.FC = () => {
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Header avec contrôles intégrés */}
-      <header className="bg-white border-b border-gray-200 px-4 py-1 z-[1000]">
+      <header className="bg-white border-b border-gray-200 px-4 py-1 z-[1600]">
         <div className="flex items-center justify-between">
           {/* Titre et logo groupés à gauche */}
           <div className="flex items-start space-x-3 md:space-x-4">
