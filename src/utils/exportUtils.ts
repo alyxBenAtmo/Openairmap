@@ -34,11 +34,11 @@ const formatTimeStepForExport = (timeStep?: string, sensorTimeStep?: number | nu
       }
       return "Scan";
     case "quartHeure":
-      return "15min";
+      return "15 minutes";
     case "heure":
-      return "1h";
+      return "Heure";
     case "jour":
-      return "1j";
+      return "Jour";
     default:
       return timeStep;
   }
@@ -136,11 +136,10 @@ export const exportChartAsPNG = async (
     let paddingTop = 20;
     if (stationInfo) {
       // Estimer la hauteur nécessaire (approximatif)
-      // Nom appareil: 1 ligne (30px) + espace
+      // Nom appareil: 1 ligne (30px) + modèle et pas de temps sur 1 ligne (25px)
       let estimatedLines = 1; // Nom de l'appareil
-      if (stationInfo.sensorModel) estimatedLines += 1; // Modèle
-      if (timeStep) estimatedLines += 1; // Pas de temps
-      paddingTop = estimatedLines * 30 + 40; // Marge de sécurité
+      if (stationInfo.sensorModel || timeStep) estimatedLines += 1; // Modèle et pas de temps sur la même ligne
+      paddingTop = estimatedLines * 30 + 20; // Marge réduite
     } else if (isComparisonMode) {
       // Mode comparaison : titre + polluant + liste des stations + date
       let estimatedLines = 2; // Titre + espace
@@ -172,25 +171,52 @@ export const exportChartAsPNG = async (
       return y + (isBold ? 30 : 25);
     };
 
+    // Fonction pour découper le texte en plusieurs lignes si nécessaire (pour le mode comparaison)
+    const drawText = (text: string, x: number, y: number, maxWidth: number): number => {
+      const words = text.split(" ");
+      let line = "";
+      let currentY = y;
+      
+      for (let i = 0; i < words.length; i++) {
+        const testLine = line + words[i] + " ";
+        const metrics = ctx.measureText(testLine);
+        
+        if (metrics.width > maxWidth && i > 0) {
+          ctx.fillText(line, x, currentY);
+          line = words[i] + " ";
+          currentY += 20;
+        } else {
+          line = testLine;
+        }
+      }
+      ctx.fillText(line, x, currentY);
+      return currentY + 25;
+    };
+
     // Ajouter les métadonnées centrées au-dessus du graphique
     if (stationInfo) {
       ctx.fillStyle = "#000000";
       
-      let yOffset = 30;
+      let yOffset = 20;
       
       // Nom de l'appareil (en gras)
       yOffset = drawCenteredText(stationInfo.name, yOffset, "18px", true);
       
-      // Modèle du capteur (si disponible)
-      if (stationInfo.sensorModel) {
-        yOffset = drawCenteredText(`Modèle: ${stationInfo.sensorModel}`, yOffset, "14px", false);
-      }
+      // Modèle et pas de temps sur la même ligne (si disponibles)
+      const modelText = stationInfo.sensorModel ? `Modèle: ${stationInfo.sensorModel}` : "";
+      const formattedTimeStep = timeStep ? formatTimeStepForExport(timeStep, sensorTimeStep) : "";
       
-      // Pas de temps (si disponible)
-      if (timeStep) {
-        const formattedTimeStep = formatTimeStepForExport(timeStep, sensorTimeStep);
-        if (formattedTimeStep) {
-          yOffset = drawCenteredText(`Pas de temps: ${formattedTimeStep}`, yOffset, "14px", false);
+      if (modelText || formattedTimeStep) {
+        let combinedText = "";
+        if (modelText && formattedTimeStep) {
+          combinedText = `${modelText} | Pas de temps: ${formattedTimeStep}`;
+        } else if (modelText) {
+          combinedText = modelText;
+        } else if (formattedTimeStep) {
+          combinedText = `Pas de temps: ${formattedTimeStep}`;
+        }
+        if (combinedText) {
+          yOffset = drawCenteredText(combinedText, yOffset, "14px", false);
         }
       }
       
@@ -318,8 +344,25 @@ export const exportDataAsCSV = (
       metadataLines.push(""); // Ligne vide avant les données
     }
 
+    // Fonction pour formater une date au format JJ/MM/AAAA HH:MM (en UTC)
+    const formatDateForCSV = (dateString: string): string => {
+      try {
+        const date = new Date(dateString);
+        // Utiliser les méthodes UTC pour garantir le formatage correct des timestamps UTC
+        const day = String(date.getUTCDate()).padStart(2, "0");
+        const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+        const year = date.getUTCFullYear();
+        const hours = String(date.getUTCHours()).padStart(2, "0");
+        const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+        return `${day}/${month}/${year} ${hours}:${minutes}`;
+      } catch (error) {
+        // Si la conversion échoue, retourner la valeur originale
+        return dateString;
+      }
+    };
+
     // Préparer les en-têtes de colonnes
-    const headers = ["Timestamp", "Date"];
+    const headers = ["Timestamp (UTC)", "Date"];
 
     if (source === "comparison" && stations.length > 0) {
       // Mode comparaison : une colonne par station
@@ -345,7 +388,12 @@ export const exportDataAsCSV = (
       ...metadataLines,
       headers.join(","),
       ...data.map((row) => {
-        const values = [row.rawTimestamp || row.timestamp, row.timestamp];
+        // Timestamp en UTC (format original ISO)
+        const timestamp = row.rawTimestamp || row.timestamp;
+        // Date formatée en JJ/MM/AAAA HH:MM (utiliser rawTimestamp si disponible pour avoir le format ISO)
+        const dateToFormat = row.rawTimestamp || row.timestamp;
+        const formattedDate = formatDateForCSV(dateToFormat);
+        const values = [timestamp, formattedDate];
 
         if (source === "comparison" && stations.length > 0) {
           // Mode comparaison
