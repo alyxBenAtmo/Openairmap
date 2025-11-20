@@ -2,40 +2,246 @@
 
 Une application React modulaire et responsive pour afficher des appareils de mesure de la qualité de l'air sur une carte interactive Leaflet avec clustering intelligent et statistiques.
 
+## 🚀 Installation et démarrage
+
+### Démarrage rapide
+
+Pour commencer rapidement, vous aurez besoin de Node.js (version 18.0.0 ou supérieure) et npm. Une fois ces prérequis installés, c'est très simple :
+
+```bash
+# Cloner le repository
+git clone <repository-url>
+cd ReactOpenAirMap
+
+# Installer les dépendances
+npm install
+
+# Lancer l'application
+npm run dev
+```
+
+L'application s'ouvrira automatiquement dans votre navigateur à l'adresse `http://localhost:5173`. Vous devriez voir la carte avec les contrôles dans l'en-tête et les marqueurs de qualité de l'air apparaître sur la carte.
+
+### 📋 Prérequis
+
+Avant de commencer, assurez-vous d'avoir installé :
+
+- **Node.js** : Version 18.0.0 ou supérieure ([télécharger ici](https://nodejs.org/))
+- **npm** : Version 8.0.0 ou supérieure (inclus avec Node.js)
+- **Git** : Pour cloner le repository ([télécharger ici](https://git-scm.com/))
+- **Navigateur moderne** : Chrome, Firefox, Safari ou Edge (dernières versions recommandées)
+
+### 🖥️ Installation détaillée par système
+
+#### Windows
+
+1. **Installer Node.js**
+   - Téléchargez la version LTS depuis [nodejs.org](https://nodejs.org/)
+   - Exécutez l'installateur et suivez les instructions
+   - Vérifiez l'installation en ouvrant un terminal :
+     ```cmd
+     node --version
+     npm --version
+     ```
+
+2. **Installer Git** (si ce n'est pas déjà fait)
+   - Téléchargez depuis [git-scm.com](https://git-scm.com/)
+   - Exécutez l'installateur avec les options par défaut
+   - Vérifiez : `git --version`
+
+3. **Cloner et installer le projet**
+   ```cmd
+   git clone <repository-url>
+   cd ReactOpenAirMap
+   npm install
+   ```
+
+4. **Démarrer l'application**
+   ```cmd
+   npm run dev
+   ```
+
+#### macOS
+
+1. **Installer Node.js avec Homebrew** (recommandé)
+   ```bash
+   # Installer Homebrew si nécessaire
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+   
+   # Installer Node.js
+   brew install node
+   
+   # Vérifier
+   node --version
+   npm --version
+   ```
+
+   **Alternative** : Téléchargez directement depuis [nodejs.org](https://nodejs.org/) et installez le package .pkg
+
+2. **Installer Git** (si nécessaire)
+   ```bash
+   brew install git
+   ```
+
+3. **Cloner et installer le projet**
+   ```bash
+   git clone <repository-url>
+   cd ReactOpenAirMap
+   npm install
+   ```
+
+4. **Démarrer l'application**
+   ```bash
+   npm run dev
+   ```
+
+#### Linux (Ubuntu/Debian)
+
+1. **Installer Node.js**
+   ```bash
+   # Mettre à jour le système
+   sudo apt update && sudo apt upgrade -y
+   
+   # Installer Node.js via NodeSource
+   curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+   sudo apt-get install -y nodejs
+   
+   # Vérifier
+   node --version
+   npm --version
+   ```
+
+2. **Installer Git**
+   ```bash
+   sudo apt install git
+   ```
+
+3. **Cloner et installer le projet**
+   ```bash
+   git clone <repository-url>
+   cd ReactOpenAirMap
+   npm install
+   ```
+
+4. **Démarrer l'application**
+   ```bash
+   npm run dev
+   ```
+
+#### Linux (CentOS/RHEL/Fedora)
+
+1. **Installer Node.js**
+   ```bash
+   # Pour CentOS/RHEL
+   curl -fsSL https://rpm.nodesource.com/setup_lts.x | sudo bash -
+   sudo yum install -y nodejs
+   
+   # Pour Fedora
+   sudo dnf install nodejs npm
+   ```
+
+2. **Installer Git**
+   ```bash
+   # CentOS/RHEL
+   sudo yum install git
+   
+   # Fedora
+   sudo dnf install git
+   ```
+
+3. **Cloner et installer le projet**
+   ```bash
+   git clone <repository-url>
+   cd ReactOpenAirMap
+   npm install
+   ```
+
+4. **Démarrer l'application**
+   ```bash
+   npm run dev
+   ```
+
+### 🔧 Scripts disponibles
+
+Une fois le projet installé, vous pouvez utiliser ces commandes :
+
+```bash
+# Développement
+npm run dev          # Lance le serveur de développement avec hot-reload
+
+# Production
+npm run build        # Compile l'application pour la production
+npm run preview      # Prévisualise le build de production
+
+# Qualité de code
+npm run lint         # Vérifie le code avec ESLint
+```
+
+### 🐛 Résolution de problèmes courants
+
+Si vous rencontrez des problèmes, voici quelques solutions courantes :
+
+**Erreur "command not found: node"**
+- Vérifiez que Node.js est bien installé : `node --version`
+- Redémarrez votre terminal après l'installation
+- Sur Windows, un redémarrage complet peut être nécessaire
+
+**Erreur "EACCES" lors de npm install**
+- Sur macOS/Linux, essayez : `sudo npm install`
+- Ou mieux, configurez npm pour utiliser un répertoire local :
+  ```bash
+  npm config set prefix ~/.npm-global
+  ```
+
+**Port 5173 déjà utilisé**
+- L'application utilisera automatiquement le port suivant disponible
+- Ou spécifiez un port manuellement : `npm run dev -- --port 3000`
+
+**Problèmes de dépendances**
+- Supprimez `node_modules` et `package-lock.json`
+- Réinstallez : `npm install`
+- Si le problème persiste : `npm install --legacy-peer-deps`
+
 ## 🚀 Fonctionnalités
+
+Cette application vous permet de visualiser et analyser les données de qualité de l'air provenant de multiples sources. Voici ce qu'elle offre :
 
 ### 🗺️ **Carte Interactive**
 
-- **Carte Leaflet** pour afficher les appareils de mesure
-- **Clustering intelligent** des marqueurs avec possibilé de le desactiver
-- **Marqueurs colorés** selon la valeur des mesures avec affichage des valeurs
-- **Contrôle du fond de carte** : Basculement entre carte standard et satellite
-- **Légende dynamique** : Affichage des seuils selon le polluant sélectionné
+- **Carte Leaflet** pour afficher tous les appareils de mesure sur une carte interactive
+- **Clustering intelligent** des marqueurs pour améliorer la lisibilité (vous pouvez le désactiver si besoin)
+- **Marqueurs colorés** qui changent selon la valeur des mesures, avec les valeurs affichées directement
+- **Contrôle du fond de carte** : Basculez facilement entre la carte standard et la vue satellite
+- **Légende dynamique** : Les seuils s'adaptent automatiquement au polluant que vous sélectionnez
 
 ### 🎛️ **Contrôles Intégrés**
 
-- **Sélection du polluant** : Un polluant actif à la fois sur la carte
-- **Sélection des sources** : Plusieurs sources possibles différenciées par différents marqueurs
-- **Sélection du pas de temps** : Un pas de temps actif à la fois
-- **Sélecteurs de période** : Périodes personnalisées pour SignalAir et MobileAir
-- **Auto-refresh intelligent** : Rafraîchissement automatique adaptatif
+Tous les contrôles sont accessibles depuis l'en-tête de l'application :
+
+- **Sélection du polluant** : Choisissez quel polluant afficher sur la carte (un seul à la fois)
+- **Sélection des sources** : Activez plusieurs sources de données simultanément, chacune avec ses propres marqueurs
+- **Sélection du pas de temps** : Définissez la granularité des données (instantané, 2 min, 15 min, heure, jour)
+- **Sélecteurs de période** : Pour SignalAir et MobileAir, vous pouvez définir des périodes personnalisées
+- **Auto-refresh intelligent** : Les données se rafraîchissent automatiquement selon le pas de temps sélectionné
 
 ### 📊 **Side Panels Spécialisés**
 
-- **MobileAir Panels** : Sélection d'un capteur et visualisation des différentes sessions de mesure de capteurs mobiles
-- **Périodes personnalisées** : 3h, 24h, 7j, 30j + sélecteur de dates personnalisées
-- **Redimensionnement** : Normal, plein écran, masqué
-- **🆕 Intercomparaison Multi-Sources** : Comparaison de jusqu'à 5 stations (AtmoRef/AtmoMicro) sur un même graphique
-  - Détection automatique des polluants communs
-  - Gestion des résolutions temporelles différentes (mode Scan)
-  - Documentation technique : `docs/features/INTERCOMPARAISON_TECHNIQUE.md`
+Chaque source de données dispose de son propre panneau latéral avec des fonctionnalités adaptées :
+
+- **MobileAir Panels** : Sélectionnez un capteur mobile et visualisez ses différentes sessions de mesure
+- **Périodes personnalisées** : Utilisez les périodes prédéfinies (3h, 24h, 7j, 30j) ou créez vos propres plages de dates
+- **Redimensionnement flexible** : Ajustez la taille des panneaux (normal, plein écran, ou masqué)
+- **🆕 Intercomparaison Multi-Sources** : Comparez jusqu'à 5 stations (Station de référence AtmoSud/Microcapteur qualifié AtmoSud) sur un même graphique
+  - L'application détecte automatiquement les polluants communs à toutes les stations
+  - Gère intelligemment les résolutions temporelles différentes (notamment en mode Scan)
+  - Pour plus de détails techniques, consultez : `docs/features/INTERCOMPARAISON_TECHNIQUE.md`
 
 ### 🔄 **Gestion des Données**
 
 - **Architecture modulaire** avec services séparés pour chaque source
 - **Auto-refresh adaptatif** selon le pas de temps sélectionné et les sources actives
 - **Indicateurs de correction** pour les données AtmoMicro
-- **Gestion des statuts** : Actif, inactif, en cours de chargement
+- **Gestion des statuts de chargement** : Actif, inactif, en cours de chargement
 - **Gestion d'erreurs** robuste avec fallbacks
 
 ### 🎨 **Interface Utilisateur**
@@ -99,57 +305,59 @@ src/
 
 ## 🛠️ Sources de données supportées
 
+L'application intègre plusieurs sources de données pour vous offrir une vue complète de la qualité de l'air. Voici les sources actuellement disponibles :
+
 ### ✅ **Sources implémentées et fonctionnelles :**
 
 - **AtmoRef** : Stations de référence AtmoSud
 
-  - ✅ Affichage des valeurs dans un marqueurs colorés selon le dépassement de seuil du polluant selectionné
-  - ✅ Side panel avec graphiques historiques
-  - ✅ Support de tous les polluants (selon les polluants supportés par les stations AtmoSud)
-  - ✅ Gestion des variables par station
-  - ✅ Auto-refresh intelligent
+  - ✅ Marqueurs colorés selon les seuils de qualité de l'air pour le polluant sélectionné
+  - ✅ Panneau latéral avec graphiques historiques détaillés
+  - ✅ Support de tous les polluants disponibles dans les stations AtmoSud
+  - ✅ Gestion intelligente des variables par station
+  - ✅ Rafraîchissement automatique adaptatif
 
 - **AtmoMicro** : Microcapteurs qualifiés AtmoSud
 
-  - ✅ Affichage des valeurs dans un marqueurs colorés selon le dépassement de seuil du polluant selectionné avec différenciation des données corrigées et non corrigées
-  - ✅ Side panel avec graphiques historiques
-  - ✅ Support des polluants PM₁, PM₂.₅, PM₁₀, NO₂ (selon les polluants supportés par les microcapteurs AtmoSud)
-  - ✅ Gestion des sites actifs et inactifs
+  - ✅ Marqueurs colorés avec distinction visuelle entre données corrigées et non corrigées
+  - ✅ Panneau latéral avec graphiques historiques
+  - ✅ Support des polluants PM₁, PM₂.₅, PM₁₀, NO₂ (selon ce que mesurent les microcapteurs)
+  - ✅ Affichage clair des sites actifs et inactifs
 
 - **NebuleAir** : Capteurs communautaires NebuleAir Air Carto
 
-  - ✅ Affichage des valeurs dans un marqueurs colorés selon le dépassement de seuil du polluant selectionné
-  - ✅ Side panel avec graphiques historiques
-  - ✅ Support des polluants PM₁, PM₂.₅, PM₁₀, NO₂ (selon les polluants supportés par les capteurs communautaires NebuleAir Air Carto)
-  - ✅ Gestion des site actifs/inactifs
+  - ✅ Marqueurs colorés selon les seuils de qualité de l'air
+  - ✅ Panneau latéral avec graphiques historiques
+  - ✅ Support des polluants PM₁, PM₂.₅, PM₁₀, NO₂
+  - ✅ Indication du statut des capteurs (actifs/inactifs)
 
 - **MobileAir** : Capteurs communautaires mobileAir Air Carto
 
-  - ✅ Sélection de capteurs individuels
-  - ✅ Side panel de sélection des capteurs
-  - ✅ Side panel de visualisation des parcours
+  - ✅ Sélection d'un capteur mobile à la fois
+  - ✅ Panneau de sélection des capteurs disponibles
+  - ✅ Panneau de visualisation des parcours et données
   - ✅ Support des polluants PM₁, PM₂.₅, PM₁₀
-  - ✅ Limitation à un capteur à la fois (protection API)
-  - ✅ Gestion des périodes personnalisées
+  - ✅ Limitation à un capteur à la fois pour protéger l'API
+  - ✅ Périodes personnalisées pour vos analyses
 
-- **PurpleAir** : Capteurs communautaires
+- **PurpleAir** : Capteurs communautaires PurpleAir
 
-  - ✅ Affichage des valeurs dans un marqueurs colorés selon le dépassement de seuil du polluant selectionné
-  - ✅ Popup affichant les mesures instantanés du capteur cliqué et lien vers le site purpleAir pour consultation des données historiques
+  - ✅ Marqueurs colorés selon les seuils de qualité de l'air
+  - ✅ Popup avec les mesures instantanées et lien vers le site PurpleAir pour les données historiques
   - ✅ Support des polluants PM₁, PM₂.₅, PM₁₀
   - ✅ Support des pas de temps scan et <= 2min
 
 - **SensorCommunity** : Capteurs communautaires SensorCommunity
 
-  - ✅ Affichage des valeurs dans un marqueurs colorés selon le dépassement de seuil du polluant selectionné
-  - ✅ Popup affichant le grafana des dernières mesures du capteur cliqué
+  - ✅ Marqueurs colorés selon les seuils de qualité de l'air
+  - ✅ Popup avec intégration Grafana pour visualiser les dernières mesures
   - ✅ Support des polluants PM₁, PM₂.₅, PM₁₀
   - ✅ Support des pas de temps instantané et <= 2min
 
-- **SignalAir** : Signalement citoyenSignalAir
+- **SignalAir** : Signalements citoyens SignalAir
   - ✅ Affichage des signalements sur la carte (odeurs, bruits, brûlages, visuels)
-  - ✅ Sélecteur de période personnalisé
-  - ✅ Marqueurs spécifiques par type de signalement
+  - ✅ Sélecteur de période personnalisé pour filtrer les signalements
+  - ✅ Marqueurs spécifiques et reconnaissables par type de signalement
 
 ## 🎨 Polluants supportés par l'application
 
@@ -183,32 +391,32 @@ Chaque polluant dispose de 6 niveaux de qualité avec des seuils spécifiques :
 
 ### Auto-Refresh Intelligent
 
-L'application dispose d'un système d'auto-refresh intelligent qui s'adapte automatiquement au pas de temps sélectionné :
+L'application dispose d'un système de rafraîchissement automatique qui s'adapte intelligemment à vos besoins :
 
 #### **Fonctionnalités de l'Auto-Refresh**
 
-- **Activation/Désactivation** : Toggle pour contrôler le rafraîchissement automatique
-- **Adaptation** : Fréquence de rafraîchissement adaptée au pas de temps et aux sources actives
-- **Indicateur de période** : Affichage de la période de données actuellement affichée
-- **Indicateurs visuels** : États visuels clairs (actif, inactif, en cours de chargement)
+- **Activation/Désactivation** : Activez ou désactivez le rafraîchissement automatique selon vos préférences
+- **Adaptation automatique** : La fréquence de rafraîchissement s'ajuste selon le pas de temps sélectionné et les sources actives
+- **Indicateur de période** : Vous voyez toujours quelle période de données est actuellement affichée
 
 #### **Périodes de Données Affichées**
 
-- **Données journalières** : Dernier jour plein (veille)
-- **Données horaires** : Dernière heure pleine (heure précédente)
-- **Données par quart d'heure** : Dernier quart d'heure terminé
-- **Données instantanées** : Heure et minute actuelles
+- **Données instantanées** : Dernière donnée non aggrégé renvoyé par l'appareil
 - **Données par 2 minutes** : Dernière période de 2 minutes terminée
+- **Données par quart d'heure** : Dernier quart d'heure plein
+- **Données horaires** : Dernière heure pleine (heure précédente)
+- **Données journalières** : Dernier jour plein (veille)
 
-#### **Contrôles de Période Personnalisés**
+#### **Contrôles de Période pour la consultation des données historiques d'un appareil de mesure**
 
 - **Périodes prédéfinies** : 3h, 24h, 7 jours, 1 an
 - **Périodes personnalisées** : Sélecteur de dates pour analyses sur mesure
 - **Validation des dates** : Contrôles de cohérence des périodes sélectionnées
+- **Limitation** : Limitation de la plage historique selon le pas de temps selectionné (scan : 2 mois max, 15 min : 6 mois max)
 
 ## 🗺️ Fonds de carte
 
-- **Carte standard** : Fond CARTO clair avec OpenStreetMap
+- **Carte standard** : Fond CARTO clair avec Stadia maps
 - **Satellite IGN** : Imagerie satellite IGN
 
 ## 🔗 Clustering des marqueurs
@@ -217,11 +425,7 @@ L'application dispose d'un système d'auto-refresh intelligent qui s'adapte auto
 
 - **Clustering automatique** : Regroupement intelligent des marqueurs proches
 - **Performance optimisée** : Amélioration des performances avec de nombreux marqueurs
-- **Activation/Désactivation** : Activation/Désactivation du clustering depuis le menu de la carte
-
-### Options de clustering configurables
-
-- **Activation/Désactivation** : Basculement du clustering depuis le menu de la carte
+- **Activation/Désactivation** : Activation/Désactivation du clustering depuis le menu de la carte (desactivé par defaut)
 - **Spiderfy au zoom maximum** : Éclatement des clusters au zoom maximum
 - **Affichage de la zone** : Visualisation de la zone de cluster au survol
 - **Zoom sur la zone** : Zoom automatique sur la zone du cluster au clic
@@ -282,10 +486,10 @@ L'interface principale dispose d'un en-tête compact contenant tous les contrôl
   - **Polluant** : Menu déroulant avec label et bouton côte à côte
   - **Sources** : Menu déroulant avec sélection multiple et hiérarchie
   - **Pas de temps** : Menu déroulant pour la période de mesure
-  - **Période SignalAir** : Sélecteur de dates (visible si SignalAir est actif)
-- **Indicateurs d'information** : Affichage des sélections actuelles séparés par une bordure verticale
-- **Barre de progression** : Indicateur de chargement discret en bas de l'en-tête
-- **Mode historique** : Bouton pour basculer entre mode historique et mode actuel
+- **Indicateurs d'information** : Affichage de la période affiché sur la carte actuellement + indicateur auto-refresh activé/    desactivé
+- **Modélisation**: Menu déroulant pour le choix de la carte de modélisation à afficher sur la carte
+- **Mode historique**: Bouton pour basculer entre mode historique et mode actuel
+- **Barre de recherche**: Permet de rechercher directement dans la Banque d'Adresse National ou bien un appareil de mesure  
 
 ### Contrôles du mode historique
 
@@ -301,7 +505,7 @@ L'interface principale dispose d'un en-tête compact contenant tous les contrôl
 
 ### Contrôles de carte
 
-- **Contrôle du clustering** : Icône en bas à gauche pour paramétrer le clustering
+- **Contrôle du clustering** : Icône en bas à gauche pour activer/desactiver le clustering
 - **Contrôle fond de carte** : Icône en bas à gauche pour basculer entre fond de carte standard et fond de carte satellite
 - **Légende** : Affichage des seuils en bas au centre avec tooltips au hover
 - **Informations de la carte** : Compteur de nombre d'appareils et de signalements affichés sur la carte en bas à droite
@@ -310,11 +514,11 @@ L'interface principale dispose d'un en-tête compact contenant tous les contrôl
 ### Marqueurs et affichage
 
 - **Marqueurs colorés** : Couleurs selon les seuils de qualité de l'air
-- **Formes des marqueurs** : Différentes formes selon le type de source de données
+- **Formes des marqueurs** : Différentes formes selon la source de donnée
 - **Affichage des valeurs** : Valeurs numériques directement sur les marqueurs
-- **Indicateurs de correction** : Badge bleu pour les données AtmoMicro corrigées
+- **Indicateurs de correction** : Badge bleu pour les données des microcapteurs qualifiés AtmoSud corrigées
 - **Marqueurs SignalAir** : Icônes spécifiques par type de signalement
-- **Animations de chargement** : Effets visuels pendant le chargement des données
+- **Animations de chargement** : Effets visuels de transparance pendant le chargement des données
 
 ### Design et UX
 
@@ -324,332 +528,117 @@ L'interface principale dispose d'un en-tête compact contenant tous les contrôl
 - **États visuels clairs** : Sélectionné, partiellement sélectionné, non sélectionné
 - **Responsive design** : Adapté à tous les écrans
 - **Indicateurs de chargement** : Affichage discret des états de chargement
-- **Clustering intelligent** : Amélioration de la lisibilité avec de nombreux marqueurs
-
-## 🚀 Installation et démarrage
-
-### 📋 Prérequis
-
-- **Node.js** : Version 18.0.0 ou supérieure
-- **npm** : Version 8.0.0 ou supérieure (inclus avec Node.js)
-- **Git** : Pour cloner le repository
-- **Navigateur moderne** : Chrome, Firefox, Safari, Edge (dernières versions)
-
-### 🖥️ Installation par système d'exploitation
-
-#### **Windows**
-
-1. **Installer Node.js**
-
-   - Télécharger depuis [nodejs.org](https://nodejs.org/)
-   - Choisir la version LTS (Long Term Support)
-   - Exécuter l'installateur et suivre les instructions
-   - Vérifier l'installation :
-     ```cmd
-     node --version
-     npm --version
-     ```
-
-2. **Installer Git (si pas déjà installé)**
-
-   - Télécharger depuis [git-scm.com](https://git-scm.com/)
-   - Exécuter l'installateur avec les options par défaut
-   - Vérifier l'installation :
-     ```cmd
-     git --version
-     ```
-
-3. **Cloner et installer le projet**
-
-   ```cmd
-   git clone <repository-url>
-   cd ReactOpenAirMap
-   npm install
-   ```
-
-4. **Démarrer l'application**
-   ```cmd
-   npm run dev
-   ```
-
-#### **macOS**
-
-1. **Installer Node.js avec Homebrew (recommandé)**
-
-   ```bash
-   # Installer Homebrew si pas déjà installé
-   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-   # Installer Node.js
-   brew install node
-
-   # Vérifier l'installation
-   node --version
-   npm --version
-   ```
-
-2. **Alternative : Installer Node.js directement**
-
-   - Télécharger depuis [nodejs.org](https://nodejs.org/)
-   - Choisir la version LTS
-   - Exécuter le package .pkg
-
-3. **Installer Git (si pas déjà installé)**
-
-   ```bash
-   brew install git
-   # ou télécharger depuis git-scm.com
-   ```
-
-4. **Cloner et installer le projet**
-
-   ```bash
-   git clone <repository-url>
-   cd ReactOpenAirMap
-   npm install
-   ```
-
-5. **Démarrer l'application**
-   ```bash
-   npm run dev
-   ```
-
-#### **Linux (Ubuntu/Debian)**
-
-1. **Installer Node.js**
-
-   ```bash
-   # Mettre à jour le système
-   sudo apt update && sudo apt upgrade -y
-
-   # Installer Node.js via NodeSource
-   curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
-   sudo apt-get install -y nodejs
-
-   # Vérifier l'installation
-   node --version
-   npm --version
-   ```
-
-2. **Installer Git**
-
-   ```bash
-   sudo apt install git
-   ```
-
-3. **Cloner et installer le projet**
-
-   ```bash
-   git clone <repository-url>
-   cd ReactOpenAirMap
-   npm install
-   ```
-
-4. **Démarrer l'application**
-   ```bash
-   npm run dev
-   ```
-
-#### **Linux (CentOS/RHEL/Fedora)**
-
-1. **Installer Node.js**
-
-   ```bash
-   # Pour CentOS/RHEL
-   curl -fsSL https://rpm.nodesource.com/setup_lts.x | sudo bash -
-   sudo yum install -y nodejs
-
-   # Pour Fedora
-   sudo dnf install nodejs npm
-   ```
-
-2. **Installer Git**
-
-   ```bash
-   # CentOS/RHEL
-   sudo yum install git
-
-   # Fedora
-   sudo dnf install git
-   ```
-
-3. **Cloner et installer le projet**
-
-   ```bash
-   git clone <repository-url>
-   cd ReactOpenAirMap
-   npm install
-   ```
-
-4. **Démarrer l'application**
-   ```bash
-   npm run dev
-   ```
-
-### 🚀 Démarrage de l'application
-
-Une fois l'installation terminée :
-
-1. **Démarrer le serveur de développement**
-
-   ```bash
-   npm run dev
-   ```
-
-2. **Ouvrir dans le navigateur**
-
-   - L'application s'ouvrira automatiquement dans votre navigateur par défaut
-   - Ou accédez manuellement à : `http://localhost:5173`
-
-3. **Vérifier le fonctionnement**
-   - La carte devrait s'afficher avec les contrôles dans l'en-tête
-   - Les marqueurs de qualité de l'air devraient apparaître sur la carte
-   - Testez les différents contrôles (polluants, sources, pas de temps)
-
-### 🔧 Scripts disponibles
-
-```bash
-# Développement
-npm run dev          # Serveur de développement avec hot-reload
-
-# Production
-npm run build        # Build de production
-npm run preview      # Prévisualisation du build de production
-
-# Qualité de code
-npm run lint         # Vérification ESLint
-```
-
-### 🐛 Résolution de problèmes courants
-
-#### **Erreur "command not found: node"**
-
-- Vérifiez que Node.js est installé : `node --version`
-- Redémarrez votre terminal après l'installation
-- Sur Windows, redémarrez votre ordinateur si nécessaire
-
-#### **Erreur "EACCES" lors de npm install**
-
-- Sur macOS/Linux : `sudo npm install`
-- Ou configurez npm pour un répertoire local : `npm config set prefix ~/.npm-global`
-
-#### **Port 5173 déjà utilisé**
-
-- L'application utilisera automatiquement le port suivant disponible
-- Ou spécifiez un port : `npm run dev -- --port 3000`
-
-#### **Problèmes de dépendances**
-
-- Supprimez `node_modules` et `package-lock.json`
-- Réinstallez : `npm install`
-- Si problème persiste : `npm install --legacy-peer-deps`
+- **Clustering** : Amélioration de la lisibilité avec de nombreux marqueurs
 
 ## 📊 Utilisation des Side Panels
 
-### Side Panel AtmoRef
+Les panneaux latéraux vous permettent d'explorer en détail les données de chaque source. Voici comment les utiliser :
+
+### Side Panel station de référence AtmoSud
 
 1. Cliquez sur un marqueur AtmoRef sur la carte
-2. Le side panel s'ouvre automatiquement avec les informations de la station (à venir)
-3. Les graphiques historiques se chargent au pas de temps horaire sur une période de 24h par défaut
-4. Sélectionnez les polluants disponibles pour la station
-5. Choix du pas de temps et de la période parmi les périodes prédéfinies ou personnalisées
+2. Le panneau latéral s'ouvre automatiquement (les informations détaillées de la station arriveront bientôt)
+3. Les graphiques historiques se chargent par défaut au pas de temps horaire sur une période de 24h
+4. Sélectionnez les polluants que vous souhaitez visualiser parmi ceux disponibles pour la station
+5. Ajustez le pas de temps et la période selon vos besoins 
 
-### Side Panel AtmoMicro
+### Side Panel microcapteur qualifié AtmoSud
 
 1. Cliquez sur un marqueur AtmoMicro sur la carte
-2. Les graphiques historiques se chargent au pas de temps horaire sur une période de 24h par défaut
-3. Sélectionnez les polluants disponibles pour le microcapteur
-4. Choix du pas de temps et de la période parmi les périodes prédéfinies ou personnalisées
+2. Les graphiques historiques se chargent par défaut au pas de temps horaire sur une période de 24h
+3. Choisissez les polluants que vous voulez analyser parmi ceux mesurés par le microcapteur
+4. Personnalisez le pas de temps et la période d'analyses
 
-### Side Panel NebuleAir
+### Side Panel NebuleAir AirCarto
 
 1. Cliquez sur un marqueur NebuleAir sur la carte
-2. Les graphiques historiques se chargent au pas de temps quart-horaire sur une période de 24h par défaut
-3. Sélectionnez les polluants disponibles pour le microcapteur
-4. Choix du pas de temps et de la période parmi les périodes prédéfinies ou personnalisées
+2. Les graphiques historiques se chargent par défaut au pas de temps quart-horaire sur une période de 24h
+3. Sélectionnez les polluants à afficher parmi ceux disponibles
+4. Adaptez le pas de temps et la période à votre analyse
 
-### 🆕 Mode Intercomparaison (AtmoRef / AtmoMicro)
+### 🆕 Mode Intercomparaison (Station de référence / Microcapteur qualifié AtmoSud)
 
-Le mode intercomparaison permet de **comparer jusqu'à 5 stations** (AtmoRef et/ou AtmoMicro) sur un même graphique.
+Le mode intercomparaison est une fonctionnalité puissante qui vous permet de **comparer jusqu'à 5 stations** (Station de référence et/ou Microcapteur qualifié AtmoSud) sur un même graphique.
 
 #### **Activation du mode comparaison**
 
-1. Cliquez sur une station AtmoRef ou AtmoMicro
-2. Dans le side panel, cliquez sur l'**icône de graphique** (en haut à droite)
-3. Le mode comparaison s'active et la station actuelle devient la première station comparée
+1. Cliquez sur une station ou un microcapteur sur la carte
+2. Dans le panneau latéral, cliquez sur l'**Activer comparaison** (en haut à droite)
+3. Le mode comparaison s'active et vous pouvez ensuite soit ajouter d'autres appareils de mesure en cliquant dessus sur la carte, ou bien en utilisant la barre de recherche
 
 #### **Ajout de stations à la comparaison**
 
-1. Une fois en mode comparaison, **cliquez sur d'autres marqueurs** AtmoRef ou AtmoMicro
-2. Chaque clic ajoute la station à la comparaison (maximum 5)
-3. Les stations s'affichent dans la liste "Stations sélectionnées"
-4. Vous pouvez supprimer une station avec le bouton **×**
+1. Une fois en mode comparaison, **cliquez sur d'autres marqueurs** AtmoRef ou AtmoMicro sur la carte
+2. Chaque clic ajoute la station à la comparaison (maximum 5 stations)
+3. Les stations sélectionnées apparaissent dans la liste "Stations sélectionnées"
+4. Vous pouvez retirer une station de la comparaison en cliquant sur le bouton **×** à côté de son nom
 
 #### **Utilisation du graphique de comparaison**
 
-1. **Sélection du polluant** : Le dropdown affiche uniquement les polluants disponibles dans **toutes** les stations
+1. **Sélection du polluant** : Le menu déroulant affiche uniquement les polluants disponibles dans **toutes** les stations sélectionnées
 
-   - Exemple : Si vous comparez 3 stations qui mesurent PM2.5 et PM10, seuls ces 2 polluants seront disponibles
+   - Par exemple : Si vous comparez 3 stations qui mesurent PM2.5 et PM10, seuls ces 2 polluants seront disponibles dans le menu
    - Sélectionnez un polluant à comparer (un seul à la fois)
 
-2. **Graphique** : Affiche une courbe par station avec des couleurs différentes
+2. **Graphique** : Chaque station est représentée par une courbe de couleur différente
 
-   - Bleu, Rouge, Vert, Orange, Violet, Rose
-   - Légende : "Nom de la station - Polluant"
-   - Type de station : "Station de référence" (AtmoRef) ou "Microcapteur" (AtmoMicro)
+   - Couleurs utilisées : Bleu, Rouge, Vert, Orange, Violet
+   - La légende affiche : "Nom de la station - Polluant"
+   - Le type de station est indiqué : "Station de référence" (AtmoRef) ou "Microcapteur" (AtmoMicro)
 
 3. **Contrôles temporels** :
-   - **Période** : 3h, 24h, 7j, 30j, ou personnalisée
+   - **Période** : Choisissez parmi 3h, 24h, 7j, 30j, ou créez une période personnalisée
    - **Pas de temps** : Scan, 15min, 1h, 1j
 
 #### **Mode Scan - Résolutions variables**
 
-⚠️ **Important** : En mode Scan, les résolutions temporelles diffèrent :
+⚠️ **Point important** : En mode Scan, les résolutions temporelles peuvent différer selon le type de station :
 
 - **AtmoRef** : Mesure toutes les **15 minutes** (résolution fixe)
-- **AtmoMicro** : Mesure toutes les **1 à 5 minutes** selon le modèle de capteur
-
-💡 Un bandeau informatif bleu s'affiche automatiquement en mode Scan pour expliquer cette différence.
+- **AtmoMicro** : Mesure toutes les **1 à 15 minutes** selon le modèle de capteur
 
 #### **Limitations**
 
-- **Maximum 5 stations** comparables simultanément
-- **Un seul polluant** affiché à la fois (celui disponible dans toutes les stations)
-- **Sources supportées** : AtmoRef et AtmoMicro uniquement
+- **Maximum 5 stations** peuvent être comparées simultanément
+- **Un seul polluant** est affiché à la fois
+- **Sources supportées** : Seules les stations de référence AtmoSud et les microcapteurs AtmoSud peuvent être comparées
 
 #### **Désactivation du mode comparaison**
 
-1. Cliquez sur **"Désactiver comparaison"** dans le panel
-2. Ou fermez le panel de comparaison
-3. Le mode normal se réactive
+1. Cliquez sur **"Désactiver comparaison"** dans le panneau
+2. Vous revenez automatiquement au mode normal
 
 📚 **Documentation technique complète** : `docs/features/INTERCOMPARAISON_TECHNIQUE.md`
 
 ### Side Panels MobileAir
 
+Les capteurs mobiles fonctionnent un peu différemment. Voici comment les utiliser :
+
 #### **Sélection des capteurs**
 
-1. Sélectionnez "MobileAir" dans les sources de données
-2. Le panel de sélection s'ouvre automatiquement
-3. Choisissez un capteur dans la liste (un seul à la fois)
-4. Sélectionnez la période d'analyse souhaitée
-5. Cliquez sur "Charger le parcours" pour visualiser les données
+1. Activez "MobileAir" dans les sources de données
+2. Le panneau de sélection s'ouvre automatiquement
+3. Choisissez un capteur dans la liste (un seul à la fois pour protéger l'API)
+4. Sélectionnez la période d'analyse qui vous intéresse
+5. Cliquez sur "Charger le parcours" pour visualiser les données du capteur
 
 #### **Visualisation des parcours**
 
-1. Après sélection d'un capteur, le panel de visualisation s'ouvre
-2. Visualisez le parcours du capteur sur la carte
+1. Après avoir sélectionné un capteur, le panneau de visualisation s'ouvre
+2. Vous pouvez voir le parcours du capteur directement sur la carte
 3. Analysez les données en temps réel du capteur mobile
-4. Changez de capteur si nécessaire
+4. N'hésitez pas à changer de capteur si vous voulez explorer d'autres données
 
 ### Contrôles Communs des Side Panels
 
-- **Sélection de polluants** : Cochez/décochez les polluants à afficher
-- **Périodes** : Utilisez les boutons 3h, 24h, 7j, 30j pour changer la période
-- **Périodes personnalisées** : Sélecteur de dates pour analyses sur mesure
-- **Pas de temps** : Sélectionnez la granularité des données
-- **Redimensionnement** : Utilisez les boutons pour changer la taille du panel
-- **Réouverture** : Boutons flottants pour rouvrir les panels masqués
+Tous les panneaux latéraux partagent des fonctionnalités communes :
+
+- **Sélection de polluants** : Cochez ou décochez les polluants que vous souhaitez afficher
+- **Périodes prédéfinies** : Utilisez les boutons rapides 3h, 24h, 7j, 30j pour changer rapidement la période
+- **Périodes personnalisées** : Utilisez le sélecteur de dates pour créer vos propres plages d'analyse
+- **Pas de temps** : Choisissez la granularité des données selon vos besoins
+- **Redimensionnement** : Ajustez la taille du panneau (normal, plein écran, ou masqué)
+- **Réouverture** : Si vous avez masqué un panneau, des boutons flottants vous permettent de le rouvrir facilement
 
 ### Fonctionnalités Avancées
 
@@ -657,7 +646,7 @@ Le mode intercomparaison permet de **comparer jusqu'à 5 stations** (AtmoRef et/
 - **Multi-polluants** : Affichage simultané de plusieurs polluants
 - **Mode comparaison** : Affichage simultané de plusieurs stations
 - **Zoom et navigation** : Interactions avec les graphiques pour explorer les données
-- **Export** : Possibilité d'exporter les données (à venir)
+- **Export** : Possibilité d'exporter les données en csv/png
 
 ## 🔧 Dépendances principales
 
