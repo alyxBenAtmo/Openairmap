@@ -222,10 +222,10 @@ export interface AtmoRefMeasuresResponse {
 // Mapping des codes de polluants AtmoRef vers nos codes
 export const ATMOREF_POLLUTANT_MAPPING: Record<string, string> = {
   "01": "so2", // SO2
-  "02": "no", // NO (pas dans nos polluants)
+  "02": "no", // NO (pas encore dans nos polluants)
   "03": "no2", // NO2
   "08": "o3", // O3
-  "12": "nox", // NOx (pas dans nos polluants)
+  "12": "nox", // NOx (pas encore dans nos polluants)
   "24": "pm10", // PM10
   "39": "pm25", // PM2.5
   "68": "pm1", // PM1

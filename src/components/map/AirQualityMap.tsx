@@ -810,12 +810,6 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
   useEffect(() => {
     if (!mapRef.current) return;
 
-    console.log("🗺️ [MODELING] Effet déclenché:", {
-      currentModelingLayer,
-      selectedTimeStep,
-      selectedPollutant,
-      isAvailable: isModelingAvailable(selectedTimeStep),
-    });
 
     // Cleanup: retirer l'ancien layer de modélisation s'il existe
     if (modelingLayerRef.current && mapRef.current) {

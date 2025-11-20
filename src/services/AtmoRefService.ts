@@ -62,6 +62,20 @@ export class AtmoRefService extends BaseDataService {
         return [];
       }
 
+      // Obtenir le code ISO correspondant au polluant pour filtrer les stations
+      const pollutantIsoCode = this.getPollutantIsoCode(params.pollutant);
+      
+      // Filtrer les stations pour ne garder que celles où le polluant est en service
+      const filteredStations = stationsResponse.stations.filter((station) => {
+        if (!station.variables || !pollutantIsoCode) {
+          return false;
+        }
+        
+        // Vérifier si le polluant est présent dans variables avec en_service = true
+        const variable = station.variables[pollutantIsoCode];
+        return variable && variable.en_service === true;
+      });
+
       // Créer un map des mesures par ID de station pour un accès rapide
       const measuresMap = new Map<string, AtmoRefMeasure>();
       measuresResponse.mesures.forEach((measure) => {
@@ -71,7 +85,7 @@ export class AtmoRefService extends BaseDataService {
       // Transformer les stations en MeasurementDevice
       const devices: MeasurementDevice[] = [];
 
-      for (const station of stationsResponse.stations) {
+      for (const station of filteredStations) {
         const measure = measuresMap.get(station.id_station);
 
         if (measure) {
@@ -132,7 +146,7 @@ export class AtmoRefService extends BaseDataService {
   private async fetchStations(
     pollutantName: string
   ): Promise<AtmoRefStationsResponse> {
-    const url = `${this.BASE_URL}/stations?format=json&nom_polluant=${pollutantName}&station_en_service=true&download=false&metadata=true`;
+    const url = `${this.BASE_URL}/stations?format=json&nom_polluant=${pollutantName}&station_en_service=true&polluant_en_service=true&download=false&metadata=true`;
     return await this.makeRequest(url);
   }
 
@@ -157,6 +171,18 @@ export class AtmoRefService extends BaseDataService {
     };
 
     return pollutantNameMapping[pollutant] || null;
+  }
+
+  private getPollutantIsoCode(pollutant: string): string | null {
+    // Mapping inverse : de nos codes vers les codes ISO AtmoRef
+    // ATMOREF_POLLUTANT_MAPPING : { "01": "so2", "03": "no2", "39": "pm25", ... }
+    // On cherche le code ISO qui correspond à notre polluant
+    for (const [isoCode, pollutantCode] of Object.entries(ATMOREF_POLLUTANT_MAPPING)) {
+      if (pollutantCode === pollutant) {
+        return isoCode;
+      }
+    }
+    return null;
   }
 
   private getAtmoRefTimeStepConfig(
@@ -250,7 +276,7 @@ export class AtmoRefService extends BaseDataService {
     Record<string, { label: string; code_iso: string; en_service: boolean }>
   > {
     try {
-      const url = `${this.BASE_URL}/stations?format=json&station_en_service=true&download=false&metadata=true`;
+      const url = `${this.BASE_URL}/stations?format=json&station_en_service=true&polluant_en_service=true&download=false&metadata=true`;
       const response = await this.makeRequest(url);
 
       const station = response.stations.find(
@@ -305,9 +331,24 @@ export class AtmoRefService extends BaseDataService {
         return [];
       }
 
+      // Obtenir le code ISO correspondant au polluant pour filtrer les stations
+      const pollutantIsoCode = this.getPollutantIsoCode(params.pollutant);
+      
+      // Filtrer les stations pour ne garder que celles où le polluant est en service
+      const filteredStations = stationsResponse.stations.filter((station) => {
+        if (!station.variables || !pollutantIsoCode) {
+          return false;
+        }
+        
+        // Vérifier si le polluant est présent dans variables avec en_service = true
+        const variable = station.variables[pollutantIsoCode];
+        return variable && variable.en_service === true;
+      });
+
       // Créer un map des stations par ID pour un accès rapide
       const stationsMap = new Map<string, AtmoRefStation>();
-      stationsResponse.stations.forEach((station) => {
+      filteredStations.forEach((station) => {
+        console.log(station);
         stationsMap.set(station.id_station, station);
       });
 
