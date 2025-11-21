@@ -1,14 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+import * as am5 from "@amcharts/amcharts5";
+import * as am5xy from "@amcharts/amcharts5/xy";
+import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
 import { HistoricalDataPoint, StationInfo } from "../../types";
 import { pollutants, POLLUTANT_COLORS } from "../../constants/pollutants";
 import {
@@ -190,8 +183,13 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   // État pour détecter si on est sur mobile
   const [isMobile, setIsMobile] = useState(false);
 
-  // Référence vers le graphique pour l'exportation
-  const chartRef = useRef<any>(null);
+  // Références vers le graphique amCharts pour l'exportation
+  const chartRef = useRef<am5xy.XYChart | null>(null);
+  const rootRef = useRef<am5.Root | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const containerIdRef = useRef<string>(
+    `historical-chart-${Math.random().toString(36).substr(2, 9)}`
+  );
 
   const useSolidNebuleAirLines =
     featureFlags.solidLineNebuleAir &&
@@ -435,7 +433,32 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
 
     // Créer les points de données
     const transformedData = sortedTimestamps.map((timestamp) => {
-      const date = new Date(timestamp);
+      // Convertir le timestamp en millisecondes UTC de manière cohérente
+      // Si c'est déjà un nombre, l'utiliser directement, sinon parser la string
+      let dateMs: number;
+      if (typeof timestamp === "number") {
+        dateMs = timestamp;
+      } else if (timestamp.includes("T")) {
+        // Format ISO : peut contenir Z, +00:00, -05:00, etc.
+        // Si le timestamp contient déjà un offset de fuseau horaire (+/-XX:XX), l'utiliser directement
+        // Sinon, s'il contient Z, c'est UTC, sinon on traite comme UTC
+        if (timestamp.match(/[+-]\d{2}:\d{2}$/)) {
+          // Format avec offset de fuseau horaire (ex: +00:00, +01:00, -05:00)
+          dateMs = new Date(timestamp).getTime();
+        } else if (timestamp.includes("Z")) {
+          // Format ISO UTC avec Z
+          dateMs = new Date(timestamp).getTime();
+        } else {
+          // Format ISO sans Z ni offset : traiter comme UTC pour éviter les décalages
+          dateMs = new Date(timestamp + "Z").getTime();
+        }
+      } else {
+        // Format local : parser et utiliser getTime()
+        dateMs = new Date(timestamp).getTime();
+      }
+      
+      // Créer la date à partir du timestamp UTC pour le formatage
+      const date = new Date(dateMs);
       // Format plus court sur mobile uniquement
       const timestampFormatted = isMobile
         ? `${date.getDate()}/${date.getMonth() + 1} ${date.getHours()}h`
@@ -446,20 +469,42 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
             minute: "2-digit",
           });
       
-      const dateMs = new Date(timestamp).getTime();
       const point: any = {
         timestamp: timestampFormatted,
         rawTimestamp: timestamp,
-        // Utiliser rawTimestamp comme clé principale pour le positionnement précis
+        // Utiliser le timestamp UTC en millisecondes pour le positionnement précis
         timestampValue: dateMs,
       };
 
       // Ajouter les valeurs pour chaque polluant (corrigées et brutes)
       selectedPollutants.forEach((pollutant, index) => {
         if (data[pollutant]) {
-          const dataPoint = data[pollutant].find(
-            (p) => p.timestamp === timestamp
-          );
+          // Normaliser les timestamps pour la comparaison (en millisecondes)
+          const normalizeTimestamp = (ts: string | number): number => {
+            if (typeof ts === "number") return ts;
+            if (typeof ts === "string" && ts.includes("T")) {
+              // Format ISO : peut contenir Z, +00:00, -05:00, etc.
+              if (ts.match(/[+-]\d{2}:\d{2}$/)) {
+                // Format avec offset de fuseau horaire
+                return new Date(ts).getTime();
+              } else if (ts.includes("Z")) {
+                // Format ISO UTC avec Z
+                return new Date(ts).getTime();
+              } else {
+                // Format ISO sans Z ni offset : traiter comme UTC
+                return new Date(ts + "Z").getTime();
+              }
+            }
+            return new Date(ts).getTime();
+          };
+          
+          const timestampMs = normalizeTimestamp(timestamp);
+          
+          const dataPoint = data[pollutant].find((p) => {
+            const pTimestampMs = normalizeTimestamp(p.timestamp);
+            // Comparer en millisecondes pour éviter les problèmes de format
+            return Math.abs(pTimestampMs - timestampMs) < 1000; // Tolérance de 1 seconde
+          });
           if (dataPoint) {
             // Valeur corrigée si disponible
             if (dataPoint.corrected_value !== undefined) {
@@ -471,14 +516,18 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
               point[`${pollutant}_raw`] = dataPoint.raw_value;
             }
 
-            // Valeur brute comme valeur principale si pas de données corrigées
-            if (dataPoint.corrected_value === undefined) {
-              // Pour AtmoMicro, utiliser _raw, pour toutes les autres sources utiliser la clé principale
-              if (source === "atmoMicro") {
+            // Valeur principale : pour AtmoMicro avec données corrigées, utiliser _corrected
+            // Sinon, utiliser la valeur principale selon la source
+            if (source === "atmoMicro") {
+              // Pour AtmoMicro, utiliser _raw comme valeur principale si pas de données corrigées
+              if (dataPoint.corrected_value === undefined) {
                 point[`${pollutant}_raw`] = dataPoint.value;
-              } else {
-                point[pollutant] = dataPoint.value;
               }
+              // Si corrected_value existe, il est déjà assigné ci-dessus
+            } else {
+              // Pour toutes les autres sources (AtmoRef, etc.), utiliser la clé principale
+              // Toujours assigner la valeur principale, même si corrected_value existe
+              point[pollutant] = dataPoint.value;
             }
 
             // Stocker l'unité pour ce polluant
@@ -501,22 +550,26 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   };
 
   // Transformer les données pour Recharts - Mémorisé pour éviter les recalculs inutiles
-  const chartData = useMemo(() => transformData(), [data, selectedPollutants, source, stations, isMobile]);
-  const unitGroups = useMemo(() => groupPollutantsByUnit(), [selectedPollutants, data, source, stations]);
+  const chartData = useMemo(() => {
+    const transformed = transformData();
+    console.log("[HistoricalChart] Données transformées:", {
+      source,
+      selectedPollutants,
+      dataKeys: Object.keys(data),
+      dataLengths: Object.keys(data).map(key => ({ key, length: data[key]?.length || 0 })),
+      transformedLength: transformed.length,
+      firstTransformedPoint: transformed[0],
+      samplePoint: transformed.length > 0 ? transformed[0] : null,
+    });
+    return transformed;
+  }, [data, selectedPollutants, source, stations, isMobile]);
+  const unitGroups = useMemo(() => {
+    const groups = groupPollutantsByUnit();
+    console.log("[HistoricalChart] Groupes d'unités:", groups);
+    return groups;
+  }, [selectedPollutants, data, source, stations]);
   const unitKeys = useMemo(() => Object.keys(unitGroups), [unitGroups]);
   
-  // Calculer un intervalle optimal pour l'axe X selon le nombre de points
-  // Pour éviter la surcharge de labels, on affiche environ 6-8 labels maximum
-  const xAxisInterval = useMemo(() => {
-    if (isMobile) {
-      return "preserveStartEnd";
-    }
-    if (chartData.length === 0) return 0;
-    // Calculer un intervalle pour afficher environ 6-8 labels
-    const targetLabels = 7;
-    const interval = Math.floor(chartData.length / targetLabels);
-    return interval > 0 ? interval : 0;
-  }, [isMobile, chartData.length]);
 
   // Déterminer le format optimal pour les labels de l'axe X selon la plage de dates
   const xAxisDateFormat = useMemo(() => {
@@ -626,204 +679,6 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     }
   }, [chartData, isMobile]);
 
-  // Générer des ticks personnalisés pour un meilleur positionnement
-  const xAxisTicks = useMemo(() => {
-    if (chartData.length === 0) return undefined;
-
-    const dates = chartData
-      .map((point: any) => {
-        const timestamp = point.timestampValue !== undefined 
-          ? point.timestampValue 
-          : point.rawTimestamp;
-        if (typeof timestamp === 'number') {
-          return new Date(timestamp);
-        }
-        return new Date(timestamp);
-      })
-      .filter((date) => !isNaN(date.getTime()));
-
-    if (dates.length === 0) return undefined;
-
-    const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
-    const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
-    
-    const diffMs = maxDate.getTime() - minDate.getTime();
-    const diffDays = diffMs / (1000 * 60 * 60 * 24);
-    const diffMonths = (maxDate.getFullYear() - minDate.getFullYear()) * 12 + (maxDate.getMonth() - minDate.getMonth());
-    const diffYears = maxDate.getFullYear() - minDate.getFullYear();
-
-    const ticks: number[] = [];
-    const maxTicks = isMobile ? 6 : 10; // Limiter le nombre de ticks
-
-    if (diffYears > 0) {
-      // Plusieurs années : ticks au début de chaque mois
-      const current = new Date(minDate);
-      current.setDate(1); // Premier du mois
-      current.setHours(0, 0, 0, 0);
-      while (current <= maxDate && ticks.length < maxTicks * 3) {
-        ticks.push(current.getTime());
-        current.setMonth(current.getMonth() + 1);
-      }
-    } else if (diffMonths > 3) {
-      // Plusieurs mois (plus de 3) : ticks au début de chaque mois
-      const current = new Date(minDate);
-      current.setDate(1); // Premier du mois
-      current.setHours(0, 0, 0, 0);
-      while (current <= maxDate && ticks.length < maxTicks * 3) {
-        ticks.push(current.getTime());
-        current.setMonth(current.getMonth() + 1);
-      }
-    } else if (diffMonths > 0) {
-      // Quelques mois (1-3) : ticks au début de chaque jour
-      const current = new Date(minDate);
-      current.setHours(0, 0, 0, 0);
-      while (current <= maxDate && ticks.length < maxTicks * 3) {
-        ticks.push(current.getTime());
-        current.setDate(current.getDate() + 1);
-      }
-    } else if (diffDays > 1) {
-      // Plusieurs jours : ticks à minuit de chaque jour
-      // Le label affiche le jour, et les données du jour sont positionnées après le label
-      const current = new Date(minDate);
-      current.setHours(0, 0, 0, 0);
-      // Inclure le premier jour
-      ticks.push(current.getTime());
-      current.setDate(current.getDate() + 1);
-      while (current <= maxDate && ticks.length < maxTicks * 3) {
-        ticks.push(current.getTime());
-        current.setDate(current.getDate() + 1);
-      }
-    } else if (diffDays > 0) {
-      // Un seul jour : ticks toutes les heures
-      const current = new Date(minDate);
-      current.setMinutes(0, 0, 0);
-      while (current <= maxDate && ticks.length < maxTicks * 2) {
-        ticks.push(current.getTime());
-        current.setHours(current.getHours() + 1);
-      }
-    } else {
-      // Moins d'un jour : ticks toutes les heures ou toutes les 30 minutes selon la durée
-      const current = new Date(minDate);
-      if (diffMs > 6 * 60 * 60 * 1000) {
-        // Plus de 6 heures : ticks toutes les heures
-        current.setMinutes(0, 0, 0);
-        while (current <= maxDate && ticks.length < maxTicks * 2) {
-          ticks.push(current.getTime());
-          current.setHours(current.getHours() + 1);
-        }
-      } else {
-        // Moins de 6 heures : ticks toutes les 30 minutes
-        current.setMinutes(Math.floor(current.getMinutes() / 30) * 30, 0, 0);
-        while (current <= maxDate && ticks.length < maxTicks * 2) {
-          ticks.push(current.getTime());
-          current.setMinutes(current.getMinutes() + 30);
-        }
-      }
-    }
-
-    // Si trop de ticks, les échantillonner uniformément
-    if (ticks.length > maxTicks) {
-      // Pour les pas de temps fins, utiliser les ticks originaux et les échantillonner
-      // Pour les grandes plages, calculer directement les positions optimales
-      const timeSpan = maxDate.getTime() - minDate.getTime();
-      const numTicks = Math.min(maxTicks, ticks.length);
-      const sampledTicks: number[] = [];
-      
-      // Pour les grandes plages (années, mois), calculer directement les positions
-      if (diffYears > 0 || diffMonths > 3) {
-        // Distribuer uniformément dans le temps et arrondir au début du mois
-        for (let i = 0; i < numTicks; i++) {
-          const ratio = numTicks > 1 ? i / (numTicks - 1) : 0;
-          const tickTime = minDate.getTime() + ratio * timeSpan;
-          const tickDate = new Date(tickTime);
-          tickDate.setDate(1);
-          tickDate.setHours(0, 0, 0, 0);
-          sampledTicks.push(tickDate.getTime());
-        }
-      } else if (diffMonths > 0 || diffDays > 1) {
-        // Distribuer uniformément dans le temps et arrondir au début du jour
-        for (let i = 0; i < numTicks; i++) {
-          const ratio = numTicks > 1 ? i / (numTicks - 1) : 0;
-          const tickTime = minDate.getTime() + ratio * timeSpan;
-          const tickDate = new Date(tickTime);
-          tickDate.setHours(0, 0, 0, 0);
-          sampledTicks.push(tickDate.getTime());
-        }
-      } else {
-        // Pour les pas de temps fins, échantillonner les ticks originaux uniformément
-        // Cela préserve la granularité fine sans arrondir trop agressivement
-        const step = (ticks.length - 1) / (numTicks - 1);
-        for (let i = 0; i < numTicks; i++) {
-          const index = Math.round(i * step);
-          if (index < ticks.length) {
-            sampledTicks.push(ticks[index]);
-          }
-        }
-      }
-      
-      // Dédupliquer et trier
-      const uniqueTicks = Array.from(new Set(sampledTicks)).sort((a, b) => a - b);
-      
-      // S'assurer qu'on a au moins le premier et le dernier
-      if (uniqueTicks.length > 0) {
-        // Utiliser les timestamps réels des données, pas les ticks arrondis
-        const firstDataTime = minDate.getTime();
-        const lastDataTime = maxDate.getTime();
-        
-        if (uniqueTicks[0] !== firstDataTime && uniqueTicks[0] > firstDataTime) {
-          uniqueTicks.unshift(firstDataTime);
-        }
-        if (uniqueTicks[uniqueTicks.length - 1] !== lastDataTime && uniqueTicks[uniqueTicks.length - 1] < lastDataTime) {
-          uniqueTicks.push(lastDataTime);
-        }
-      }
-      
-      return uniqueTicks.length > 0 ? uniqueTicks : undefined;
-    }
-
-    return ticks.length > 0 ? ticks : undefined;
-  }, [chartData, isMobile]);
-
-  // Créer une Map pour un accès rapide timestampValue -> rawTimestamp
-  const timestampMap = useMemo(() => {
-    const map = new Map<number, number | string>();
-    chartData.forEach((point: any) => {
-      if (point.timestampValue !== undefined && point.rawTimestamp) {
-        map.set(point.timestampValue, point.rawTimestamp);
-      }
-    });
-    return map;
-  }, [chartData]);
-
-  // Fonction pour formater les labels de l'axe X
-  const formatXAxisLabel = useCallback((tickItem: number | string) => {
-    if (tickItem === undefined || tickItem === null) return '';
-    
-    let date: Date;
-    
-    // Si tickItem est un nombre (timestampValue), utiliser directement
-    if (typeof tickItem === 'number') {
-      const rawTimestamp = timestampMap.get(tickItem);
-      if (rawTimestamp !== undefined) {
-        date = typeof rawTimestamp === 'number' 
-          ? new Date(rawTimestamp) 
-          : new Date(rawTimestamp);
-      } else {
-        // Si pas trouvé dans la map, utiliser directement le nombre comme timestamp
-        date = new Date(tickItem);
-      }
-    } else {
-      // Fallback : essayer de parser depuis le label formaté
-      date = new Date(tickItem);
-    }
-    
-    if (isNaN(date.getTime())) {
-      // Si le parsing échoue, retourner le label original
-      return String(tickItem);
-    }
-    
-    return xAxisDateFormat.format(date);
-  }, [timestampMap, xAxisDateFormat]);
 
   // Détecter si des données corrigées sont disponibles (seulement pour AtmoMicro) - Mémorisé
   const hasCorrectedData = useMemo(() => {
@@ -835,9 +690,6 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
       });
   }, [source, selectedPollutants, chartData]);
 
-  // Mémoriser les objets activeDot pour éviter les recréations
-  const activeDotNormal = useMemo(() => ({ r: 2.5, fillOpacity: 0.7 }), []);
-  const activeDotSmall = useMemo(() => ({ r: 2, fillOpacity: 0.7 }), []);
 
   // Pré-calculer les données de correction par polluant pour éviter les recalculs dans le render
   const pollutantDataFlags = useMemo(() => {
@@ -855,142 +707,122 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     return flags;
   }, [selectedPollutants, chartData]);
 
-  // Mémoriser la génération des lignes du graphique pour éviter les retracements
-  // Utiliser stationsKey au lieu de stations pour éviter les recréations dues aux changements de référence
-  const chartLines = useMemo(() => {
+  // Générer les configurations de séries pour amCharts
+  interface SeriesConfig {
+    dataKey: string;
+    name: string;
+    color: string;
+    strokeWidth: number;
+    strokeDasharray: string;
+    yAxisId: "left" | "right";
+    connectNulls: boolean;
+  }
+
+  const seriesConfigs = useMemo<SeriesConfig[]>(() => {
+    console.log("[HistoricalChart] Génération des séries:", {
+      source,
+      selectedPollutants,
+      unitKeys,
+      unitGroups,
+      pollutantDataFlags,
+    });
     if (source === "comparison" && stations.length > 0) {
       return stations.map((station, index) => {
         const pollutant = selectedPollutants[0];
-        // En mode comparaison, utiliser directement les couleurs de fallback pour différencier les stations
-        const stationColor =
-          fallbackColors[index % fallbackColors.length];
-        const pollutantName =
-          pollutants[pollutant]?.name || pollutant;
+        const stationColor = fallbackColors[index % fallbackColors.length];
+        const pollutantName = pollutants[pollutant]?.name || pollutant;
 
-        return (
-          <Line
-            key={station.id}
-            type="linear"
-            dataKey={station.id}
-            yAxisId="left"
-            stroke={stationColor}
-            strokeWidth={2}
-            strokeDasharray="0" // Trait plein pour toutes les stations
-            dot={false}
-            activeDot={activeDotNormal}
-            name={`${station.name} - ${pollutantName}`}
-            connectNulls={true} // Relier les points malgré les gaps (résolutions différentes)
-          />
-        );
+        return {
+          dataKey: station.id,
+          name: `${station.name} - ${pollutantName}`,
+          color: stationColor,
+          strokeWidth: 2,
+          strokeDasharray: "0", // Trait plein
+          yAxisId: "left" as const,
+          connectNulls: true,
+        };
       });
     }
-    
-    // Mode normal : rendu des lignes par unité
-    return unitKeys.map((unit, unitIndex) => {
+
+    // Mode normal : séries par unité
+    const configs: SeriesConfig[] = [];
+    unitKeys.forEach((unit, unitIndex) => {
       const pollutantsInUnit = unitGroups[unit];
-      const yAxisId = unitIndex === 0 ? "left" : "right";
+      const yAxisId = unitIndex === 0 ? ("left" as const) : ("right" as const);
 
-      return pollutantsInUnit.map((pollutant, pollutantIndex) => {
-        const pollutantColor = getPollutantColor(
-          pollutant,
-          pollutantIndex
-        );
-        const pollutantName =
-          pollutants[pollutant]?.name || pollutant;
-
-        // Utiliser les flags pré-calculés au lieu de recalculer
+      pollutantsInUnit.forEach((pollutant, pollutantIndex) => {
+        const pollutantColor = getPollutantColor(pollutant, pollutantIndex);
+        const pollutantName = pollutants[pollutant]?.name || pollutant;
         const flags = pollutantDataFlags[pollutant] || { hasCorrected: false, hasRaw: false };
         const hasCorrectedData = flags.hasCorrected;
         const hasRawData = flags.hasRaw;
 
-        // Déterminer le style selon la source
         const isAtmoRef = source === "atmoRef";
         const isAtmoMicro = source === "atmoMicro";
 
-        return (
-          <React.Fragment key={pollutant}>
-            {isAtmoRef ? (
-              /* AtmoRef : toujours trait plein (données de référence fiables) */
-              <Line
-                type="linear"
-                dataKey={pollutant}
-                yAxisId={yAxisId}
-                stroke={pollutantColor}
-                strokeWidth={2}
-                strokeDasharray="0" // Trait plein
-                dot={false}
-                activeDot={activeDotNormal}
-                name={pollutantName}
-              />
-            ) : isAtmoMicro ? (
-              /* AtmoMicro : données corrigées (trait plein) et brutes (trait discontinu) */
-              <>
-                {/* Ligne des données corrigées (trait plein) - priorité par défaut */}
-                {hasCorrectedData && (
-                  <Line
-                    type="linear"
-                    dataKey={`${pollutant}_corrected`}
-                    yAxisId={yAxisId}
-                    stroke={pollutantColor}
-                    strokeWidth={2}
-                    strokeDasharray="0" // Trait plein
-                    dot={false}
-                    activeDot={activeDotNormal}
-                    name={`${pollutantName} (corrigé)`} // Nom simple par défaut
-                    connectNulls={false}
-                  />
-                )}
-
-                {/* Ligne des données brutes (trait discontinu) - affichée seulement si showRawData est true */}
-                {hasRawData && (showRawData || !hasCorrectedData) && (
-                  <Line
-                    type="linear"
-                    dataKey={`${pollutant}_raw`}
-                    yAxisId={yAxisId}
-                    stroke={pollutantColor}
-                    strokeWidth={2}
-                    strokeDasharray="3 3" // Trait discontinu
-                    dot={false}
-                    activeDot={activeDotSmall}
-                    name={`${pollutantName} (brute)`}
-                    connectNulls={false}
-                  />
-                )}
-              </>
-            ) : useSolidNebuleAirLines ? (
-              <Line
-                type="linear"
-                dataKey={pollutant}
-                yAxisId={yAxisId}
-                stroke={pollutantColor}
-                strokeWidth={2}
-                strokeDasharray="0" // Trait plein forcé
-                dot={false}
-                activeDot={activeDotNormal}
-                name={pollutantName}
-              />
-            ) : (
-              /* Autres sources : trait discontinu par défaut */
-              <Line
-                type="linear"
-                dataKey={pollutant}
-                yAxisId={yAxisId}
-                stroke={pollutantColor}
-                strokeWidth={2}
-                strokeDasharray="3 3" // Trait discontinu
-                dot={false}
-                activeDot={activeDotNormal}
-                name={pollutantName}
-              />
-            )}
-          </React.Fragment>
-        );
+        if (isAtmoRef) {
+          // AtmoRef : toujours trait plein
+          configs.push({
+            dataKey: pollutant,
+            name: pollutantName,
+            color: pollutantColor,
+            strokeWidth: 2,
+            strokeDasharray: "0",
+            yAxisId,
+            connectNulls: false,
+          });
+        } else if (isAtmoMicro) {
+          // AtmoMicro : données corrigées (trait plein) et brutes (trait discontinu)
+          if (hasCorrectedData) {
+            configs.push({
+              dataKey: `${pollutant}_corrected`,
+              name: `${pollutantName} (corrigé)`,
+              color: pollutantColor,
+              strokeWidth: 2,
+              strokeDasharray: "0",
+              yAxisId,
+              connectNulls: false,
+            });
+          }
+          if (hasRawData && (showRawData || !hasCorrectedData)) {
+            configs.push({
+              dataKey: `${pollutant}_raw`,
+              name: `${pollutantName} (brute)`,
+              color: pollutantColor,
+              strokeWidth: 2,
+              strokeDasharray: "3 3",
+              yAxisId,
+              connectNulls: false,
+            });
+          }
+        } else if (useSolidNebuleAirLines) {
+          configs.push({
+            dataKey: pollutant,
+            name: pollutantName,
+            color: pollutantColor,
+            strokeWidth: 2,
+            strokeDasharray: "0",
+            yAxisId,
+            connectNulls: false,
+          });
+        } else {
+          // Autres sources : trait discontinu par défaut
+          configs.push({
+            dataKey: pollutant,
+            name: pollutantName,
+            color: pollutantColor,
+            strokeWidth: 2,
+            strokeDasharray: "3 3",
+            yAxisId,
+            connectNulls: false,
+          });
+        }
       });
     });
-    // Utiliser stationsKey au lieu de stations directement pour éviter les recréations dues aux changements de référence
-    // stations est utilisé dans le code mais stationsKey dans les dépendances pour la stabilité
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source, stationsKey, selectedPollutants, unitKeys, unitGroups, pollutantDataFlags, showRawData, activeDotNormal, activeDotSmall, useSolidNebuleAirLines]);
+
+    console.log("[HistoricalChart] Configurations de séries générées:", configs);
+    return configs;
+  }, [source, stations, selectedPollutants, unitKeys, unitGroups, pollutantDataFlags, showRawData, useSolidNebuleAirLines]);
 
   // Notifier le composant parent si des données corrigées sont disponibles
   React.useEffect(() => {
@@ -999,9 +831,492 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     }
   }, [hasCorrectedData, onHasCorrectedDataChange]);
 
+  // Transformer les données pour amCharts (timestamp en nombre)
+  // S'assurer que les timestamps sont toujours en UTC (millisecondes) pour un alignement cohérent
+  const amChartsData = useMemo(() => {
+    return chartData.map((point: any) => {
+      let timestamp: number;
+      
+      if (point.timestampValue !== undefined) {
+        // Utiliser timestampValue si disponible (déjà en millisecondes UTC)
+        timestamp = point.timestampValue;
+      } else if (typeof point.rawTimestamp === 'number') {
+        // Si c'est déjà un nombre, l'utiliser directement
+        timestamp = point.rawTimestamp;
+      } else {
+        // Convertir la string en timestamp UTC de manière cohérente
+        const rawTs = point.rawTimestamp;
+        if (typeof rawTs === "string" && rawTs.includes("T")) {
+          // Format ISO : peut contenir Z, +00:00, -05:00, etc.
+          if (rawTs.match(/[+-]\d{2}:\d{2}$/)) {
+            // Format avec offset de fuseau horaire (ex: +00:00, +01:00, -05:00)
+            timestamp = new Date(rawTs).getTime();
+          } else if (rawTs.includes("Z")) {
+            // Format ISO UTC avec Z
+            timestamp = new Date(rawTs).getTime();
+          } else {
+            // Format ISO sans Z ni offset : traiter comme UTC pour éviter les décalages
+            timestamp = new Date(rawTs + "Z").getTime();
+          }
+        } else {
+          // Format local : parser normalement
+          timestamp = new Date(rawTs).getTime();
+        }
+      }
+      
+      return {
+        ...point,
+        timestamp, // Timestamp UTC en millisecondes pour amCharts
+        // Ajouter stationInfo si disponible pour l'affichage dans le tooltip
+        stationInfo: stationInfo || null,
+      };
+    });
+  }, [chartData, stationInfo]);
+
+  // Création et mise à jour du graphique amCharts
+  useEffect(() => {
+    // Vérifier que le conteneur existe
+    if (!containerRef.current) {
+      console.warn("[HistoricalChart] Conteneur DOM non disponible");
+      return;
+    }
+
+    // Vérifier qu'il y a des données
+    if (!chartData || chartData.length === 0) {
+      console.warn("[HistoricalChart] Aucune donnée à afficher");
+      return;
+    }
+
+    // Si le graphique existe déjà, ne pas le recréer
+    if (rootRef.current && chartRef.current) {
+      return;
+    }
+
+    // Créer le root amCharts
+    const root = am5.Root.new(containerIdRef.current);
+    rootRef.current = root;
+
+    // Appliquer le thème animé
+    root.setThemes([am5themes_Animated.new(root)]);
+
+    // Créer le graphique XY
+    const chart = root.container.children.push(
+      am5xy.XYChart.new(root, {
+        panX: true,
+        panY: false,
+        wheelX: "panX",
+        wheelY: "zoomX",
+        pinchZoomX: true,
+        layout: root.verticalLayout,
+        paddingTop: chartMargins.top,
+        paddingRight: chartMargins.right,
+        paddingBottom: chartMargins.bottom,
+        paddingLeft: chartMargins.left,
+      })
+    );
+    chartRef.current = chart;
+
+    // Ajouter un curseur pour activer le tooltip au survol
+    const cursor = chart.set("cursor", am5xy.XYCursor.new(root, {
+      behavior: "none",
+    }));
+    cursor.lineY.set("visible", false);
+    cursor.lineX.set("visible", true);
+
+    // Créer l'axe X (dates)
+    const xAxis = chart.xAxes.push(
+      am5xy.DateAxis.new(root, {
+        baseInterval: { timeUnit: "second", count: 1 },
+        renderer: am5xy.AxisRendererX.new(root, {
+          minGridDistance: 50,
+          cellStartLocation: 0, // Aligner au début de la cellule pour un meilleur alignement
+          cellEndLocation: 1,
+        }),
+      })
+    );
+
+    // Configurer la grille verticale pour qu'elle soit alignée avec les points de données
+    xAxis.get("renderer").grid.template.setAll({
+      stroke: am5.color("#e0e0e0"),
+      strokeDasharray: [3, 3],
+      location: 0, // Aligner la grille au début des cellules (où sont les points)
+      strokeOpacity: 0.5,
+    });
+
+    // Formatter personnalisé pour l'axe X
+    xAxis.get("renderer").labels.template.adapters.add("text", (text, target) => {
+      if (target.dataItem) {
+        const value = (target.dataItem as any).get("value");
+        if (value) {
+          const date = typeof value === "number" ? new Date(value) : new Date(String(value));
+          if (!isNaN(date.getTime())) {
+            return xAxisDateFormat.format(date);
+          }
+        }
+      }
+      return text;
+    });
+
+    // Configurer la taille de police et la rotation selon le mode
+    xAxis.get("renderer").labels.template.setAll({
+      fontSize: isMobile ? 8 : isLandscapeMobile ? 10 : 12,
+      fill: am5.color("#666"),
+      rotation: isMobile ? 0 : -45, // Rotation de -45 degrés sur desktop, 0 sur mobile
+      centerY: am5.p50,
+      centerX: am5.p50,
+    });
+
+    // Créer les axes Y
+    const yAxisMap = new Map<string, am5xy.ValueAxis<am5xy.AxisRendererY>>();
+
+    unitKeys.forEach((unit, unitIndex) => {
+      const yAxisId = unitIndex === 0 ? "left" : "right";
+      const yAxis = chart.yAxes.push(
+        am5xy.ValueAxis.new(root, {
+          id: yAxisId,
+          renderer: am5xy.AxisRendererY.new(root, {
+            opposite: yAxisId === "right",
+          }),
+        })
+      );
+
+      // Ajouter le label
+      yAxis.children.push(
+        am5.Label.new(root, {
+          rotation: -90,
+          text: `Conc. (${unit})`,
+          y: am5.p50,
+          centerX: am5.p50,
+          fontSize: isMobile ? 8 : isLandscapeMobile ? 10 : 12,
+        })
+      );
+
+      // Configurer la taille de police
+      yAxis.get("renderer").labels.template.setAll({
+        fontSize: isMobile ? 9 : isLandscapeMobile ? 10 : 12,
+      });
+
+      yAxisMap.set(yAxisId, yAxis as am5xy.ValueAxis<am5xy.AxisRendererY>);
+    });
+
+    // La grille verticale est déjà configurée ci-dessus lors de la création de l'axe X
+    yAxisMap.forEach((yAxis) => {
+      yAxis.get("renderer").grid.template.setAll({
+        stroke: am5.color("#e0e0e0"),
+        strokeDasharray: [3, 3],
+      });
+    });
+
+    // Créer les séries de données
+    seriesConfigs.forEach((seriesConfig) => {
+      const yAxis = yAxisMap.get(seriesConfig.yAxisId);
+      if (!yAxis) {
+        console.warn(`[HistoricalChart] Axe Y "${seriesConfig.yAxisId}" non trouvé pour la série "${seriesConfig.dataKey}"`);
+        return;
+      }
+
+      const lineSeries = chart.series.push(
+        am5xy.LineSeries.new(root, {
+          name: seriesConfig.name,
+          xAxis: xAxis,
+          yAxis: yAxis,
+          valueYField: seriesConfig.dataKey,
+          valueXField: "timestamp",
+          stroke: am5.color(seriesConfig.color),
+          visible: true,
+        })
+      );
+
+      // Configurer l'épaisseur et le style de ligne
+      lineSeries.strokes.template.set("strokeWidth", seriesConfig.strokeWidth);
+      if (seriesConfig.strokeDasharray !== "0") {
+        const dashArray = seriesConfig.strokeDasharray
+          .split(" ")
+          .map((d) => parseFloat(d))
+          .filter((d) => !isNaN(d));
+        if (dashArray.length > 0) {
+          lineSeries.strokes.template.set("strokeDasharray", dashArray);
+        }
+      }
+
+      // Configurer connectNulls
+      if (seriesConfig.connectNulls) {
+        lineSeries.set("connect", true);
+      }
+
+      // Ajouter des bullets avec tooltipText directement - méthode la plus simple
+      lineSeries.bullets.push((root, series, dataItem) => {
+        const data = dataItem.dataContext as any;
+        const value = data?.[seriesConfig.dataKey];
+        
+        // Formater la date
+        let dateStr = "";
+        if (data?.timestamp) {
+          const timestampValue = data.timestamp;
+          const date = typeof timestampValue === "number" ? new Date(timestampValue) : new Date(timestampValue);
+          if (!isNaN(date.getTime())) {
+            dateStr = date.toLocaleString("fr-FR", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+          }
+        }
+        
+        // Obtenir le nom du polluant
+        const pollutantKey = seriesConfig.dataKey.replace(/_corrected$|_raw$/, "");
+        const pollutantName = pollutants[pollutantKey]?.name || seriesConfig.name;
+        
+        // Obtenir l'unité
+        let unit = data?.[`${pollutantKey}_unit`] || "";
+        if (!unit && pollutants[pollutantKey]) {
+          unit = pollutants[pollutantKey].unit;
+        }
+        const encodedUnit = encodeUnit(unit);
+        
+        // Construire le texte du tooltip
+        let tooltipText = "";
+        if (dateStr) {
+          tooltipText += `${dateStr}\n`;
+        }
+        tooltipText += `${pollutantName}: ${typeof value === "number" ? value.toFixed(1) : value} ${encodedUnit}`;
+        
+        const circle = am5.Circle.new(root, {
+          radius: 3,
+          fill: am5.color(seriesConfig.color),
+          fillOpacity: 0,
+          strokeOpacity: 0,
+          tooltipText: tooltipText,
+        });
+        
+        return am5.Bullet.new(root, {
+          sprite: circle,
+        });
+      });
+
+      // Ajouter les données APRÈS avoir configuré les bullets et le tooltip
+      lineSeries.data.setAll(amChartsData);
+    });
+
+    // Créer la légende personnalisée
+    const legend = chart.children.push(
+      am5.Legend.new(root, {
+        centerX: am5.p50,
+        x: am5.p50,
+        marginTop: isMobile ? 2 : 8,
+        marginBottom: 0,
+        marginLeft: isMobile ? 0 : 8,
+        marginRight: isMobile ? 0 : 8,
+      })
+    );
+
+    // Personnaliser les items de la légende
+    legend.labels.template.setAll({
+      fontSize: isMobile ? 9 : 12,
+    });
+
+    legend.markers.template.setAll({
+      width: isMobile ? 10 : 12,
+      height: isMobile ? 10 : 12,
+    });
+
+    // Créer des marqueurs personnalisés avec styles (plein/discontinu)
+    legend.markers.template.adapters.add("strokeDasharray" as any, (strokeDasharray: any, target: any) => {
+      const dataItem = target.dataItem;
+      if (dataItem) {
+        const series = dataItem.dataContext as am5xy.LineSeries;
+        if (series) {
+          const seriesName = series.get("name");
+          const seriesConfig = seriesConfigs.find((s) => s.name === seriesName);
+          if (seriesConfig) {
+            return seriesConfig.strokeDasharray !== "0" ? [3, 3] : undefined;
+          }
+        }
+      }
+      return strokeDasharray;
+    });
+
+    legend.data.setAll(chart.series.values);
+
+    // Gérer le clic sur la légende pour masquer/afficher les séries
+    legend.itemContainers.template.events.on("click", (ev) => {
+      const dataItem = ev.target.dataItem;
+      if (dataItem) {
+        const series = dataItem.dataContext as am5xy.LineSeries;
+        if (series) {
+          if (series.isHidden()) {
+            series.show();
+      } else {
+            series.hide();
+          }
+        }
+      }
+    });
+
+  }, []); // Création initiale uniquement
+
+  // Mise à jour des données sans recréer le graphique
+  useEffect(() => {
+    if (!chartRef.current || !rootRef.current || !amChartsData.length) return;
+
+    const chart = chartRef.current;
+    const xAxis = chart.xAxes.getIndex(0) as am5xy.DateAxis<am5xy.AxisRendererX>;
+    if (!xAxis) return;
+
+    // Préserver l'état du zoom
+    let zoomStart: number | undefined;
+    let zoomEnd: number | undefined;
+    try {
+      const start = (xAxis as any).getPrivate("start");
+      const end = (xAxis as any).getPrivate("end");
+      if (start !== undefined && end !== undefined) {
+        zoomStart = start as number;
+        zoomEnd = end as number;
+      }
+    } catch (e) {
+      // Ignorer si on ne peut pas récupérer le zoom
+    }
+
+    // Mettre à jour les données de chaque série
+    chart.series.values.forEach((lineSeries) => {
+      (lineSeries as am5xy.LineSeries).data.setAll(amChartsData);
+    });
+
+    // Restaurer le zoom
+    if (zoomStart !== undefined && zoomEnd !== undefined) {
+      xAxis.zoomToDates(new Date(zoomStart), new Date(zoomEnd));
+    }
+  }, [amChartsData]);
+
+  // Mise à jour des séries (quand la configuration change)
+  useEffect(() => {
+    if (!chartRef.current || !rootRef.current || !seriesConfigs.length) return;
+
+    const chart = chartRef.current;
+    const xAxis = chart.xAxes.getIndex(0) as am5xy.DateAxis<am5xy.AxisRendererX>;
+    const yAxisMap = new Map<string, am5xy.ValueAxis<am5xy.AxisRendererY>>();
+    
+    chart.yAxes.values.forEach((yAxis) => {
+      const id = (yAxis as any).get("id");
+      if (id) {
+        yAxisMap.set(id, yAxis as am5xy.ValueAxis<am5xy.AxisRendererY>);
+      }
+    });
+
+    // Supprimer toutes les séries existantes
+    chart.series.clear();
+
+    // Recréer les séries avec la nouvelle configuration
+    seriesConfigs.forEach((seriesConfig) => {
+      const yAxis = yAxisMap.get(seriesConfig.yAxisId);
+      if (!yAxis) return;
+
+      const lineSeries = chart.series.push(
+        am5xy.LineSeries.new(rootRef.current!, {
+          name: seriesConfig.name,
+          xAxis: xAxis,
+          yAxis: yAxis,
+          valueYField: seriesConfig.dataKey,
+          valueXField: "timestamp",
+          stroke: am5.color(seriesConfig.color),
+          visible: true,
+        })
+      );
+
+      lineSeries.strokes.template.set("strokeWidth", seriesConfig.strokeWidth);
+      if (seriesConfig.strokeDasharray !== "0") {
+        const dashArray = seriesConfig.strokeDasharray
+          .split(" ")
+          .map((d) => parseFloat(d))
+          .filter((d) => !isNaN(d));
+        if (dashArray.length > 0) {
+          lineSeries.strokes.template.set("strokeDasharray", dashArray);
+        }
+      }
+
+      if (seriesConfig.connectNulls) {
+        lineSeries.set("connect", true);
+      }
+
+      // Ajouter des bullets avec tooltipText directement - méthode la plus simple
+      lineSeries.bullets.push((root, series, dataItem) => {
+        const data = dataItem.dataContext as any;
+        const value = data?.[seriesConfig.dataKey];
+        
+        // Formater la date
+        let dateStr = "";
+        if (data?.timestamp) {
+          const timestampValue = data.timestamp;
+          const date = typeof timestampValue === "number" ? new Date(timestampValue) : new Date(timestampValue);
+          if (!isNaN(date.getTime())) {
+            dateStr = date.toLocaleString("fr-FR", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+          }
+        }
+        
+        // Obtenir le nom du polluant
+        const pollutantKey = seriesConfig.dataKey.replace(/_corrected$|_raw$/, "");
+        const pollutantName = pollutants[pollutantKey]?.name || seriesConfig.name;
+        
+        // Obtenir l'unité
+        let unit = data?.[`${pollutantKey}_unit`] || "";
+        if (!unit && pollutants[pollutantKey]) {
+          unit = pollutants[pollutantKey].unit;
+        }
+        const encodedUnit = encodeUnit(unit);
+        
+        // Construire le texte du tooltip
+        let tooltipText = "";
+        if (dateStr) {
+          tooltipText += `${dateStr}\n`;
+        }
+        tooltipText += `${pollutantName}: ${typeof value === "number" ? value.toFixed(1) : value} ${encodedUnit}`;
+        
+        const circle = am5.Circle.new(root, {
+          radius: 3,
+          fill: am5.color(seriesConfig.color),
+          fillOpacity: 0,
+          strokeOpacity: 0,
+          tooltipText: tooltipText,
+        });
+        
+        return am5.Bullet.new(root, {
+          sprite: circle,
+        });
+      });
+
+      // Ajouter les données APRÈS avoir configuré les bullets et le tooltip
+      lineSeries.data.setAll(amChartsData);
+    });
+
+    // Mettre à jour la légende
+    if (chart.children.getIndex(0) instanceof am5.Legend) {
+      const legend = chart.children.getIndex(0) as am5.Legend;
+      legend.data.setAll(chart.series.values);
+    }
+  }, [seriesConfigs, amChartsData, source, stations, selectedPollutants]);
+
+  // Nettoyage au démontage
+  useEffect(() => {
+    return () => {
+      if (rootRef.current) {
+        rootRef.current.dispose();
+        rootRef.current = null;
+        chartRef.current = null;
+      }
+    };
+  }, []);
+
   // Fonctions d'exportation - Mémorisées pour éviter les recréations inutiles
   const handleExportPNG = useCallback(async () => {
-    if (!chartData.length) return;
+    if (!chartData.length || !chartRef.current || !rootRef.current) return;
 
     try {
       const filename = generateExportFilename(
@@ -1010,8 +1325,20 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
         stations,
         stationInfo
       );
+      
+      // Utiliser l'API d'export d'amCharts
+      const chart = chartRef.current;
+      const exportSettings = {
+        fileFormat: "png",
+        quality: 1,
+        maintainAspectRatio: true,
+      };
+
+      // amCharts 5 a une API d'export intégrée
+      // Note: Pour l'instant, on utilise html2canvas comme fallback
+      // TODO: Implémenter l'export natif amCharts si disponible
       await exportChartAsPNG(
-        chartRef,
+        containerRef as any, // Utiliser le conteneur DOM pour html2canvas
         filename,
         stationInfo,
         selectedPollutants,
@@ -1074,34 +1401,6 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     return { top: 45, right: 30, left: 20, bottom: 5 };
   }, [isLandscapeMobile, isMobile]);
 
-  // Fonction helper pour déterminer le strokeDasharray dans la légende
-  const getStrokeDasharrayForLegend = (dataKey: string): string => {
-    // Mode comparaison : toutes les lignes sont pleines
-    if (source === "comparison") {
-      return "0";
-    }
-    
-    // Lignes avec _raw : trait discontinu
-    if (dataKey.endsWith("_raw")) {
-      return "3 3";
-    }
-    
-    // Lignes avec _corrected ou sans suffixe : dépend de la source
-    if (dataKey.endsWith("_corrected") || !dataKey.includes("_")) {
-      if (source === "atmoRef") {
-        return "0"; // AtmoRef : toujours trait plein
-      }
-      if (source === "atmoMicro" && dataKey.endsWith("_corrected")) {
-        return "0"; // AtmoMicro corrigé : trait plein
-      }
-      if (useSolidNebuleAirLines) {
-        return "0"; // NebuleAir avec flag : trait plein
-      }
-    }
-    
-    // Par défaut : trait discontinu
-    return "3 3";
-  };
 
   // Afficher un message si aucune donnée n'est disponible
   if (chartData.length === 0) {
@@ -1123,230 +1422,14 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
 
       {/* Graphique */}
       <div className="flex-1">
-        <ResponsiveContainer width="100%" height="100%" ref={chartRef}>
-          <LineChart data={chartData} margin={chartMargins}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis
-              dataKey="timestampValue"
-              type="number"
-              angle={isMobile ? 0 : -45}
-              textAnchor={isMobile ? "middle" : "end"}
-              height={isMobile ? 20 : isLandscapeMobile ? 60 : 80}
-              fontSize={isMobile ? 8 : isLandscapeMobile ? 10 : 12}
-              tick={{ fill: "#666" }}
-              tickMargin={isMobile ? 2 : 5}
-              tickFormatter={formatXAxisLabel}
-              domain={['dataMin', 'dataMax']}
-              ticks={xAxisTicks}
-              allowDecimals={false}
-            />
-
-            {/* Axe Y principal (première unité) */}
-            {unitKeys.length > 0 && (
-              <YAxis
-                yAxisId="left"
-                fontSize={isMobile ? 9 : isLandscapeMobile ? 10 : 12}
-                width={isMobile ? 30 : 40}
-                label={{
-                  value: `Conc. (${unitKeys[0]})`,
-                  angle: -90,
-                  position: "insideLeft",
-                  style: {
-                    textAnchor: "middle",
-                    fontSize: isMobile ? 8 : isLandscapeMobile ? 10 : 12,
-                  },
-                }}
-                // Le label sera masqué par CSS personnalisé sur petits écrans en mode paysage
-              />
-            )}
-
-            {/* Axe Y secondaire (si plusieurs unités) */}
-            {unitKeys.length > 1 && (
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                fontSize={isMobile ? 9 : isLandscapeMobile ? 10 : 12}
-                width={isMobile ? 30 : 40}
-                label={{
-                  value: `Conc. (${unitKeys[1]})`,
-                  angle: 90,
-                  position: "insideRight",
-                  style: {
-                    textAnchor: "middle",
-                    fontSize: isMobile ? 8 : isLandscapeMobile ? 10 : 12,
-                  },
-                }}
-                // Le label sera masqué par CSS personnalisé sur petits écrans en mode paysage
-              />
-            )}
-
-            <Tooltip
-              formatter={(value: any, name: string, props: any) => {
-                // Mode comparaison : afficher le nom de la station
-                if (source === "comparison" && stations.length > 0) {
-                  const stationId = props.dataKey || name;
-                  const station = stations.find((s) => s.id === stationId);
-                  const stationName = station ? station.name : stationId;
-
-                  // Récupérer l'unité stockée dans les données
-                  let unit = props.payload[`${stationId}_unit`] || "";
-                  const pollutant = selectedPollutants[0];
-                  if (!unit && pollutants[pollutant]) {
-                    unit = pollutants[pollutant].unit;
-                  }
-
-                  const encodedUnit = encodeUnit(unit);
-
-                  // Formater la valeur avec l'unité
-                  const formattedValue =
-                    value !== null && value !== undefined
-                      ? `${value} ${encodedUnit}`
-                      : "N/A";
-
-                  return [formattedValue, stationName];
-                }
-
-                // Mode normal : afficher le nom du polluant
-                // Utiliser la clé originale du polluant (dataKey) au lieu du nom affiché
-                const pollutantKey = props.dataKey || name;
-
-                // Extraire le code du polluant (enlever les suffixes _corrected ou _raw)
-                const basePollutantKey = pollutantKey.replace(
-                  /_corrected$|_raw$/,
-                  ""
-                );
-
-                // Récupérer l'unité stockée dans les données
-                let unit = props.payload[`${basePollutantKey}_unit`] || "";
-
-                // Si pas d'unité dans les données, utiliser celle des constantes
-                if (!unit && pollutants[basePollutantKey]) {
-                  unit = pollutants[basePollutantKey].unit;
-                }
-
-                const encodedUnit = encodeUnit(unit);
-
-                // Formater la valeur avec l'unité
-                const formattedValue =
-                  value !== null && value !== undefined
-                    ? `${value} ${encodedUnit}`
-                    : "N/A";
-
-                // Nom du polluant (utiliser le nom affiché)
-                const pollutantName = name;
-
-                return [formattedValue, pollutantName];
-              }}
-              itemSorter={(item: any) => {
-                // Mode comparaison : pas de tri personnalisé nécessaire
-                if (source === "comparison" && stations.length > 0) {
-                  return 0;
-                }
-                
-                // Mode normal : trier selon l'ordre de priorité des polluants
-                const pollutantKey = item.dataKey || item.name || "";
-                const order = getPollutantOrder(pollutantKey);
-                
-                // Calculer un ordre composite : polluant prioritaire + type de donnée
-                // Les données corrigées doivent apparaître avant les brutes pour le même polluant
-                let compositeOrder = order * 1000;
-                
-                if (pollutantKey.includes("_corrected")) {
-                  compositeOrder -= 1; // Les données corrigées avant
-                } else if (pollutantKey.includes("_raw")) {
-                  compositeOrder += 1; // Les données brutes après
-                }
-                
-                return compositeOrder;
-              }}
-              labelFormatter={(label) => {
-                // Si label est un nombre (timestampValue), le formater comme date
-                if (typeof label === 'number') {
-                  const date = new Date(label);
-                  if (!isNaN(date.getTime())) {
-                    return `Date: ${date.toLocaleString("fr-FR", {
-                      year: "numeric",
-                      month: "2-digit",
-                      day: "2-digit",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}`;
-                  }
-                }
-                return `Date: ${label}`;
-              }}
-              contentStyle={{
-                backgroundColor: "white",
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-                padding: "8px",
-              }}
-            />
-            <Legend 
-              wrapperStyle={{ 
-                paddingTop: isMobile ? "2px" : "8px", 
-                paddingBottom: "0",
-                paddingLeft: isMobile ? "0" : "8px",
-                paddingRight: isMobile ? "0" : "8px"
-              }}
-              iconSize={isMobile ? 10 : 12}
-              fontSize={isMobile ? 9 : 12}
-              content={({ payload }) => {
-                return (
-                  <ul className="recharts-default-legend" style={{ padding: 0, margin: 0, textAlign: 'center' }}>
-                    {payload?.map((entry: any, index: number) => {
-                      // Essayer de récupérer le dataKey depuis différentes propriétés possibles
-                      const dataKey = entry.dataKey || entry.payload?.dataKey || entry.value || '';
-                      const strokeDasharray = getStrokeDasharrayForLegend(dataKey);
-                      return (
-                        <li
-                          key={`item-${index}`}
-                          className="recharts-legend-item"
-                          style={{
-                            display: 'inline-block',
-                            marginRight: '10px',
-                            cursor: 'pointer',
-                          }}
-                          onClick={() => entry.onClick?.()}
-                        >
-                          <svg
-                            className="recharts-surface"
-                            width={isMobile ? 10 : 12}
-                            height={isMobile ? 10 : 12}
-                            viewBox="0 0 12 12"
-                            style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '4px' }}
-                          >
-                            <line
-                              x1="0"
-                              y1="6"
-                              x2="12"
-                              y2="6"
-                              stroke={entry.color}
-                              strokeWidth="2"
-                              strokeDasharray={strokeDasharray}
-                            />
-                          </svg>
-                          <span
-                            className="recharts-legend-item-text"
-                            style={{
-                              color: entry.inactive ? '#ccc' : '#000',
-                              fontSize: isMobile ? 9 : 12,
-                            }}
-                          >
-                            {entry.value}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                );
-              }}
-            />
-
-            {/* Mode comparaison : une ligne par station */}
-            {chartLines}
-          </LineChart>
-        </ResponsiveContainer>
+        <div
+          ref={containerRef}
+          id={containerIdRef.current}
+          style={{
+            width: "100%",
+            height: "100%",
+          }}
+        />
       </div>
     </div>
   );

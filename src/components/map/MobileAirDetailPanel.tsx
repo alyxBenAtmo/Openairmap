@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   MobileAirRoute,
   MobileAirDataPoint,
@@ -9,16 +9,9 @@ import {
   getQualityColor,
   getQualityLevel,
 } from "../../constants/qualityColors";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Dot,
-} from "recharts";
+import { AmChartsLineChart, AmChartsLineChartData, AmChartsLineSeries } from "../charts";
+import * as am5 from "@amcharts/amcharts5";
+import * as am5xy from "@amcharts/amcharts5/xy";
 
 interface MobileAirDetailPanelProps {
   isOpen: boolean;
@@ -58,33 +51,9 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
   const [hoveredPoint, setHoveredPoint] = useState<MobileAirDataPoint | null>(
     null
   );
-
-  // Callbacks optimisés pour éviter les re-renders
-  const handleMouseMove = useCallback(
-    (data: any) => {
-      if (data && data.activePayload && data.activePayload[0]) {
-        const point = data.activePayload[0].payload.point;
-        setHoveredPoint(point);
-        if (onPointHover) {
-          onPointHover(point);
-        }
-        if (onPointHighlight) {
-          onPointHighlight(point);
-        }
-      }
-    },
-    [onPointHover, onPointHighlight]
-  );
-
-  const handleMouseLeave = useCallback(() => {
-    setHoveredPoint(null);
-    if (onPointHover) {
-      onPointHover(null);
-    }
-    if (onPointHighlight) {
-      onPointHighlight(null);
-    }
-  }, [onPointHover, onPointHighlight]);
+  const chartRef = useRef<am5xy.XYChart | null>(null);
+  const rootRef = useRef<am5.Root | null>(null);
+  const seriesRef = useRef<am5xy.LineSeries | null>(null);
 
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
@@ -111,32 +80,6 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
     return mapping[pollutant] || "PM25";
   };
 
-  // Utiliser les fonctions centralisées pour la cohérence avec la légende
-
-  // Préparer les données pour le graphique
-  const prepareChartData = () => {
-    const routeToUse = selectedRoute || activeRoute;
-    if (!routeToUse) return [];
-
-    const pollutantKey = getPollutantKey(selectedPollutant);
-
-    return routeToUse.points
-      .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
-      .map((point, index) => {
-        const value = point[pollutantKey as keyof MobileAirDataPoint] as number;
-        return {
-          index,
-          time: new Date(point.time).toLocaleString("fr-FR", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          value: value || 0,
-          color: getQualityColor(value || 0, selectedPollutant, pollutants),
-          quality: getQualityLevel(value || 0, selectedPollutant, pollutants),
-          point: point,
-        };
-      });
-  };
 
   // Fonction pour formater la durée
   const formatDuration = (minutes: number): string => {
@@ -197,59 +140,227 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
     return latMatch && lonMatch && timeMatch;
   };
 
-  // Composant personnalisé pour les points du graphique
-  const CustomDot = (props: any) => {
-    const { cx, cy, payload } = props;
-    const isHighlighted =
-      highlightedPoint && isSamePoint(highlightedPoint, payload.point);
-
-    const handleMouseEnter = () => {
-      setHoveredPoint(payload.point);
-      if (onPointHover) {
-        onPointHover(payload.point);
-      }
-      if (onPointHighlight) {
-        onPointHighlight(payload.point);
-      }
-    };
-
-    const handleMouseLeave = () => {
-      setHoveredPoint(null);
-      if (onPointHover) {
-        onPointHover(null);
-      }
-      if (onPointHighlight) {
-        onPointHighlight(null);
-      }
-    };
-
-    const handleClick = () => {
-      console.log(
-        "🖱️ Click sur point du graphique:",
-        getPointId(payload.point)
-      );
-      if (onPointHighlight) {
-        onPointHighlight(payload.point);
-      }
-    };
-
-    return (
-      <Dot
-        cx={cx}
-        cy={cy}
-        r={isHighlighted ? 6 : 3}
-        fill={isHighlighted ? "#3B82F6" : "#3B82F680"}
-        stroke={isHighlighted ? "#1D4ED8" : "none"}
-        strokeWidth={isHighlighted ? 3 : 0}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        onClick={handleClick}
-        style={{ cursor: "pointer" }}
-      />
-    );
-  };
-
   const routeToUse = selectedRoute || activeRoute;
+
+  // Préparer les données pour le graphique (toujours appelé, même si le panel est fermé)
+  const chartData = useMemo(() => {
+    if (!routeToUse) return [];
+    const pollutantKey = getPollutantKey(selectedPollutant);
+    
+    // Trier les points par timestamp
+    const sortedPoints = [...routeToUse.points].sort(
+      (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+    );
+
+    // Mapper directement les points (pas d'agrégation car les timestamps sont distincts)
+    return sortedPoints
+      .map((point) => {
+        const value = point[pollutantKey as keyof MobileAirDataPoint] as number;
+        if (value == null || isNaN(value)) return null;
+        
+        const timestamp = new Date(point.time).getTime();
+        return {
+          timestamp,
+          value: value || 0,
+          point: point, // Stocker le point original pour les interactions
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+  }, [selectedRoute, activeRoute, selectedPollutant]);
+
+  const pollutantConfig = pollutants[selectedPollutant];
+
+  // Préparer les données pour amCharts
+  const amChartsData: AmChartsLineChartData[] = useMemo(() => {
+    return chartData.map((item) => ({
+      timestamp: item.timestamp,
+      value: item.value,
+      point: item.point, // Stocker le point original
+    }));
+  }, [chartData]);
+
+  // Configuration de la série
+  const series: AmChartsLineSeries[] = useMemo(() => [
+    {
+      dataKey: "value",
+      name: pollutantConfig?.name || selectedPollutant,
+      color: "#3B82F6",
+      strokeWidth: 2,
+      yAxisId: "left",
+    },
+  ], [pollutantConfig, selectedPollutant]);
+
+  // Formatage de l'axe X
+  const xAxisLabelFormatter = useCallback((date: Date) => {
+    return date.toLocaleString("fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }, []);
+
+  // Formatage du tooltip - non utilisé car on le configure dans handleChartReady
+  const tooltipFormatter = undefined;
+
+  // Callback quand le graphique est prêt - stable pour éviter les recréations
+  const handleChartReady = useCallback(
+    (chart: am5xy.XYChart, root: am5.Root) => {
+      chartRef.current = chart;
+      rootRef.current = root;
+
+      // Récupérer la série
+      const series = chart.series.getIndex(0) as am5xy.LineSeries;
+      if (!series) return;
+
+      seriesRef.current = series;
+
+      // Configurer le tooltip pour afficher la date complète
+      const tooltip = am5.Tooltip.new(root, {});
+      tooltip.label.adapters.add("text", (text, target) => {
+        const dataItem = target.dataItem as am5.DataItem<am5xy.ILineSeriesDataItem>;
+        if (dataItem) {
+          const data = dataItem.dataContext as { point: MobileAirDataPoint; value: number };
+          const value = (dataItem as any).get("valueY") as number;
+          if (data && data.point && typeof value === "number") {
+            return `${formatDate(data.point.time)}<br/>${pollutantConfig?.name || selectedPollutant}: ${value.toFixed(1)} ${pollutantConfig?.unit || "µg/m³"}`;
+          }
+          if (typeof value === "number") {
+            return `${value.toFixed(1)} ${pollutantConfig?.unit || "µg/m³"}`;
+          }
+        }
+        return text;
+      });
+      series.set("tooltip", tooltip);
+    },
+    [pollutantConfig, selectedPollutant] // Ne pas inclure highlightedPoint pour éviter les recréations
+  );
+
+  // Créer les bullets et gérer les interactions dans un useEffect séparé
+  useEffect(() => {
+    if (!seriesRef.current) return;
+
+    const series = seriesRef.current;
+
+    // Créer des bulles pour les points (visibles au hover) - UNE SEULE FOIS
+    if (series.bullets.length === 0) {
+        series.bullets.push((root, series, dataItem) => {
+          const circle = am5.Circle.new(root, {
+            radius: 3,
+            fill: am5.color("#3B82F680"),
+            stroke: am5.color("#00000000"), // Couleur transparente (noir avec opacité 0)
+            strokeWidth: 0,
+            tooltipText: "{valueY}",
+            cursorOverStyle: "pointer",
+          });
+
+          // Gérer le hover sur les points
+          circle.events.on("pointerover", (ev) => {
+            const data = dataItem.dataContext as { point: MobileAirDataPoint };
+            if (data && data.point) {
+              const point = data.point;
+              setHoveredPoint(point);
+              if (onPointHover) {
+                onPointHover(point);
+              }
+              if (onPointHighlight) {
+                onPointHighlight(point);
+              }
+              // Agrandir le point au hover
+              circle.animate({
+                key: "radius",
+                to: 6,
+                duration: 200,
+              });
+              circle.set("fill", am5.color("#3B82F6"));
+              circle.set("stroke", am5.color("#1D4ED8"));
+              circle.set("strokeWidth", 3);
+            }
+          });
+
+          circle.events.on("pointerout", () => {
+            setHoveredPoint(null);
+            if (onPointHover) {
+              onPointHover(null);
+            }
+            if (onPointHighlight) {
+              onPointHighlight(null);
+            }
+            // Réduire le point
+            const data = dataItem.dataContext as { point: MobileAirDataPoint };
+            const isHighlighted =
+              highlightedPoint && data.point && isSamePoint(highlightedPoint, data.point);
+            if (!isHighlighted) {
+              circle.animate({
+                key: "radius",
+                to: 3,
+                duration: 200,
+              });
+              circle.set("fill", am5.color("#3B82F680"));
+              circle.set("stroke", am5.color("#00000000")); // Couleur transparente
+              circle.set("strokeWidth", 0);
+            }
+          });
+
+          circle.events.on("click", () => {
+            const data = dataItem.dataContext as { point: MobileAirDataPoint };
+            if (data && data.point) {
+              const point = data.point;
+              console.log("🖱️ Click sur point du graphique:", getPointId(point));
+              if (onPointHighlight) {
+                onPointHighlight(point);
+              }
+            }
+          });
+
+          return am5.Bullet.new(root, {
+            sprite: circle,
+          });
+        });
+      }
+    },
+    [pollutantConfig, selectedPollutant, highlightedPoint, onPointHover, onPointHighlight]
+  );
+
+  // Mettre à jour l'apparence des points selon le highlight externe
+  useEffect(() => {
+    if (!seriesRef.current) return;
+
+    const series = seriesRef.current;
+    
+    const dataItems = series.dataItems;
+    const dataItemsArray = Array.from(dataItems);
+    for (let i = 0; i < dataItemsArray.length; i++) {
+      const dataItem = dataItemsArray[i];
+      if (!dataItem) continue;
+      
+      const data = dataItem.dataContext as { point: MobileAirDataPoint };
+      if (!data || !data.point) continue;
+
+      const isHighlighted =
+        highlightedPoint && isSamePoint(highlightedPoint, data.point);
+      const isHovered =
+        hoveredPoint && isSamePoint(hoveredPoint, data.point);
+
+      const bullet = dataItem.bullets?.[0];
+      if (bullet) {
+        const sprite = bullet.get("sprite") as am5.Circle;
+        if (sprite) {
+          if (isHighlighted || isHovered) {
+            sprite.set("radius", 6);
+            sprite.set("fill", am5.color("#3B82F6"));
+            sprite.set("stroke", am5.color("#1D4ED8"));
+            sprite.set("strokeWidth", 3);
+          } else {
+            sprite.set("radius", 3);
+            sprite.set("fill", am5.color("#3B82F680"));
+            sprite.set("stroke", am5.color("#00000000")); // Couleur transparente
+            sprite.set("strokeWidth", 0);
+          }
+        }
+      }
+    }
+  }, [highlightedPoint, hoveredPoint]);
+
+  // Return conditionnel APRÈS tous les hooks
   if (!isOpen || !routeToUse) {
     return null;
   }
@@ -259,12 +370,9 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
     MOBILEAIR_POLLUTANT_MAPPING
   ).includes(selectedPollutant);
 
-  const chartData = prepareChartData();
-  const pollutantConfig = pollutants[selectedPollutant];
-
   const getPanelClasses = () => {
-  const baseClasses =
-    "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300 h-full md:h-[calc(100vh-64px)]";
+    const baseClasses =
+      "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300 h-full md:h-[calc(100vh-64px)]";
 
     switch (currentPanelSize) {
       case "fullscreen":
@@ -443,54 +551,24 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
               </div>
             ) : (
               <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={chartData}
-                    onMouseMove={handleMouseMove}
-                    onMouseLeave={handleMouseLeave}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="time"
-                      tick={{ fontSize: 12 }}
-                      interval="preserveStartEnd"
-                    />
-                    <YAxis
-                      tick={{ fontSize: 12 }}
-                      label={{
-                        value: pollutantConfig?.unit || "µg/m³",
-                        angle: -90,
-                        position: "insideLeft",
-                        style: { textAnchor: "middle" },
-                      }}
-                    />
-                    <Tooltip
-                      formatter={(value: number, name: string, props: any) => [
-                        `${value.toFixed(1)} ${
-                          pollutantConfig?.unit || "µg/m³"
-                        }`,
-                        pollutantConfig?.name || selectedPollutant,
-                      ]}
-                      labelFormatter={(label, payload) => {
-                        if (payload && payload[0] && payload[0].payload) {
-                          const point = payload[0].payload.point;
-                          return formatDate(point.time);
-                        }
-                        return label;
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="value"
-                      stroke="#3B82F6"
-                      strokeWidth={2}
-                      dot={<CustomDot />}
-                      activeDot={false}
-                      animationDuration={0}
-                      isAnimationActive={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                <AmChartsLineChart
+                  data={amChartsData}
+                  series={series}
+                  yAxes={[
+                    {
+                      id: "left",
+                      label: "Concentration",
+                      unit: pollutantConfig?.unit || "µg/m³",
+                    },
+                  ]}
+                  height="100%"
+                  width="100%"
+                  showGrid={true}
+                  showLegend={false}
+                  onChartReady={handleChartReady}
+                  xAxisLabelFormatter={xAxisLabelFormatter}
+                  tooltipFormatter={tooltipFormatter}
+                />
               </div>
             )}
           </div>

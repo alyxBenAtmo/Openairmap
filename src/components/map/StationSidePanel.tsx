@@ -158,9 +158,16 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
             startDate,
             endDate,
           });
+          console.log(`[StationSidePanel] Données chargées pour ${pollutant}:`, {
+            pollutant,
+            dataLength: data.length,
+            firstPoint: data[0],
+            samplePoints: data.slice(0, 3),
+          });
           newHistoricalData[pollutant] = data;
         }
 
+        console.log("[StationSidePanel] Toutes les données historiques:", newHistoricalData);
         setState((prev) => ({
           ...prev,
           historicalData: newHistoricalData,
