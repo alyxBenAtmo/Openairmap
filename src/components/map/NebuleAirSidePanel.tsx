@@ -100,11 +100,13 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
   const [showPollutantsList, setShowPollutantsList] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const loadingRef = useRef(false);
+  const initialLoadDoneRef = useRef<string | null>(null);
 
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
 
-  const nebuleAirService = new NebuleAirService();
+  // Créer le service une seule fois avec useMemo pour éviter les re-renders
+  const nebuleAirService = useMemo(() => new NebuleAirService(), []);
 
   // Fonction utilitaire pour vérifier si un polluant est disponible dans la station
   const isPollutantAvailable = (pollutantCode: string): boolean => {
@@ -126,111 +128,50 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
       .map(([pollutantCode]) => pollutantCode);
   };
 
-  // Mettre à jour l'état quand les props changent
-  useEffect(() => {
-    console.log("🔄 [NebuleAirSidePanel] useEffect déclenché:", {
-      isOpen,
-      selectedStation: selectedStation?.id,
-      initialPollutant,
-      timestamp: new Date().toISOString(),
-    });
+  const getDateRange = (
+    timeRange: TimeRange
+  ): { startDate: string; endDate: string } => {
+    const now = new Date();
+    const endDate = now.toISOString();
 
-    if (isOpen && selectedStation) {
-      // Déterminer quels polluants sont disponibles dans cette station
-      const availablePollutants = getAvailablePollutants();
-      console.log(
-        "📊 [NebuleAirSidePanel] Polluants disponibles:",
-        availablePollutants
-      );
+    // Si c'est une plage personnalisée, utiliser les dates fournies
+    if (timeRange.type === "custom" && timeRange.custom) {
+      // Créer les dates en heure LOCALE (sans Z), puis convertir en UTC
+      // Cela permet d'avoir 00:00-23:59 en heure locale, pas en UTC
+      const startDate = new Date(timeRange.custom.startDate + "T00:00:00");
+      const endDate = new Date(timeRange.custom.endDate + "T23:59:59.999");
 
-      // Sélectionner le polluant initial s'il est disponible, sinon le premier disponible
-      const selectedPollutants = availablePollutants.includes(initialPollutant)
-        ? [initialPollutant]
-        : availablePollutants.length > 0
-        ? [availablePollutants[0]]
-        : [];
-
-      console.log(
-        "🎯 [NebuleAirSidePanel] Polluants sélectionnés:",
-        selectedPollutants
-      );
-
-      const nextTimeStep = getInitialTimeStepForPollutants(
-        selectedPollutants,
-        state.chartControls.timeStep
-      );
-
-      setState((prev) => ({
-        ...prev,
-        isOpen,
-        selectedStation,
-        chartControls: {
-          ...prev.chartControls,
-          selectedPollutants,
-          timeStep: nextTimeStep,
-        },
-        historicalData: {},
-        loading: false,
-        error: null,
-      }));
-
-      // Réinitialiser la taille du panel
-      setInternalPanelSize("normal");
-
-      // Charger les données historiques initiales si des polluants sont disponibles
-      if (selectedPollutants.length > 0 && !loadingRef.current) {
-        console.log(
-          "🚀 [NebuleAirSidePanel] Démarrage du chargement des données historiques",
-          {
-            selectedPollutants,
-            timeRange: state.chartControls.timeRange,
-            timeStep: state.chartControls.timeStep,
-            timestamp: new Date().toISOString(),
-            isLoading,
-            loadingRef: loadingRef.current,
-          }
-        );
-        loadingRef.current = true;
-        setIsLoading(true);
-        // Utiliser l'état du composant au lieu de valeurs hardcodées
-        loadHistoricalData(
-          selectedStation,
-          selectedPollutants,
-          state.chartControls.timeRange,
-          nextTimeStep
-        );
-      } else {
-        if (selectedPollutants.length === 0) {
-          console.log(
-            "⚠️ [NebuleAirSidePanel] Aucun polluant sélectionné, pas de chargement de données"
-          );
-        } else if (loadingRef.current) {
-          console.log(
-            "🚫 [NebuleAirSidePanel] Chargement déjà en cours, ignoré",
-            {
-              selectedPollutants,
-              loadingRef: loadingRef.current,
-              timestamp: new Date().toISOString(),
-            }
-          );
-        }
-      }
-    } else {
-      // Fermer le panneau
-      console.log("❌ [NebuleAirSidePanel] Fermeture du panneau");
-      setState((prev) => ({
-        ...prev,
-        isOpen: false,
-        selectedStation: null,
-        historicalData: {},
-        loading: false,
-        error: null,
-      }));
-      setInternalPanelSize("hidden");
-      setIsLoading(false);
-      loadingRef.current = false;
+      return {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      };
     }
-  }, [isOpen, selectedStation]);
+
+    // Sinon, utiliser les périodes prédéfinies
+    let startDate: Date;
+
+    switch (timeRange.preset) {
+      case "3h":
+        startDate = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+        break;
+      case "24h":
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case "7d":
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case "30d":
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    }
+
+    return {
+      startDate: startDate.toISOString(),
+      endDate,
+    };
+  };
 
   const loadHistoricalData = useCallback(
     async (
@@ -314,50 +255,114 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
     [nebuleAirService]
   );
 
-  const getDateRange = (
-    timeRange: TimeRange
-  ): { startDate: string; endDate: string } => {
-    const now = new Date();
-    const endDate = now.toISOString();
+  // Mettre à jour l'état quand les props changent
+  useEffect(() => {
+    console.log("🔄 [NebuleAirSidePanel] useEffect déclenché:", {
+      isOpen,
+      selectedStation: selectedStation?.id,
+      initialPollutant,
+      timestamp: new Date().toISOString(),
+    });
 
-    // Si c'est une plage personnalisée, utiliser les dates fournies
-    if (timeRange.type === "custom" && timeRange.custom) {
-      // Créer les dates en heure LOCALE (sans Z), puis convertir en UTC
-      // Cela permet d'avoir 00:00-23:59 en heure locale, pas en UTC
-      const startDate = new Date(timeRange.custom.startDate + "T00:00:00");
-      const endDate = new Date(timeRange.custom.endDate + "T23:59:59.999");
+    if (isOpen && selectedStation) {
+      // Déterminer quels polluants sont disponibles dans cette station
+      const availablePollutants = getAvailablePollutants();
+      console.log(
+        "📊 [NebuleAirSidePanel] Polluants disponibles:",
+        availablePollutants
+      );
 
-      return {
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
+      // Sélectionner le polluant initial s'il est disponible, sinon le premier disponible
+      const selectedPollutants = availablePollutants.includes(initialPollutant)
+        ? [initialPollutant]
+        : availablePollutants.length > 0
+        ? [availablePollutants[0]]
+        : [];
+
+      console.log(
+        "🎯 [NebuleAirSidePanel] Polluants sélectionnés:",
+        selectedPollutants
+      );
+
+      const nextTimeStep = getInitialTimeStepForPollutants(
+        selectedPollutants,
+        state.chartControls.timeStep
+      );
+
+      // Définir le timeRange initial (24h par défaut)
+      const initialTimeRange: TimeRange = {
+        type: "preset",
+        preset: "24h",
       };
+
+      setState((prev) => ({
+        ...prev,
+        isOpen,
+        selectedStation,
+        chartControls: {
+          ...prev.chartControls,
+          selectedPollutants,
+          timeStep: nextTimeStep,
+          timeRange: initialTimeRange,
+        },
+        historicalData: {},
+        loading: false,
+        error: null,
+      }));
+
+      // Réinitialiser la taille du panel
+      setInternalPanelSize("normal");
+      // Réinitialiser le flag de chargement initial pour la nouvelle station
+      initialLoadDoneRef.current = null;
+
+      // Charger les données historiques initiales si des polluants sont disponibles
+      // Utiliser setTimeout pour s'assurer que l'état est bien mis à jour
+      if (selectedPollutants.length > 0 && !loadingRef.current) {
+        const loadKey = `${selectedStation.id}-${selectedPollutants.join(",")}-${initialTimeRange.type === "preset" ? initialTimeRange.preset : "custom"}-${nextTimeStep}`;
+        if (initialLoadDoneRef.current !== loadKey) {
+          console.log(
+            "🚀 [NebuleAirSidePanel] Planification du chargement initial des données historiques",
+            {
+              selectedPollutants,
+              timeRange: initialTimeRange,
+              timeStep: nextTimeStep,
+              loadKey,
+              timestamp: new Date().toISOString(),
+            }
+          );
+          // Utiliser requestAnimationFrame pour s'assurer que le rendu est terminé
+          requestAnimationFrame(() => {
+            if (!loadingRef.current && initialLoadDoneRef.current !== loadKey) {
+              loadingRef.current = true;
+              setIsLoading(true);
+              initialLoadDoneRef.current = loadKey;
+              loadHistoricalData(
+                selectedStation,
+                selectedPollutants,
+                initialTimeRange,
+                nextTimeStep
+              );
+            }
+          });
+        }
+      }
+    } else {
+      // Fermer le panneau
+      console.log("❌ [NebuleAirSidePanel] Fermeture du panneau");
+      setState((prev) => ({
+        ...prev,
+        isOpen: false,
+        selectedStation: null,
+        historicalData: {},
+        loading: false,
+        error: null,
+      }));
+      setInternalPanelSize("hidden");
+      setIsLoading(false);
+      loadingRef.current = false;
+      initialLoadDoneRef.current = null;
     }
-
-    // Sinon, utiliser les périodes prédéfinies
-    let startDate: Date;
-
-    switch (timeRange.preset) {
-      case "3h":
-        startDate = new Date(now.getTime() - 3 * 60 * 60 * 1000);
-        break;
-      case "24h":
-        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        break;
-      case "7d":
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case "30d":
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      default:
-        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    }
-
-    return {
-      startDate: startDate.toISOString(),
-      endDate,
-    };
-  };
+  }, [isOpen, selectedStation, initialPollutant, loadHistoricalData]);
 
   const handlePollutantToggle = (pollutant: string) => {
     setState((prev) => {

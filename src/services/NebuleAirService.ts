@@ -634,19 +634,31 @@ export class NebuleAirService extends BaseDataService {
             nebuleAirPollutant
           );
 
+          // Extraire le timestamp (l'API NebuleAir utilise "time")
+          const timestamp = dataPoint.timestamp || dataPoint.time || dataPoint.date;
+          
           if (index < 3) {
             // Log des 3 premiers points pour debug
             console.log(`🔍 [NebuleAir] Point ${index}:`, {
               dataPoint,
               value,
               nebuleAirPollutant,
+              timestamp,
+              timestampType: typeof timestamp,
             });
           }
 
-          if (value === null) return null;
+          if (value === null || value === undefined) {
+            return null;
+          }
+
+          if (!timestamp) {
+            console.warn(`⚠️ [NebuleAir] Point ${index} sans timestamp:`, dataPoint);
+            return null;
+          }
 
           return {
-            timestamp: dataPoint.timestamp || dataPoint.time || dataPoint.date,
+            timestamp: timestamp,
             value: value,
             unit: "µg/m³",
           };
@@ -656,11 +668,24 @@ export class NebuleAirService extends BaseDataService {
             item !== null
         );
 
+      // Trier les données par timestamp pour s'assurer qu'elles sont dans l'ordre chronologique
+      historicalData.sort((a, b) => {
+        const dateA = new Date(a.timestamp).getTime();
+        const dateB = new Date(b.timestamp).getTime();
+        return dateA - dateB;
+      });
+
       console.log(
         "✅ [NebuleAir] Données historiques transformées:",
         historicalData.length,
         "points"
       );
+      
+      if (historicalData.length > 0) {
+        console.log("📊 [NebuleAir] Premier point:", historicalData[0]);
+        console.log("📊 [NebuleAir] Dernier point:", historicalData[historicalData.length - 1]);
+      }
+      
       return historicalData;
     } catch (error) {
       console.error(

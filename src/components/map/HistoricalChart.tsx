@@ -428,8 +428,12 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
       }
     });
 
-    // Trier les timestamps
-    const sortedTimestamps = Array.from(allTimestamps).sort();
+    // Trier les timestamps en les convertissant en dates pour un tri correct
+    const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => {
+      const dateA = new Date(a).getTime();
+      const dateB = new Date(b).getTime();
+      return dateA - dateB;
+    });
 
     // Créer les points de données
     const transformedData = sortedTimestamps.map((timestamp) => {
@@ -916,13 +920,6 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     );
     chartRef.current = chart;
 
-    // Ajouter un curseur pour activer le tooltip au survol
-    const cursor = chart.set("cursor", am5xy.XYCursor.new(root, {
-      behavior: "none",
-    }));
-    cursor.lineY.set("visible", false);
-    cursor.lineX.set("visible", true);
-
     // Créer l'axe X (dates)
     const xAxis = chart.xAxes.push(
       am5xy.DateAxis.new(root, {
@@ -1044,9 +1041,42 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
         lineSeries.set("connect", true);
       }
 
-      // Ajouter des bullets avec tooltipText directement - méthode la plus simple
-      lineSeries.bullets.push((root, series, dataItem) => {
-        const data = dataItem.dataContext as any;
+      // Fonction pour calculer la luminosité d'une couleur (0-255)
+      const getLuminance = (color: string): number => {
+        // Convertir la couleur hex en RGB
+        const hex = color.replace('#', '');
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        // Formule de luminosité relative (perçue par l'œil humain)
+        return (r * 299 + g * 587 + b * 114) / 1000;
+      };
+
+      // Configurer le tooltip sur la série (comme dans les autres composants)
+      const seriesTooltip = am5.Tooltip.new(root, {
+        getFillFromSprite: false,
+        autoTextColor: false,
+      });
+      
+      // Configurer la couleur du tooltip pour qu'elle corresponde à la couleur de la ligne
+      // Détection intelligente : fond clair = texte foncé, fond sombre = texte clair
+      const backgroundColor = seriesConfig.color;
+      const luminance = getLuminance(backgroundColor);
+      const textColor = luminance > 128 ? "#000000" : "#ffffff"; // Seuil à 128 (milieu de l'échelle 0-255)
+      
+      seriesTooltip.label.set("fill", am5.color(textColor));
+      
+      // Configurer le background du tooltip avec la couleur de la ligne
+      seriesTooltip.get("background")!.set("fill", am5.color(seriesConfig.color));
+      seriesTooltip.get("background")!.set("fillOpacity", 0.9);
+      seriesTooltip.get("background")!.set("stroke", am5.color(seriesConfig.color));
+      seriesTooltip.get("background")!.set("strokeWidth", 1);
+      
+      seriesTooltip.label.adapters.add("text", (text, target) => {
+        const dataItem = target.dataItem;
+        if (!dataItem) return text || "";
+
+        const data = (dataItem as any).dataContext as any;
         const value = data?.[seriesConfig.dataKey];
         
         // Formater la date
@@ -1076,19 +1106,25 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
         }
         const encodedUnit = encodeUnit(unit);
         
-        // Construire le texte du tooltip
+        // Construire le texte du tooltip (même format que les bullets)
         let tooltipText = "";
         if (dateStr) {
           tooltipText += `${dateStr}\n`;
         }
         tooltipText += `${pollutantName}: ${typeof value === "number" ? value.toFixed(1) : value} ${encodedUnit}`;
         
+        return tooltipText;
+      });
+      
+      lineSeries.set("tooltip", seriesTooltip);
+
+      // Ajouter des bullets invisibles pour l'interaction
+      lineSeries.bullets.push((root, series, dataItem) => {
         const circle = am5.Circle.new(root, {
           radius: 3,
           fill: am5.color(seriesConfig.color),
           fillOpacity: 0,
           strokeOpacity: 0,
-          tooltipText: tooltipText,
         });
         
         return am5.Bullet.new(root, {
@@ -1099,6 +1135,20 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
       // Ajouter les données APRÈS avoir configuré les bullets et le tooltip
       lineSeries.data.setAll(amChartsData);
     });
+
+    // Créer le curseur APRÈS les séries pour activer les tooltips
+    // Le curseur s'aligne uniquement sur l'axe X pour déclencher les tooltips
+    const cursor = chart.set("cursor", am5xy.XYCursor.new(root, {
+      behavior: "none",
+      xAxis: xAxis,
+    }));
+    
+    // Configurer le curseur pour s'aligner sur toutes les séries uniquement sur X
+    if (chart.series.length > 0) {
+      cursor.set("snapToSeries", chart.series.values);
+    }
+    cursor.lineY.set("visible", false);
+    cursor.lineX.set("visible", true);
 
     // Créer la légende personnalisée
     const legend = chart.children.push(
@@ -1136,6 +1186,39 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
         }
       }
       return strokeDasharray;
+    });
+
+    // Adapter pour la couleur des marqueurs de la légende (même couleur que la série)
+    // Utiliser directement la couleur de la série plutôt que seriesConfigs
+    legend.markers.template.adapters.add("stroke" as any, (stroke: any, target: any) => {
+      const dataItem = target.dataItem;
+      if (dataItem) {
+        const series = dataItem.dataContext as am5xy.LineSeries;
+        if (series) {
+          // Récupérer directement la couleur de la série
+          const seriesStroke = series.get("stroke");
+          if (seriesStroke) {
+            return seriesStroke;
+          }
+        }
+      }
+      return stroke;
+    });
+
+    // Adapter pour la couleur de remplissage des marqueurs de la légende
+    legend.markers.template.adapters.add("fill" as any, (fill: any, target: any) => {
+      const dataItem = target.dataItem;
+      if (dataItem) {
+        const series = dataItem.dataContext as am5xy.LineSeries;
+        if (series) {
+          // Récupérer directement la couleur de la série
+          const seriesStroke = series.get("stroke");
+          if (seriesStroke) {
+            return seriesStroke;
+          }
+        }
+      }
+      return fill;
     });
 
     legend.data.setAll(chart.series.values);
@@ -1205,6 +1288,12 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
       }
     });
 
+    // Retirer la référence du curseur aux séries avant de les supprimer
+    const cursor = chart.get("cursor") as am5xy.XYCursor;
+    if (cursor) {
+      cursor.set("snapToSeries", []);
+    }
+
     // Supprimer toutes les séries existantes
     chart.series.clear();
 
@@ -1240,9 +1329,42 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
         lineSeries.set("connect", true);
       }
 
-      // Ajouter des bullets avec tooltipText directement - méthode la plus simple
-      lineSeries.bullets.push((root, series, dataItem) => {
-        const data = dataItem.dataContext as any;
+      // Fonction pour calculer la luminosité d'une couleur (0-255)
+      const getLuminance = (color: string): number => {
+        // Convertir la couleur hex en RGB
+        const hex = color.replace('#', '');
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        // Formule de luminosité relative (perçue par l'œil humain)
+        return (r * 299 + g * 587 + b * 114) / 1000;
+      };
+
+      // Configurer le tooltip sur la série (comme dans les autres composants)
+      const seriesTooltip = am5.Tooltip.new(rootRef.current!, {
+        getFillFromSprite: false,
+        autoTextColor: false,
+      });
+      
+      // Configurer la couleur du tooltip pour qu'elle corresponde à la couleur de la ligne
+      // Détection intelligente : fond clair = texte foncé, fond sombre = texte clair
+      const backgroundColor = seriesConfig.color;
+      const luminance = getLuminance(backgroundColor);
+      const textColor = luminance > 128 ? "#000000" : "#ffffff"; // Seuil à 128 (milieu de l'échelle 0-255)
+      
+      seriesTooltip.label.set("fill", am5.color(textColor));
+      
+      // Configurer le background du tooltip avec la couleur de la ligne
+      seriesTooltip.get("background")!.set("fill", am5.color(seriesConfig.color));
+      seriesTooltip.get("background")!.set("fillOpacity", 0.9);
+      seriesTooltip.get("background")!.set("stroke", am5.color(seriesConfig.color));
+      seriesTooltip.get("background")!.set("strokeWidth", 1);
+      
+      seriesTooltip.label.adapters.add("text", (text, target) => {
+        const dataItem = target.dataItem;
+        if (!dataItem) return text || "";
+
+        const data = (dataItem as any).dataContext as any;
         const value = data?.[seriesConfig.dataKey];
         
         // Formater la date
@@ -1272,19 +1394,25 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
         }
         const encodedUnit = encodeUnit(unit);
         
-        // Construire le texte du tooltip
+        // Construire le texte du tooltip (même format que les bullets)
         let tooltipText = "";
         if (dateStr) {
           tooltipText += `${dateStr}\n`;
         }
         tooltipText += `${pollutantName}: ${typeof value === "number" ? value.toFixed(1) : value} ${encodedUnit}`;
         
+        return tooltipText;
+      });
+      
+      lineSeries.set("tooltip", seriesTooltip);
+
+      // Ajouter des bullets invisibles pour l'interaction
+      lineSeries.bullets.push((root, series, dataItem) => {
         const circle = am5.Circle.new(root, {
           radius: 3,
           fill: am5.color(seriesConfig.color),
           fillOpacity: 0,
           strokeOpacity: 0,
-          tooltipText: tooltipText,
         });
         
         return am5.Bullet.new(root, {
@@ -1296,11 +1424,19 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
       lineSeries.data.setAll(amChartsData);
     });
 
-    // Mettre à jour la légende
-    if (chart.children.getIndex(0) instanceof am5.Legend) {
-      const legend = chart.children.getIndex(0) as am5.Legend;
-      legend.data.setAll(chart.series.values);
+    // Remettre la référence du curseur aux nouvelles séries
+    if (cursor) {
+      cursor.set("snapToSeries", chart.series.values);
     }
+
+    // Mettre à jour la légende avec toutes les séries
+    // Chercher la légende dans tous les enfants du graphique
+    chart.children.each((child) => {
+      if (child instanceof am5.Legend) {
+        const legend = child as am5.Legend;
+        legend.data.setAll(chart.series.values);
+      }
+    });
   }, [seriesConfigs, amChartsData, source, stations, selectedPollutants]);
 
   // Nettoyage au démontage
