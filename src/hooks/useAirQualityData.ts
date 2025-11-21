@@ -118,8 +118,52 @@ export const useAirQualityData = ({
         (index) => selectedSources[index]
       );
 
+      // NETTOYER LES ROUTES ET DEVICES MOBILEAIR EN PREMIER, AVANT TOUTE AUTRE OPÉRATION
+      // Cela garantit que le nettoyage se fait au bon moment, même lors d'un rechargement
+      if (selectedSources.includes("communautaire.mobileair") && selectedMobileAirSensor) {
+        // Nettoyer les routes dans le service MobileAir en PREMIER
+        try {
+          const mobileAirService = DataServiceFactory.getService("mobileair") as any;
+          if (mobileAirService && typeof mobileAirService.clearRoutes === "function") {
+            mobileAirService.clearRoutes();
+            console.log("🧹 [HOOK] Routes MobileAir nettoyées AVANT le rechargement");
+          }
+        } catch (error) {
+          console.error("Erreur lors du nettoyage des routes MobileAir:", error);
+        }
+        
+        // Nettoyer les devices MobileAir en PREMIER (utiliser callback pour garantir l'état actuel)
+        setDevices((prevDevices) => {
+          const hasMobileAirDevices = prevDevices.some((d) => d.source === "mobileair");
+          
+          if (hasMobileAirDevices) {
+            const filteredDevices = prevDevices.filter((device) => {
+              return device.source !== "mobileair";
+            });
+            
+            console.log(
+              "🧹 [HOOK] Devices MobileAir nettoyés AVANT le rechargement:",
+              {
+                totalDevices: prevDevices.length,
+                filteredDevices: filteredDevices.length,
+                removedMobileAirDevices: prevDevices
+                  .filter((d) => d.source === "mobileair")
+                  .map((d) => ({ id: d.id, source: d.source })),
+              }
+            );
+            
+            return filteredDevices;
+          }
+          
+          return prevDevices;
+        });
+      }
+
       // Réinitialiser les devices avant de recharger de nouvelles données
-      setDevices([]);
+      // MAIS seulement si on ne recharge pas juste MobileAir (pour garder les autres sources)
+      if (!(selectedSources.includes("communautaire.mobileair") && selectedMobileAirSensor)) {
+        setDevices([]);
+      }
 
       if (fetchableSources.length === 0) {
         setLoading(false);
@@ -174,28 +218,6 @@ export const useAirQualityData = ({
         });
       }
 
-      // Si MobileAir est réactivé, supprimer temporairement ses devices pour forcer un nouveau choix
-      if (selectedSources.includes("communautaire.mobileair")) {
-        setDevices((prevDevices) => {
-          const filteredDevices = prevDevices.filter((device) => {
-            // Supprimer temporairement les devices MobileAir
-            return device.source !== "mobileair";
-          });
-
-          console.log(
-            "🧹 [HOOK] Suppression temporaire des devices MobileAir:",
-            {
-              totalDevices: prevDevices.length,
-              filteredDevices: filteredDevices.length,
-              removedMobileAirDevices: prevDevices
-                .filter((d) => d.source === "mobileair")
-                .map((d) => ({ id: d.id, source: d.source })),
-            }
-          );
-
-          return filteredDevices;
-        });
-      }
 
       // Traiter chaque service individuellement pour un affichage progressif
       for (const index of fetchableIndexes) {

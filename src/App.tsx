@@ -121,8 +121,11 @@ const App: React.FC = () => {
     sensorId: string,
     period: { startDate: string; endDate: string }
   ) => {
+    // Toujours mettre à jour pour forcer le rechargement même si les valeurs sont identiques
+    // Cela permet de recharger les données qui remplaceront celles existantes
     setSelectedMobileAirSensor(sensorId);
     setMobileAirPeriod(period);
+    
     // Ajouter communautaire.mobileair aux sources sélectionnées si pas déjà présent
     if (!selectedSources.includes("communautaire.mobileair")) {
       setSelectedSources([...selectedSources, "communautaire.mobileair"]);

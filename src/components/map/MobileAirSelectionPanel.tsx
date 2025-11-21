@@ -288,7 +288,7 @@ const MobileAirSelectionPanel: React.FC<MobileAirSelectionPanelProps> = ({
           <button
             onClick={onClose}
             className="p-1.5 sm:p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-            title="Fermer le panel et désactiver MobileAir"
+            title="Fermer le panel"
           >
             <svg
               className="w-3.5 h-3.5 sm:w-4 sm:h-4"

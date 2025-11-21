@@ -60,6 +60,8 @@ import { QUALITY_COLORS } from "../../constants/qualityColors";
 import { AtmoRefService } from "../../services/AtmoRefService";
 import { AtmoMicroService } from "../../services/AtmoMicroService";
 import { NebuleAirService } from "../../services/NebuleAirService";
+import { DataServiceFactory } from "../../services/DataServiceFactory";
+import { MobileAirService } from "../../services/MobileAirService";
 import { FeuxDeForetService } from "../../services/FeuxDeForetService";
 import { featureFlags } from "../../config/featureFlags";
 import MarkerClusterGroup from "react-leaflet-cluster";
@@ -450,15 +452,29 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
     setMobileAirRoutes(routes);
 
     // Définir automatiquement la route la plus récente comme active
-    if (routes.length > 0 && !activeMobileAirRoute) {
+    // Toujours mettre à jour même si activeMobileAirRoute existe déjà
+    // Cela permet de mettre à jour la route active lors d'un rechargement
+    if (routes.length > 0) {
       const mostRecentRoute = routes.reduce((latest, current) => {
         return new Date(current.startTime) > new Date(latest.startTime)
           ? current
           : latest;
       });
-      setActiveMobileAirRoute(mostRecentRoute);
+      
+      // Vérifier si la route active a changé (nouveau capteur ou nouvelles données)
+      const hasChanged = !activeMobileAirRoute || 
+        activeMobileAirRoute.sensorId !== mostRecentRoute.sensorId ||
+        activeMobileAirRoute.sessionId !== mostRecentRoute.sessionId;
+      
+      if (hasChanged) {
+        setActiveMobileAirRoute(mostRecentRoute);
+        // Réinitialiser aussi la route sélectionnée si elle était liée à l'ancienne route active
+        if (selectedMobileAirRoute && selectedMobileAirRoute.sensorId !== mostRecentRoute.sensorId) {
+          setSelectedMobileAirRoute(null);
+        }
+      }
     }
-  }, [devices, activeMobileAirRoute, selectedSources, forceNewChoice]);
+  }, [devices, selectedSources, forceNewChoice]); // Retirer activeMobileAirRoute des dépendances pour éviter les problèmes de timing
 
   // Effet pour ouvrir automatiquement le side panel de sélection MobileAir
   useEffect(() => {
@@ -1822,8 +1838,24 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
       "Période:",
       period
     );
+    
+    // Nettoyer les routes existantes pour permettre le rechargement avec remplacement
+    try {
+      const mobileAirService = DataServiceFactory.getService("mobileair") as MobileAirService;
+      mobileAirService.clearRoutes();
+      console.log("🧹 [MOBILEAIR] Routes existantes nettoyées pour permettre le rechargement");
+    } catch (error) {
+      console.error("Erreur lors du nettoyage des routes MobileAir:", error);
+    }
+    
+    // Nettoyer les routes et la route active dans le composant
+    setMobileAirRoutes([]);
+    setActiveMobileAirRoute(null);
+    setSelectedMobileAirRoute(null);
+    
     // Désactiver le flag de forçage de nouveau choix quand l'utilisateur fait un choix
     setForceNewChoice(false);
+    
     if (onMobileAirSensorSelected) {
       onMobileAirSensorSelected(sensorId, period);
     }
@@ -1834,11 +1866,7 @@ const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
     setUserClosedSelectionPanel(true);
     setIsMobileAirSelectionPanelOpen(false);
     setMobileAirSelectionPanelSize("normal");
-    
-    // Désactiver la source MobileAir si le callback est fourni
-    if (onMobileAirSourceDeselected) {
-      onMobileAirSourceDeselected();
-    }
+    // Ne pas désactiver la source MobileAir, juste fermer le panel (comme SignalAir)
   };
 
   const handleMobileAirSelectionPanelSizeChange = (
@@ -1934,8 +1962,11 @@ const handleMobileAirRouteClick = (route: MobileAirRoute) => {
   // Handlers pour la réouverture manuelle des panels
   const handleOpenMobileAirSelectionPanel = () => {
     // console.log("🔄 [MANUAL] Ouverture manuelle du panel de sélection MobileAir");
-    setUserClosedSelectionPanel(false);
     setIsMobileAirSelectionPanelOpen(true);
+    setMobileAirSelectionPanelSize("normal");
+    // Garder userClosedSelectionPanel à true pour empêcher la fermeture automatique
+    // quand l'utilisateur rouvre manuellement le panel après qu'il se soit fermé
+    setUserClosedSelectionPanel(true);
     // Désactiver le flag de forçage de nouveau choix
     setForceNewChoice(false);
   };
@@ -2337,6 +2368,44 @@ const handleOpenMobileAirDetailPanel = () => {
             className="fixed top-1/3 right-2 z-[2001] bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
             title="Rouvrir le panneau SignalAir"
             aria-label="Rouvrir le panneau SignalAir"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <rect
+                x="5"
+                y="4"
+                width="14"
+                height="16"
+                rx="2"
+                ry="2"
+                strokeWidth={1.5}
+              />
+              <path
+                strokeLinecap="round"
+                strokeWidth={1.5}
+                d="M9 8h6M9 12h6M9 16h3"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M16 16c1.2-1 1.2-3 0-4"
+              />
+            </svg>
+          </button>
+        )}
+
+        {selectedSources.includes("communautaire.mobileair") &&
+          !isMobileAirSelectionPanelOpen && (
+          <button
+            onClick={handleOpenMobileAirSelectionPanel}
+            className="fixed top-[45%] right-2 z-[2001] bg-green-600 text-white p-3 rounded-full shadow-lg hover:bg-green-700 transition-colors"
+            title="Rouvrir le panneau MobileAir"
+            aria-label="Rouvrir le panneau MobileAir"
           >
             <svg
               className="w-5 h-5"
