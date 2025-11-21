@@ -101,6 +101,7 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const loadingRef = useRef(false);
   const initialLoadDoneRef = useRef<string | null>(null);
+  const stationIdRef = useRef<string | null>(null);
 
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
@@ -255,7 +256,7 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
     [nebuleAirService]
   );
 
-  // Mettre à jour l'état quand les props changent
+  // Mettre à jour l'état uniquement lors de l'ouverture du panel ou du changement de station
   useEffect(() => {
     console.log("🔄 [NebuleAirSidePanel] useEffect déclenché:", {
       isOpen,
@@ -264,7 +265,34 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
       timestamp: new Date().toISOString(),
     });
 
-    if (isOpen && selectedStation) {
+    if (!isOpen) {
+      // Réinitialiser les références quand le panel est fermé
+      stationIdRef.current = null;
+      console.log("❌ [NebuleAirSidePanel] Fermeture du panneau");
+      setState((prev) => ({
+        ...prev,
+        isOpen: false,
+        selectedStation: null,
+        historicalData: {},
+        loading: false,
+        error: null,
+      }));
+      setInternalPanelSize("hidden");
+      setIsLoading(false);
+      loadingRef.current = false;
+      initialLoadDoneRef.current = null;
+      return;
+    }
+
+    if (!selectedStation) return;
+
+    const currentStationId = selectedStation.id;
+    const isNewStation = currentStationId !== stationIdRef.current;
+
+    // Initialiser uniquement lors de l'ouverture du panel ou du changement de station
+    if (isNewStation) {
+      stationIdRef.current = currentStationId;
+      
       // Déterminer quels polluants sont disponibles dans cette station
       const availablePollutants = getAvailablePollutants();
       console.log(
@@ -347,20 +375,12 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
         }
       }
     } else {
-      // Fermer le panneau
-      console.log("❌ [NebuleAirSidePanel] Fermeture du panneau");
+      // Si c'est la même station, juste mettre à jour isOpen et selectedStation sans réinitialiser les polluants
       setState((prev) => ({
         ...prev,
-        isOpen: false,
-        selectedStation: null,
-        historicalData: {},
-        loading: false,
-        error: null,
+        isOpen,
+        selectedStation,
       }));
-      setInternalPanelSize("hidden");
-      setIsLoading(false);
-      loadingRef.current = false;
-      initialLoadDoneRef.current = null;
     }
   }, [isOpen, selectedStation, initialPollutant, loadHistoricalData]);
 

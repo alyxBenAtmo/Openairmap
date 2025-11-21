@@ -18,7 +18,7 @@ interface MobileAirDetailPanelProps {
   selectedRoute: MobileAirRoute | null;
   activeRoute: MobileAirRoute | null;
   allRoutes: MobileAirRoute[];
-  selectedPollutant: string;
+  initialPollutant: string;
   highlightedPoint?: MobileAirDataPoint | null;
   onClose: () => void;
   onHidden?: () => void;
@@ -36,7 +36,7 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
   selectedRoute,
   activeRoute,
   allRoutes,
-  selectedPollutant,
+  initialPollutant,
   highlightedPoint,
   onClose,
   onHidden,
@@ -51,12 +51,74 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
   const [hoveredPoint, setHoveredPoint] = useState<MobileAirDataPoint | null>(
     null
   );
+  const [localSelectedPollutants, setLocalSelectedPollutants] = useState<string[]>([initialPollutant]);
   const chartRef = useRef<am5xy.XYChart | null>(null);
   const rootRef = useRef<am5.Root | null>(null);
-  const seriesRef = useRef<am5xy.LineSeries | null>(null);
+  const seriesRefs = useRef<Map<string, am5xy.LineSeries>>(new Map());
+  const routeIdRef = useRef<string | null>(null);
 
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
+
+  // Initialiser les polluants locaux uniquement lors de l'ouverture du panel ou du changement de route
+  useEffect(() => {
+    if (!isOpen) {
+      // Réinitialiser la référence de route quand le panel est fermé
+      routeIdRef.current = null;
+      return;
+    }
+    
+    const routeToUse = selectedRoute || activeRoute;
+    const currentRouteId = routeToUse 
+      ? `${routeToUse.sensorId}-${routeToUse.sessionId}` 
+      : null;
+    
+    // Vérifier si c'est une nouvelle route ou l'ouverture du panel
+    const isNewRoute = currentRouteId !== routeIdRef.current;
+    
+    if (isNewRoute && currentRouteId) {
+      routeIdRef.current = currentRouteId;
+      
+      // Vérifier si le polluant initial est supporté par MobileAir
+      const isSupported = Object.values(MOBILEAIR_POLLUTANT_MAPPING).includes(initialPollutant);
+      if (isSupported) {
+        // Initialiser avec le polluant initial uniquement lors du chargement initial
+        setLocalSelectedPollutants([initialPollutant]);
+      }
+    }
+  }, [isOpen, selectedRoute, activeRoute, initialPollutant]);
+
+  // Liste des polluants supportés par MobileAir
+  const supportedPollutants = useMemo(() => {
+    return Object.entries(MOBILEAIR_POLLUTANT_MAPPING).map(([key, value]) => ({
+      code: value,
+      label: pollutants[value]?.name || key,
+      key: key,
+    }));
+  }, []);
+
+  // Fonction pour obtenir une couleur pour un polluant
+  const getPollutantColor = useCallback((pollutantCode: string, index: number): string => {
+    const colors = ["#3B82F6", "#EF4444", "#10B981"]; // Bleu, Rouge, Vert
+    return colors[index % colors.length];
+  }, []);
+
+  // Fonction pour obtenir une couleur plus foncée
+  const getDarkerColor = useCallback((color: string): string => {
+    // Convertir hex en RGB
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    
+    // Assombrir en réduisant de 30%
+    const darkerR = Math.max(0, Math.floor(r * 0.7));
+    const darkerG = Math.max(0, Math.floor(g * 0.7));
+    const darkerB = Math.max(0, Math.floor(b * 0.7));
+    
+    // Convertir back en hex
+    return `#${darkerR.toString(16).padStart(2, '0')}${darkerG.toString(16).padStart(2, '0')}${darkerB.toString(16).padStart(2, '0')}`;
+  }, []);
 
   const handlePanelSizeChange = (newSize: PanelSize) => {
     if (onSizeChange) {
@@ -142,53 +204,74 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
 
   const routeToUse = selectedRoute || activeRoute;
 
-  // Préparer les données pour le graphique (toujours appelé, même si le panel est fermé)
+  // Préparer les données pour le graphique avec tous les polluants sélectionnés
   const chartData = useMemo(() => {
-    if (!routeToUse) return [];
-    const pollutantKey = getPollutantKey(selectedPollutant);
+    if (!routeToUse || localSelectedPollutants.length === 0) return [];
     
     // Trier les points par timestamp
     const sortedPoints = [...routeToUse.points].sort(
       (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
     );
 
-    // Mapper directement les points (pas d'agrégation car les timestamps sont distincts)
+    // Créer une entrée par point avec toutes les valeurs des polluants sélectionnés
     return sortedPoints
       .map((point) => {
-        const value = point[pollutantKey as keyof MobileAirDataPoint] as number;
-        if (value == null || isNaN(value)) return null;
-        
         const timestamp = new Date(point.time).getTime();
-        return {
+        const dataPoint: Record<string, any> = {
           timestamp,
-          value: value || 0,
           point: point, // Stocker le point original pour les interactions
         };
+
+        // Ajouter la valeur pour chaque polluant sélectionné
+        localSelectedPollutants.forEach((pollutantCode) => {
+          const pollutantKey = getPollutantKey(pollutantCode);
+          const value = point[pollutantKey as keyof MobileAirDataPoint] as number;
+          if (value != null && !isNaN(value)) {
+            dataPoint[pollutantCode] = value;
+          }
+        });
+
+        // Retourner null si aucun polluant n'a de valeur valide
+        const hasValidValue = localSelectedPollutants.some((pollutantCode) => 
+          dataPoint[pollutantCode] != null
+        );
+
+        return hasValidValue ? dataPoint : null;
       })
       .filter((item): item is NonNullable<typeof item> => item !== null);
-  }, [selectedRoute, activeRoute, selectedPollutant]);
+  }, [selectedRoute, activeRoute, localSelectedPollutants]);
 
-  const pollutantConfig = pollutants[selectedPollutant];
-
-  // Préparer les données pour amCharts
+  // Préparer les données pour amCharts (même structure, mais avec tous les polluants)
   const amChartsData: AmChartsLineChartData[] = useMemo(() => {
-    return chartData.map((item) => ({
-      timestamp: item.timestamp,
-      value: item.value,
-      point: item.point, // Stocker le point original
-    }));
-  }, [chartData]);
+    return chartData.map((item) => {
+      const chartItem: Record<string, any> = {
+        timestamp: item.timestamp,
+        point: item.point,
+      };
+      
+      // Ajouter chaque polluant comme propriété séparée (toujours présenter, même si null)
+      // AmCharts a besoin que toutes les propriétés existent pour toutes les séries
+      localSelectedPollutants.forEach((pollutantCode) => {
+        chartItem[pollutantCode] = item[pollutantCode] ?? null;
+      });
 
-  // Configuration de la série
-  const series: AmChartsLineSeries[] = useMemo(() => [
-    {
-      dataKey: "value",
-      name: pollutantConfig?.name || selectedPollutant,
-      color: "#3B82F6",
-      strokeWidth: 2,
-      yAxisId: "left",
-    },
-  ], [pollutantConfig, selectedPollutant]);
+      return chartItem as AmChartsLineChartData;
+    });
+  }, [chartData, localSelectedPollutants]);
+
+  // Configuration des séries (une par polluant sélectionné)
+  const series: AmChartsLineSeries[] = useMemo(() => {
+    return localSelectedPollutants.map((pollutantCode, index) => {
+      const pollutantConfig = pollutants[pollutantCode];
+      return {
+        dataKey: pollutantCode,
+        name: pollutantConfig?.name || pollutantCode,
+        color: getPollutantColor(pollutantCode, index),
+        strokeWidth: 2,
+        yAxisId: "left",
+      };
+    });
+  }, [localSelectedPollutants, getPollutantColor]);
 
   // Formatage de l'axe X
   const xAxisLabelFormatter = useCallback((date: Date) => {
@@ -207,45 +290,69 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
       chartRef.current = chart;
       rootRef.current = root;
 
-      // Récupérer la série
-      const series = chart.series.getIndex(0) as am5xy.LineSeries;
-      if (!series) return;
-
-      seriesRef.current = series;
-
-      // Configurer le tooltip pour afficher la date complète
-      const tooltip = am5.Tooltip.new(root, {});
-      tooltip.label.adapters.add("text", (text, target) => {
-        const dataItem = target.dataItem as am5.DataItem<am5xy.ILineSeriesDataItem>;
-        if (dataItem) {
-          const data = dataItem.dataContext as { point: MobileAirDataPoint; value: number };
-          const value = (dataItem as any).get("valueY") as number;
-          if (data && data.point && typeof value === "number") {
-            return `${formatDate(data.point.time)}<br/>${pollutantConfig?.name || selectedPollutant}: ${value.toFixed(1)} ${pollutantConfig?.unit || "µg/m³"}`;
-          }
-          if (typeof value === "number") {
-            return `${value.toFixed(1)} ${pollutantConfig?.unit || "µg/m³"}`;
+      // Récupérer toutes les séries et les stocker
+      chart.series.each((seriesItem) => {
+        const lineSeries = seriesItem as am5xy.LineSeries;
+        const seriesName = lineSeries.get("name");
+        if (seriesName) {
+          // Trouver le polluant correspondant
+          const pollutantCode = localSelectedPollutants.find(
+            (p) => pollutants[p]?.name === seriesName
+          );
+          if (pollutantCode) {
+            seriesRefs.current.set(pollutantCode, lineSeries);
           }
         }
-        return text;
       });
-      series.set("tooltip", tooltip);
+
+      // Configurer le tooltip pour chaque série
+      chart.series.each((seriesItem) => {
+        const lineSeries = seriesItem as am5xy.LineSeries;
+        const seriesName = lineSeries.get("name");
+        
+        const tooltip = am5.Tooltip.new(root, {});
+        tooltip.label.adapters.add("text", (text, target) => {
+          const dataItem = target.dataItem as am5.DataItem<am5xy.ILineSeriesDataItem>;
+          if (dataItem) {
+            const data = dataItem.dataContext as { point: MobileAirDataPoint };
+            const value = (dataItem as any).get("valueY") as number;
+            
+            if (data && data.point && typeof value === "number" && seriesName) {
+              // Trouver le polluant correspondant à cette série
+              const pollutantForSeries = localSelectedPollutants.find(
+                (p) => pollutants[p]?.name === seriesName
+              ) || localSelectedPollutants[0];
+              const config = pollutants[pollutantForSeries];
+              
+              return `${formatDate(data.point.time)}<br/>${seriesName}: ${value.toFixed(1)} ${config?.unit || "µg/m³"}`;
+            }
+            if (typeof value === "number") {
+              return `${value.toFixed(1)} µg/m³`;
+            }
+          }
+          return text;
+        });
+        lineSeries.set("tooltip", tooltip);
+      });
     },
-    [pollutantConfig, selectedPollutant] // Ne pas inclure highlightedPoint pour éviter les recréations
+    [localSelectedPollutants] // Ne pas inclure highlightedPoint pour éviter les recréations
   );
 
   // Créer les bullets et gérer les interactions dans un useEffect séparé
   useEffect(() => {
-    if (!seriesRef.current) return;
+    if (seriesRefs.current.size === 0) return;
 
-    const series = seriesRef.current;
+    // Configurer les bullets pour chaque série
+    seriesRefs.current.forEach((series, pollutantCode) => {
 
-    // Créer des bulles pour les points (visibles au hover) - UNE SEULE FOIS
-    if (series.bullets.length === 0) {
+      // Créer des bulles pour les points (visibles au hover) - UNE SEULE FOIS
+      if (series.bullets.length === 0) {
+        const pollutantColor = getPollutantColor(pollutantCode, localSelectedPollutants.indexOf(pollutantCode));
+        
         series.bullets.push((root, series, dataItem) => {
           const circle = am5.Circle.new(root, {
             radius: 3,
-            fill: am5.color("#3B82F680"),
+            fill: am5.color(pollutantColor + "80"), // Opacité 80
             stroke: am5.color("#00000000"), // Couleur transparente (noir avec opacité 0)
             strokeWidth: 0,
             tooltipText: "{valueY}",
@@ -270,8 +377,10 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
                 to: 6,
                 duration: 200,
               });
-              circle.set("fill", am5.color("#3B82F6"));
-              circle.set("stroke", am5.color("#1D4ED8"));
+              circle.set("fill", am5.color(pollutantColor));
+              // Obtenir une couleur plus foncée pour le stroke
+              const darkerColor = getDarkerColor(pollutantColor);
+              circle.set("stroke", am5.color(darkerColor));
               circle.set("strokeWidth", 3);
             }
           });
@@ -294,7 +403,7 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
                 to: 3,
                 duration: 200,
               });
-              circle.set("fill", am5.color("#3B82F680"));
+              circle.set("fill", am5.color(pollutantColor + "80")); // Opacité 80
               circle.set("stroke", am5.color("#00000000")); // Couleur transparente
               circle.set("strokeWidth", 0);
             }
@@ -316,59 +425,67 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
           });
         });
       }
+    });
     },
-    [pollutantConfig, selectedPollutant, highlightedPoint, onPointHover, onPointHighlight]
+    [localSelectedPollutants, getPollutantColor, getDarkerColor, highlightedPoint, onPointHover, onPointHighlight]
   );
 
   // Mettre à jour l'apparence des points selon le highlight externe
   useEffect(() => {
-    if (!seriesRef.current) return;
+    if (seriesRefs.current.size === 0) return;
 
-    const series = seriesRef.current;
-    
-    const dataItems = series.dataItems;
-    const dataItemsArray = Array.from(dataItems);
-    for (let i = 0; i < dataItemsArray.length; i++) {
-      const dataItem = dataItemsArray[i];
-      if (!dataItem) continue;
+    // Mettre à jour pour toutes les séries
+    seriesRefs.current.forEach((series, pollutantCode) => {
+      const pollutantColor = getPollutantColor(pollutantCode, localSelectedPollutants.indexOf(pollutantCode));
       
-      const data = dataItem.dataContext as { point: MobileAirDataPoint };
-      if (!data || !data.point) continue;
+      const dataItems = series.dataItems;
+      const dataItemsArray = Array.from(dataItems);
+      for (let i = 0; i < dataItemsArray.length; i++) {
+        const dataItem = dataItemsArray[i];
+        if (!dataItem) continue;
+        
+        const data = dataItem.dataContext as { point: MobileAirDataPoint };
+        if (!data || !data.point) continue;
 
-      const isHighlighted =
-        highlightedPoint && isSamePoint(highlightedPoint, data.point);
-      const isHovered =
-        hoveredPoint && isSamePoint(hoveredPoint, data.point);
+        const isHighlighted =
+          highlightedPoint && isSamePoint(highlightedPoint, data.point);
+        const isHovered =
+          hoveredPoint && isSamePoint(hoveredPoint, data.point);
 
-      const bullet = dataItem.bullets?.[0];
-      if (bullet) {
-        const sprite = bullet.get("sprite") as am5.Circle;
-        if (sprite) {
-          if (isHighlighted || isHovered) {
-            sprite.set("radius", 6);
-            sprite.set("fill", am5.color("#3B82F6"));
-            sprite.set("stroke", am5.color("#1D4ED8"));
-            sprite.set("strokeWidth", 3);
-          } else {
-            sprite.set("radius", 3);
-            sprite.set("fill", am5.color("#3B82F680"));
-            sprite.set("stroke", am5.color("#00000000")); // Couleur transparente
-            sprite.set("strokeWidth", 0);
+        const bullet = dataItem.bullets?.[0];
+        if (bullet) {
+          const sprite = bullet.get("sprite") as am5.Circle;
+          if (sprite) {
+            if (isHighlighted || isHovered) {
+              sprite.set("radius", 6);
+              sprite.set("fill", am5.color(pollutantColor));
+              // Obtenir une couleur plus foncée pour le stroke
+              const darkerColor = getDarkerColor(pollutantColor);
+              sprite.set("stroke", am5.color(darkerColor));
+              sprite.set("strokeWidth", 3);
+            } else {
+              sprite.set("radius", 3);
+              sprite.set("fill", am5.color(pollutantColor + "80")); // Opacité 80
+              sprite.set("stroke", am5.color("#00000000")); // Couleur transparente
+              sprite.set("strokeWidth", 0);
+            }
           }
         }
       }
-    }
-  }, [highlightedPoint, hoveredPoint]);
+    });
+    },
+    [highlightedPoint, hoveredPoint, localSelectedPollutants, getPollutantColor, getDarkerColor]
+  );
 
   // Return conditionnel APRÈS tous les hooks
   if (!isOpen || !routeToUse) {
     return null;
   }
 
-  // Vérifier si le polluant est supporté par MobileAir
-  const isPollutantSupported = Object.values(
-    MOBILEAIR_POLLUTANT_MAPPING
-  ).includes(selectedPollutant);
+  // Vérifier si au moins un polluant est supporté par MobileAir
+  const isPollutantSupported = localSelectedPollutants.some((p) =>
+    Object.values(MOBILEAIR_POLLUTANT_MAPPING).includes(p)
+  );
 
   const getPanelClasses = () => {
     const baseClasses =
@@ -396,8 +513,7 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
             Session {routeToUse.sessionId}
           </h2>
           <p className="text-xs sm:text-sm text-gray-600 truncate">
-            Capteur {routeToUse.sensorId} •{" "}
-            {pollutantConfig?.name || selectedPollutant}
+            Capteur {routeToUse.sensorId}
           </p>
         </div>
 
@@ -467,6 +583,66 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
       {/* Contenu */}
       {currentPanelSize !== "hidden" && (
         <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4 sm:space-y-6">
+          {/* Sélection de polluants */}
+          <div className="border border-gray-200 rounded-lg p-3 sm:p-4">
+            <h3 className="text-sm font-medium text-gray-700 mb-3 text-center">
+              Polluants affichés ({localSelectedPollutants.length})
+            </h3>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {supportedPollutants.map((pollutant) => {
+                const isSelected = localSelectedPollutants.includes(pollutant.code);
+                const colorIndex = localSelectedPollutants.indexOf(pollutant.code);
+                const color = isSelected ? getPollutantColor(pollutant.code, colorIndex >= 0 ? colorIndex : 0) : undefined;
+                
+                return (
+                  <button
+                    key={pollutant.code}
+                    onClick={() => {
+                      setLocalSelectedPollutants((prev) => {
+                        if (prev.includes(pollutant.code)) {
+                          // Ne pas permettre de désélectionner le dernier polluant
+                          if (prev.length > 1) {
+                            return prev.filter((p) => p !== pollutant.code);
+                          }
+                          return prev;
+                        } else {
+                          return [...prev, pollutant.code];
+                        }
+                      });
+                    }}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      isSelected
+                        ? "text-white shadow-md"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                    style={
+                      isSelected && color
+                        ? { backgroundColor: color }
+                        : undefined
+                    }
+                  >
+                    <div className="flex items-center gap-2">
+                      {isSelected && (
+                        <svg
+                          className="w-4 h-4"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      )}
+                      {pollutant.label}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Autres sessions disponibles */}
           {allRoutes.length > 1 && (
             <div className="border border-gray-200 rounded-lg p-3 sm:p-4">
@@ -499,7 +675,7 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
                       <div className="text-right">
                         <div className="text-sm font-medium text-gray-900">
                           {route.averageValue.toFixed(1)}{" "}
-                          {pollutantConfig?.unit || "µg/m³"}
+                          {pollutants[localSelectedPollutants[0]]?.unit || "µg/m³"}
                         </div>
                         <div className="text-xs text-gray-600">
                           {route.points.length} points
@@ -536,11 +712,7 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
                     Polluant non supporté
                   </h4>
                   <p className="text-xs text-red-600 mb-3">
-                    Le polluant{" "}
-                    <strong>
-                      {pollutants[selectedPollutant]?.name || selectedPollutant}
-                    </strong>{" "}
-                    ne peut pas être affiché.
+                    Les polluants sélectionnés ne peuvent pas être affichés.
                   </p>
                   <div className="bg-red-50 rounded-md p-2">
                     <p className="text-xs text-red-700">
@@ -552,19 +724,22 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
             ) : (
               <div className="h-64">
                 <AmChartsLineChart
+                  key={`mobileair-chart-${localSelectedPollutants.join("-")}`}
                   data={amChartsData}
                   series={series}
                   yAxes={[
                     {
                       id: "left",
                       label: "Concentration",
-                      unit: pollutantConfig?.unit || "µg/m³",
+                      unit: localSelectedPollutants.length > 0 && pollutants[localSelectedPollutants[0]]?.unit 
+                        ? pollutants[localSelectedPollutants[0]].unit 
+                        : "µg/m³",
                     },
                   ]}
                   height="100%"
                   width="100%"
                   showGrid={true}
-                  showLegend={false}
+                  showLegend={true}
                   onChartReady={handleChartReady}
                   xAxisLabelFormatter={xAxisLabelFormatter}
                   tooltipFormatter={tooltipFormatter}
@@ -596,43 +771,64 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
                 </div>
                 <div>
                   <span className="text-gray-600">Valeur:</span>
-                  <p className="font-medium">
-                    {(
-                      (highlightedPoint || hoveredPoint)![
-                        getPollutantKey(
-                          selectedPollutant
-                        ) as keyof MobileAirDataPoint
-                      ] as number
-                    )?.toFixed(1) || "N/A"}{" "}
-                    {pollutantConfig?.unit || "µg/m³"}
-                  </p>
+                  {localSelectedPollutants.length > 0 ? (
+                    <div className="space-y-1 mt-1">
+                      {localSelectedPollutants.map((pollutantCode, index) => {
+                        const config = pollutants[pollutantCode];
+                        const pollutantKey = getPollutantKey(pollutantCode);
+                        const value = (highlightedPoint || hoveredPoint)![
+                          pollutantKey as keyof MobileAirDataPoint
+                        ] as number;
+                        
+                        return (
+                          <div key={pollutantCode} className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: getPollutantColor(pollutantCode, index) }}
+                            />
+                            <span className="text-xs font-medium">
+                              {config?.name || pollutantCode}: {value?.toFixed(1) || "N/A"} {config?.unit || "µg/m³"}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="font-medium">N/A</p>
+                  )}
                 </div>
                 <div>
                   <span className="text-gray-600">Niveau:</span>
-                  <p
-                    className="font-medium capitalize"
-                    style={{
-                      color: getQualityColor(
-                        ((highlightedPoint || hoveredPoint)![
-                          getPollutantKey(
-                            selectedPollutant
-                          ) as keyof MobileAirDataPoint
-                        ] as number) || 0,
-                        selectedPollutant,
-                        pollutants
-                      ),
-                    }}
-                  >
-                    {getQualityLevel(
-                      ((highlightedPoint || hoveredPoint)![
-                        getPollutantKey(
-                          selectedPollutant
-                        ) as keyof MobileAirDataPoint
-                      ] as number) || 0,
-                      selectedPollutant,
-                      pollutants
-                    )}
-                  </p>
+                  {localSelectedPollutants.length > 0 && (
+                    <div className="space-y-1 mt-1">
+                      {localSelectedPollutants.map((pollutantCode, index) => {
+                        const pollutantKey = getPollutantKey(pollutantCode);
+                        const value = (highlightedPoint || hoveredPoint)![
+                          pollutantKey as keyof MobileAirDataPoint
+                        ] as number;
+                        
+                        return (
+                          <div key={pollutantCode} className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: getPollutantColor(pollutantCode, index) }}
+                            />
+                            <p
+                              className="font-medium capitalize text-xs"
+                              style={{
+                                color: getQualityColor(value || 0, pollutantCode, pollutants),
+                              }}
+                            >
+                              {pollutants[pollutantCode]?.name}: {getQualityLevel(value || 0, pollutantCode, pollutants)}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {localSelectedPollutants.length === 0 && (
+                    <p className="font-medium">N/A</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -678,7 +874,9 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
                   {routeToUse.averageValue.toFixed(1)}
                 </p>
                 <p className="text-xs text-gray-500">
-                  {pollutantConfig?.unit || "µg/m³"}
+                  {localSelectedPollutants.length > 0 && pollutants[localSelectedPollutants[0]]?.unit 
+                    ? pollutants[localSelectedPollutants[0]].unit 
+                    : "µg/m³"}
                 </p>
               </div>
               <div className="text-center">
@@ -687,7 +885,9 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
                   {routeToUse.maxValue.toFixed(1)}
                 </p>
                 <p className="text-xs text-gray-500">
-                  {pollutantConfig?.unit || "µg/m³"}
+                  {localSelectedPollutants.length > 0 && pollutants[localSelectedPollutants[0]]?.unit 
+                    ? pollutants[localSelectedPollutants[0]].unit 
+                    : "µg/m³"}
                 </p>
               </div>
               <div className="text-center">
@@ -696,7 +896,9 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
                   {routeToUse.minValue.toFixed(1)}
                 </p>
                 <p className="text-xs text-gray-500">
-                  {pollutantConfig?.unit || "µg/m³"}
+                  {localSelectedPollutants.length > 0 && pollutants[localSelectedPollutants[0]]?.unit 
+                    ? pollutants[localSelectedPollutants[0]].unit 
+                    : "µg/m³"}
                 </p>
               </div>
             </div>

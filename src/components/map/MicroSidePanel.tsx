@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   StationInfo,
   ChartControls,
@@ -63,6 +63,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
   const [hasCorrectedData, setHasCorrectedData] = useState(false);
   const [showRawData, setShowRawData] = useState(false);
   const [sensorTimeStep, setSensorTimeStep] = useState<number | null>(null);
+  const stationIdRef = useRef<string | null>(null);
 
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
@@ -89,9 +90,29 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
       .map(([pollutantCode]) => pollutantCode);
   };
 
-  // Mettre à jour l'état quand les props changent
+  // Mettre à jour l'état uniquement lors de l'ouverture du panel ou du changement de station
   useEffect(() => {
-    if (isOpen && selectedStation) {
+    if (!isOpen) {
+      // Réinitialiser la référence de station quand le panel est fermé
+      stationIdRef.current = null;
+      setState((prev) => ({
+        ...prev,
+        isOpen: false,
+        selectedStation: null,
+      }));
+      setInternalPanelSize("hidden");
+      return;
+    }
+
+    if (!selectedStation) return;
+
+    const currentStationId = selectedStation.id;
+    const isNewStation = currentStationId !== stationIdRef.current;
+    
+    // Initialiser uniquement lors de l'ouverture du panel ou du changement de station
+    if (isNewStation) {
+      stationIdRef.current = currentStationId;
+      
       // Déterminer quels polluants sont disponibles dans cette station
       const availablePollutants = getAvailablePollutants();
 
@@ -145,12 +166,12 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
         );
       }
     } else {
+      // Si c'est la même station, juste mettre à jour isOpen et selectedStation sans réinitialiser les polluants
       setState((prev) => ({
         ...prev,
-        isOpen: false,
-        selectedStation: null,
+        isOpen,
+        selectedStation,
       }));
-      setInternalPanelSize("hidden");
     }
   }, [isOpen, selectedStation, initialPollutant]);
 

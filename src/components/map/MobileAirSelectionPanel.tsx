@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { MobileAirSensor, MOBILEAIR_POLLUTANT_MAPPING } from "../../types";
 import { pollutants } from "../../constants/pollutants";
 import { MobileAirService } from "../../services/MobileAirService";
@@ -8,7 +8,7 @@ import HistoricalTimeRangeSelector, {
 
 interface MobileAirSelectionPanelProps {
   isOpen: boolean;
-  selectedPollutant: string;
+  initialPollutant: string;
   onClose: () => void;
   onHidden?: () => void;
   onSizeChange?: (size: "normal" | "fullscreen" | "hidden") => void;
@@ -23,7 +23,7 @@ type PanelSize = "normal" | "fullscreen" | "hidden";
 
 const MobileAirSelectionPanel: React.FC<MobileAirSelectionPanelProps> = ({
   isOpen,
-  selectedPollutant,
+  initialPollutant,
   onClose,
   onHidden,
   onSizeChange,
@@ -40,16 +40,29 @@ const MobileAirSelectionPanel: React.FC<MobileAirSelectionPanelProps> = ({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasLoadedRef = useRef<boolean>(false);
+  const initialPollutantRef = useRef<string>(initialPollutant);
 
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
 
   const mobileAirService = new MobileAirService();
 
-  // Charger la liste des capteurs au montage du composant
+  // Mettre à jour la référence du polluant initial si le panel vient de s'ouvrir
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !hasLoadedRef.current) {
+      initialPollutantRef.current = initialPollutant;
+    }
+  }, [isOpen, initialPollutant]);
+
+  // Charger la liste des capteurs uniquement lors de l'ouverture du panel
+  useEffect(() => {
+    if (isOpen && !hasLoadedRef.current) {
       loadSensors();
+      hasLoadedRef.current = true;
+    } else if (!isOpen) {
+      // Réinitialiser le flag quand le panel est fermé
+      hasLoadedRef.current = false;
     }
   }, [isOpen]);
 
@@ -60,9 +73,9 @@ const MobileAirSelectionPanel: React.FC<MobileAirSelectionPanelProps> = ({
     try {
       const sensorsList = mobileAirService.getSensors();
       if (sensorsList.length === 0) {
-        // Si pas encore chargés, les récupérer
+        // Si pas encore chargés, les récupérer avec le polluant initial
         await mobileAirService.fetchData({
-          pollutant: selectedPollutant,
+          pollutant: initialPollutantRef.current,
           timeStep: "instantane",
           sources: ["mobileair"],
         });
@@ -76,7 +89,7 @@ const MobileAirSelectionPanel: React.FC<MobileAirSelectionPanelProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [selectedPollutant, mobileAirService]);
+  }, [mobileAirService]);
 
   const handleSensorToggle = (sensorId: string) => {
     setSelectedSensor(selectedSensor === sensorId ? null : sensorId);
@@ -212,7 +225,7 @@ const MobileAirSelectionPanel: React.FC<MobileAirSelectionPanelProps> = ({
   const availableSensors = sensors.filter((s) => s.displayMap);
   const isPollutantSupported = Object.values(
     MOBILEAIR_POLLUTANT_MAPPING
-  ).includes(selectedPollutant);
+  ).includes(initialPollutant);
 
   const getPanelClasses = () => {
   const baseClasses =
@@ -240,7 +253,7 @@ const MobileAirSelectionPanel: React.FC<MobileAirSelectionPanelProps> = ({
             Sélection MobileAir
           </h2>
           <p className="text-xs sm:text-sm text-gray-600 truncate">
-            {pollutants[selectedPollutant]?.name || selectedPollutant}
+            {pollutants[initialPollutant]?.name || initialPollutant}
           </p>
         </div>
 
@@ -368,7 +381,7 @@ const MobileAirSelectionPanel: React.FC<MobileAirSelectionPanelProps> = ({
                   <p className="text-sm text-red-700 mb-3">
                     Le polluant{" "}
                     <strong>
-                      {pollutants[selectedPollutant]?.name || selectedPollutant}
+                      {pollutants[initialPollutant]?.name || initialPollutant}
                     </strong>{" "}
                     ne peut pas être analysé avec les capteurs MobileAir.
                   </p>

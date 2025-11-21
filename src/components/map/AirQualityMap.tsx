@@ -2106,7 +2106,7 @@ const handleOpenMobileAirDetailPanel = () => {
       {/* Side Panel - MobileAir Selection (droite) */}
       <MobileAirSelectionPanel
         isOpen={isMobileAirSelectionPanelOpen}
-        selectedPollutant={selectedPollutant}
+        initialPollutant={selectedPollutant}
         onClose={handleCloseMobileAirSelectionPanel}
         onHidden={() => handleMobileAirSelectionPanelSizeChange("hidden")}
         onSizeChange={handleMobileAirSelectionPanelSizeChange}
@@ -2120,7 +2120,7 @@ const handleOpenMobileAirDetailPanel = () => {
         selectedRoute={selectedMobileAirRoute}
         activeRoute={activeMobileAirRoute}
         allRoutes={mobileAirRoutes}
-        selectedPollutant={selectedPollutant}
+        initialPollutant={selectedPollutant}
         highlightedPoint={highlightedMobileAirPoint}
         onClose={handleCloseMobileAirDetailPanel}
         onHidden={() => handleMobileAirDetailPanelSizeChange("hidden")}
