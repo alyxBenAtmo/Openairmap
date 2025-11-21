@@ -45,7 +45,278 @@ const formatTimeStepForExport = (timeStep?: string, sensorTimeStep?: number | nu
 };
 
 /**
- * Exporte un graphique Recharts en image PNG
+ * Exporte un graphique amCharts 5 en image PNG
+ * @param containerRef - Référence vers le conteneur DOM du graphique amCharts
+ * @param filename - Nom du fichier (sans extension)
+ * @param stationInfo - Informations de la station (optionnel)
+ * @param selectedPollutants - Polluants sélectionnés (optionnel)
+ * @param source - Source des données (optionnel)
+ * @param stations - Stations pour le mode comparaison (optionnel)
+ * @param timeStep - Pas de temps sélectionné (optionnel)
+ * @param sensorTimeStep - Pas de temps du capteur en secondes (optionnel, pour le mode instantane)
+ * @returns Promise<void>
+ */
+export const exportAmChartsAsPNG = async (
+  containerRef: React.RefObject<HTMLElement | null> | React.RefObject<HTMLDivElement | null> | HTMLElement | null,
+  filename: string = "graphique",
+  stationInfo: StationInfo | null = null,
+  selectedPollutants: string[] = [],
+  source: string = "",
+  stations: any[] = [],
+  timeStep?: string,
+  sensorTimeStep?: number | null
+): Promise<void> => {
+  const container = containerRef && typeof containerRef === 'object' && 'current' in containerRef 
+    ? (containerRef.current as HTMLElement | null)
+    : (containerRef as HTMLElement | null);
+
+  if (!container) {
+    throw new Error("Référence du conteneur du graphique non disponible");
+  }
+
+  try {
+    // Attendre un peu pour s'assurer que le graphique est complètement rendu
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    // Masquer tous les tooltips d'amCharts avant la capture
+    // amCharts 5 utilise des éléments avec des classes spécifiques pour les tooltips
+    const tooltipSelectors = [
+      '[class*="am5-Tooltip"]',
+      '.am5-Tooltip',
+      '[id*="Tooltip"]',
+    ];
+    
+    const originalStyles: Array<{ element: HTMLElement; display: string; visibility: string; opacity: string }> = [];
+    const foundElements = new Set<HTMLElement>();
+    
+    tooltipSelectors.forEach((selector) => {
+      const elements = container.querySelectorAll(selector);
+      if (elements) {
+        elements.forEach((element) => {
+          const htmlElement = element as HTMLElement;
+          // Éviter de traiter le même élément plusieurs fois
+          if (!foundElements.has(htmlElement)) {
+            foundElements.add(htmlElement);
+            originalStyles.push({
+              element: htmlElement,
+              display: htmlElement.style.display,
+              visibility: htmlElement.style.visibility,
+              opacity: htmlElement.style.opacity,
+            });
+            htmlElement.style.display = 'none';
+            htmlElement.style.visibility = 'hidden';
+            htmlElement.style.opacity = '0';
+          }
+        });
+      }
+    });
+
+    // Masquer aussi le curseur si présent
+    const cursorSelectors = [
+      '[class*="am5-Cursor"]',
+      '.am5-Cursor',
+    ];
+    cursorSelectors.forEach((selector) => {
+      const elements = container.querySelectorAll(selector);
+      elements.forEach((element) => {
+        const htmlElement = element as HTMLElement;
+        if (!foundElements.has(htmlElement)) {
+          foundElements.add(htmlElement);
+          originalStyles.push({
+            element: htmlElement,
+            display: htmlElement.style.display,
+            visibility: htmlElement.style.visibility,
+            opacity: htmlElement.style.opacity,
+          });
+          htmlElement.style.display = 'none';
+          htmlElement.style.visibility = 'hidden';
+          htmlElement.style.opacity = '0';
+        }
+      });
+    });
+
+    // Utiliser html2canvas sur le conteneur avec des options optimisées
+    const canvas = await html2canvas(container, {
+      backgroundColor: "#ffffff",
+      scale: 2, // Haute résolution
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      width: container.offsetWidth,
+      height: container.offsetHeight,
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: container.offsetWidth,
+      windowHeight: container.offsetHeight,
+    });
+
+    // Restaurer les styles des tooltips et curseurs après la capture
+    originalStyles.forEach(({ element, display, visibility, opacity }) => {
+      element.style.display = display;
+      element.style.visibility = visibility;
+      element.style.opacity = opacity;
+    });
+
+    // Calculer la hauteur nécessaire pour le titre et les métadonnées
+    const paddingBottom = 20;
+    const paddingLeft = 20;
+    const paddingRight = 20;
+    
+    const isComparisonMode = source === "comparison" && stations.length > 0;
+    
+    let paddingTop = 20;
+    if (stationInfo) {
+      // Estimer la hauteur nécessaire (approximatif)
+      // Nom appareil: 1 ligne (30px) + modèle et pas de temps sur 1 ligne (25px)
+      let estimatedLines = 1; // Nom de l'appareil
+      if (stationInfo.sensorModel || timeStep) estimatedLines += 1; // Modèle et pas de temps sur la même ligne
+      paddingTop = estimatedLines * 30 + 20; // Marge réduite
+    } else if (isComparisonMode) {
+      // Mode comparaison : titre + polluant + liste des stations + date
+      let estimatedLines = 2; // Titre + espace
+      if (selectedPollutants.length > 0) estimatedLines += 1;
+      estimatedLines += stations.length; // Une ligne par station
+      estimatedLines += 1; // Date d'export
+      paddingTop = estimatedLines * 25 + 30; // Marge de sécurité
+    }
+    
+    const finalCanvas = document.createElement("canvas");
+    finalCanvas.width = canvas.width + paddingLeft + paddingRight;
+    finalCanvas.height = canvas.height + paddingTop + paddingBottom;
+    const ctx = finalCanvas.getContext("2d");
+    
+    if (!ctx) {
+      throw new Error("Impossible de créer le contexte du canvas");
+    }
+
+    // Fond blanc
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+
+    // Fonction pour dessiner du texte centré
+    const drawCenteredText = (text: string, y: number, fontSize: string = "16px", isBold: boolean = false): number => {
+      ctx.font = isBold ? `bold ${fontSize} Arial, sans-serif` : `${fontSize} Arial, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText(text, finalCanvas.width / 2, y);
+      return y + (isBold ? 30 : 25);
+    };
+
+    // Fonction pour découper le texte en plusieurs lignes si nécessaire (pour le mode comparaison)
+    const drawText = (text: string, x: number, y: number, maxWidth: number): number => {
+      const words = text.split(" ");
+      let line = "";
+      let currentY = y;
+      
+      for (let i = 0; i < words.length; i++) {
+        const testLine = line + words[i] + " ";
+        const metrics = ctx.measureText(testLine);
+        
+        if (metrics.width > maxWidth && i > 0) {
+          ctx.fillText(line, x, currentY);
+          line = words[i] + " ";
+          currentY += 20;
+        } else {
+          line = testLine;
+        }
+      }
+      ctx.fillText(line, x, currentY);
+      return currentY + 25;
+    };
+
+    // Ajouter les métadonnées centrées au-dessus du graphique
+    if (stationInfo) {
+      ctx.fillStyle = "#000000";
+      
+      let yOffset = 20;
+      
+      // Nom de l'appareil (en gras)
+      yOffset = drawCenteredText(stationInfo.name, yOffset, "18px", true);
+      
+      // Modèle et pas de temps sur la même ligne (si disponibles)
+      const modelText = stationInfo.sensorModel ? `Modèle: ${stationInfo.sensorModel}` : "";
+      const formattedTimeStep = timeStep ? formatTimeStepForExport(timeStep, sensorTimeStep) : "";
+      
+      if (modelText || formattedTimeStep) {
+        let combinedText = "";
+        if (modelText && formattedTimeStep) {
+          combinedText = `${modelText} | Pas de temps: ${formattedTimeStep}`;
+        } else if (modelText) {
+          combinedText = modelText;
+        } else if (formattedTimeStep) {
+          combinedText = `Pas de temps: ${formattedTimeStep}`;
+        }
+        if (combinedText) {
+          yOffset = drawCenteredText(combinedText, yOffset, "14px", false);
+        }
+      }
+      
+      // Réinitialiser l'alignement pour le reste du code
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+    } else if (isComparisonMode) {
+      // Mode comparaison : afficher les informations de comparaison
+      ctx.fillStyle = "#000000";
+      ctx.font = "bold 20px Arial, sans-serif";
+      
+      const maxTextWidth = finalCanvas.width - paddingLeft - paddingRight;
+      
+      // Titre : "Comparaison de stations"
+      let yOffset = drawText("Comparaison de stations", paddingLeft, 30, maxTextWidth);
+      
+      // Polluant comparé
+      ctx.font = "14px Arial, sans-serif";
+      if (selectedPollutants.length > 0) {
+        const pollutantName = pollutants[selectedPollutants[0]]?.name || selectedPollutants[0];
+        yOffset = drawText(`Polluant: ${pollutantName}`, paddingLeft, yOffset, maxTextWidth);
+      }
+      
+      // Pas de temps (si disponible)
+      if (timeStep) {
+        const formattedTimeStep = formatTimeStepForExport(timeStep, sensorTimeStep);
+        if (formattedTimeStep) {
+          yOffset = drawText(`Pas de temps: ${formattedTimeStep}`, paddingLeft, yOffset, maxTextWidth);
+        }
+      }
+      
+      // Liste des appareils/stations comparées
+      yOffset = drawText(`Appareils (${stations.length}):`, paddingLeft, yOffset, maxTextWidth);
+      stations.forEach((station) => {
+        yOffset = drawText(`  • ${station.name}`, paddingLeft, yOffset, maxTextWidth);
+      });
+      
+      // Date et heure d'export
+      const now = new Date();
+      drawText(
+        `Exporté le: ${now.toLocaleDateString("fr-FR")} à ${now.toLocaleTimeString("fr-FR")}`,
+        paddingLeft,
+        yOffset,
+        maxTextWidth
+      );
+    }
+
+    // Dessiner le graphique original
+    ctx.drawImage(canvas, paddingLeft, paddingTop);
+
+    // Convertir en blob et télécharger
+    finalCanvas.toBlob(
+      (blob) => {
+        if (blob) {
+          saveAs(blob, `${filename}.png`);
+        }
+      },
+      "image/png",
+      0.95
+    );
+  } catch (error) {
+    console.error("Erreur lors de l'export PNG:", error);
+    throw error;
+  }
+};
+
+/**
+ * Exporte un graphique Recharts en image PNG (déprécié - utiliser exportAmChartsAsPNG)
+ * @deprecated Utiliser exportAmChartsAsPNG pour les graphiques amCharts 5
  * @param chartRef - Référence vers le composant ResponsiveContainer
  * @param filename - Nom du fichier (sans extension)
  * @param stationInfo - Informations de la station (optionnel)
@@ -240,6 +511,14 @@ export const exportChartAsPNG = async (
         yOffset = drawText(`Polluant: ${pollutantName}`, paddingLeft, yOffset, maxTextWidth);
       }
       
+      // Pas de temps (si disponible)
+      if (timeStep) {
+        const formattedTimeStep = formatTimeStepForExport(timeStep, sensorTimeStep);
+        if (formattedTimeStep) {
+          yOffset = drawText(`Pas de temps: ${formattedTimeStep}`, paddingLeft, yOffset, maxTextWidth);
+        }
+      }
+      
       // Liste des appareils/stations comparées
       yOffset = drawText(`Appareils (${stations.length}):`, paddingLeft, yOffset, maxTextWidth);
       stations.forEach((station) => {
@@ -333,6 +612,15 @@ export const exportDataAsCSV = (
         const pollutantName = pollutants[selectedPollutants[0]]?.name || selectedPollutants[0];
         metadataLines.push(`Polluant: ${pollutantName}`);
       }
+      
+      // Pas de temps (si disponible)
+      if (timeStep) {
+        const formattedTimeStep = formatTimeStepForExport(timeStep, sensorTimeStep);
+        if (formattedTimeStep) {
+          metadataLines.push(`Pas de temps: ${formattedTimeStep}`);
+        }
+      }
+      
       metadataLines.push(`Appareils (${stations.length}):`);
       stations.forEach((station) => {
         metadataLines.push(`  • ${station.name}`);
@@ -344,16 +632,17 @@ export const exportDataAsCSV = (
       metadataLines.push(""); // Ligne vide avant les données
     }
 
-    // Fonction pour formater une date au format JJ/MM/AAAA HH:MM (en UTC)
+    // Fonction pour formater une date au format JJ/MM/AAAA HH:MM (en heure locale)
+    // Pour correspondre à l'affichage dans le graphique qui utilise toLocaleString
     const formatDateForCSV = (dateString: string): string => {
       try {
         const date = new Date(dateString);
-        // Utiliser les méthodes UTC pour garantir le formatage correct des timestamps UTC
-        const day = String(date.getUTCDate()).padStart(2, "0");
-        const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-        const year = date.getUTCFullYear();
-        const hours = String(date.getUTCHours()).padStart(2, "0");
-        const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+        // Utiliser les méthodes locales pour correspondre à l'affichage du graphique
+        const day = String(date.getDate()).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, "0");
+        const minutes = String(date.getMinutes()).padStart(2, "0");
         return `${day}/${month}/${year} ${hours}:${minutes}`;
       } catch (error) {
         // Si la conversion échoue, retourner la valeur originale
@@ -365,9 +654,9 @@ export const exportDataAsCSV = (
     const headers = ["Timestamp (UTC)", "Date"];
 
     if (source === "comparison" && stations.length > 0) {
-      // Mode comparaison : une colonne par station
+      // Mode comparaison : une colonne par station (comme en mode classique une colonne par polluant)
       stations.forEach((station) => {
-        headers.push(`${station.name} (${selectedPollutants[0] || "Valeur"})`);
+        headers.push(station.name);
       });
     } else if (source === "atmoRef") {
       // AtmoRef : une seule colonne par polluant (pas de distinction brut/corrigé)
@@ -396,9 +685,11 @@ export const exportDataAsCSV = (
         const values = [timestamp, formattedDate];
 
         if (source === "comparison" && stations.length > 0) {
-          // Mode comparaison
+          // Mode comparaison : une valeur par station dans le même ordre que les en-têtes
           stations.forEach((station) => {
-            values.push(row[station.id] || "");
+            const value = row[station.id];
+            // Si la valeur n'existe pas, mettre une chaîne vide
+            values.push(value !== undefined && value !== null ? value : "");
           });
         } else if (source === "atmoRef") {
           // AtmoRef : lire directement depuis la clé du polluant (pas de _corrected ou _raw)

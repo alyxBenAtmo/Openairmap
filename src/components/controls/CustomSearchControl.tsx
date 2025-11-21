@@ -56,8 +56,10 @@ const CustomSearchControl: React.FC<CustomSearchControlProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [isSearching, setIsSearching] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Fonction pour rechercher dans les capteurs
   const searchSensors = useCallback(
@@ -170,23 +172,30 @@ const CustomSearchControl: React.FC<CustomSearchControlProps> = ({
     return () => clearTimeout(timeoutId);
   }, [searchQuery, performSearch]);
 
-  // Gérer le clic en dehors pour fermer la liste
+  // Gérer le clic en dehors pour fermer la liste et éventuellement la barre de recherche
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      
       if (
-        inputRef.current &&
-        resultsRef.current &&
-        !inputRef.current.contains(event.target as Node) &&
-        !resultsRef.current.contains(event.target as Node)
+        containerRef.current &&
+        !containerRef.current.contains(target)
       ) {
         setIsOpen(false);
         setSelectedIndex(-1);
+        // Sur mobile, fermer aussi la barre de recherche si elle est ouverte
+        if (window.innerWidth < 768 && isExpanded) {
+          setIsExpanded(false);
+          setSearchQuery("");
+        }
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    if (isExpanded) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isExpanded]);
 
   // Navigation au clavier
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -262,6 +271,7 @@ const CustomSearchControl: React.FC<CustomSearchControlProps> = ({
     setIsOpen(false);
     setSelectedIndex(-1);
     setSearchQuery("");
+    // Ne pas fermer complètement la barre de recherche, juste l'input
     inputRef.current?.blur();
   };
 
@@ -470,69 +480,133 @@ const CustomSearchControl: React.FC<CustomSearchControlProps> = ({
     );
   };
 
+  // Gérer l'expansion/réduction
+  const handleToggleExpand = () => {
+    setIsExpanded(!isExpanded);
+    if (!isExpanded) {
+      // Quand on ouvre, focus sur l'input après un court délai pour l'animation
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    } else {
+      // Quand on ferme, réinitialiser
+      setIsOpen(false);
+      setSearchQuery("");
+      inputRef.current?.blur();
+    }
+  };
+
   return (
-    <div className="absolute top-4 right-4 z-[1000] w-80">
+    <div className="absolute top-4 right-4 z-[800]" ref={containerRef}>
       <div className="relative">
-        <div className="relative">
-          <input
-            ref={inputRef}
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onFocus={() => {
-              if (results.length > 0) {
-                setIsOpen(true);
-              }
-            }}
-            placeholder="Rechercher une adresse ou une station/capteur..."
-            className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs"
-          />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            {isSearching ? (
-              <svg
-                className="animate-spin h-5 w-5 text-gray-400"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
+        {/* Mode compact : juste la loupe */}
+        {!isExpanded && (
+          <button
+            onClick={handleToggleExpand}
+            className="w-10 h-10 bg-white border border-gray-300 rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+            aria-label="Ouvrir la recherche"
+          >
+            <svg
+              className="h-5 w-5 text-gray-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </button>
+        )}
+
+        {/* Mode étendu : barre de recherche complète */}
+        {isExpanded && (
+          <div className="relative w-[calc(100vw-2rem)] sm:w-80 transition-all duration-300">
+            <div className="relative">
+              <input
+                ref={inputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onFocus={() => {
+                  if (results.length > 0) {
+                    setIsOpen(true);
+                  }
+                }}
+                placeholder="Rechercher une adresse ou une station/capteur..."
+                className="w-full px-4 py-2 pr-20 border border-gray-300 rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs"
+              />
+              <div className="absolute right-10 top-1/2 -translate-y-1/2">
+                {isSearching ? (
+                  <svg
+                    className="animate-spin h-5 w-5 text-gray-400"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                ) : (
+                  <svg
+                    className="h-5 w-5 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                )}
+              </div>
+              {/* Bouton pour fermer */}
+              <button
+                onClick={handleToggleExpand}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors focus:outline-none"
+                aria-label="Fermer la recherche"
               >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
                   stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-            ) : (
-              <svg
-                className="h-5 w-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-            )}
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Liste des résultats */}
-        {isOpen && results.length > 0 && (
+        {isExpanded && isOpen && results.length > 0 && (
           <div
             ref={resultsRef}
-            className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-xl max-h-96 overflow-y-auto z-[1001]"
+            className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-xl max-h-96 overflow-y-auto z-[801]"
           >
             {results.map((result, index) => (
               <div

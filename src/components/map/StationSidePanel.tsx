@@ -790,6 +790,7 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
                     selectedPollutants={state.chartControls.selectedPollutants}
                     source="atmoRef"
                     stationInfo={selectedStation}
+                    timeStep={state.chartControls.timeStep}
                   />
                 </div>
 

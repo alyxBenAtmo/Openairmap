@@ -287,11 +287,6 @@
 
 /* Styles pour les petits écrans en mode paysage */
 @media (max-width: 1024px) and (orientation: landscape) {
-  /* Masquer les labels d'axe Y sur petits écrans en mode paysage */
-  .recharts-yAxis .recharts-label {
-    display: none !important;
-  }
-
   /* Boutons de pas de temps plus compacts */
   .time-step-button-full {
     display: none !important;
@@ -304,10 +299,7 @@
 
 /* Styles pour les très petits écrans en mode paysage */
 @media (max-width: 768px) and (orientation: landscape) {
-  /* Masquer complètement les labels d'axe Y */
-  .recharts-yAxis .recharts-label {
-    display: none !important;
-  }
+  /* Note: Les labels d'axe Y sont maintenant gérés directement dans amCharts via les configurations du graphique */
 
   /* Boutons de pas de temps encore plus compacts */
   .time-step-button-full {

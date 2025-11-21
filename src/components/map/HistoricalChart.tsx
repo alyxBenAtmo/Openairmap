@@ -5,7 +5,7 @@ import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
 import { HistoricalDataPoint, StationInfo } from "../../types";
 import { pollutants, POLLUTANT_COLORS } from "../../constants/pollutants";
 import {
-  exportChartAsPNG,
+  exportAmChartsAsPNG,
   exportDataAsCSV,
   generateExportFilename,
 } from "../../utils/exportUtils";
@@ -190,6 +190,8 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   const containerIdRef = useRef<string>(
     `historical-chart-${Math.random().toString(36).substr(2, 9)}`
   );
+  // Ref pour stocker le formatter actuel de l'axe X
+  const xAxisDateFormatRef = useRef<{ format: (date: Date) => string } | null>(null);
 
   const useSolidNebuleAirLines =
     featureFlags.solidLineNebuleAir &&
@@ -341,7 +343,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     return unitGroups;
   };
 
-  // Transformer les données pour Recharts
+  // Transformer les données pour amCharts
   const transformData = () => {
     if (selectedPollutants.length === 0) return [];
 
@@ -384,7 +386,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
           
           const point: any = {
             timestamp,
-            rawTimestamp: timestampMs,
+            rawTimestamp: originalTimestamp, // Utiliser la string originale pour l'export CSV
             // Utiliser rawTimestamp comme clé principale pour le positionnement précis
             timestampValue: timestampMs,
           };
@@ -553,7 +555,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     return transformedData;
   };
 
-  // Transformer les données pour Recharts - Mémorisé pour éviter les recalculs inutiles
+  // Transformer les données pour amCharts - Mémorisé pour éviter les recalculs inutiles
   const chartData = useMemo(() => {
     const transformed = transformData();
     console.log("[HistoricalChart] Données transformées:", {
@@ -643,12 +645,16 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
         }
       };
     } else if (diffDays > 1) {
-      // Plusieurs jours : afficher seulement le jour
+      // Plusieurs jours : afficher jour, mois et heure
       return {
         type: 'day',
         format: (date: Date) => {
           if (isMobile) {
-            return `${date.getDate()}/${date.getMonth() + 1}`;
+            const day = String(date.getDate()).padStart(2, "0");
+            const month = String(date.getMonth() + 1).padStart(2, "0");
+            const hours = String(date.getHours()).padStart(2, "0");
+            const minutes = String(date.getMinutes()).padStart(2, "0");
+            return `${day}/${month} ${hours}:${minutes}`;
           }
           return date.toLocaleString("fr-FR", { day: "2-digit", month: "short" });
         }
@@ -659,7 +665,11 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
         type: 'day-hour',
         format: (date: Date) => {
           if (isMobile) {
-            return `${date.getDate()}/${date.getMonth() + 1} ${date.getHours()}h`;
+            const day = String(date.getDate()).padStart(2, "0");
+            const month = String(date.getMonth() + 1).padStart(2, "0");
+            const hours = String(date.getHours()).padStart(2, "0");
+            const minutes = String(date.getMinutes()).padStart(2, "0");
+            return `${day}/${month} ${hours}:${minutes}`;
           }
           return date.toLocaleString("fr-FR", { 
             day: "2-digit", 
@@ -675,7 +685,9 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
         type: 'hour',
         format: (date: Date) => {
           if (isMobile) {
-            return `${date.getHours()}h`;
+            const hours = String(date.getHours()).padStart(2, "0");
+            const minutes = String(date.getMinutes()).padStart(2, "0");
+            return `${hours}:${minutes}`;
           }
           return date.toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit" });
         }
@@ -925,7 +937,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
       am5xy.DateAxis.new(root, {
         baseInterval: { timeUnit: "second", count: 1 },
         renderer: am5xy.AxisRendererX.new(root, {
-          minGridDistance: 50,
+          minGridDistance: isMobile ? 70 : 50, // Plus d'espace entre les labels sur mobile pour en afficher moins
           cellStartLocation: 0, // Aligner au début de la cellule pour un meilleur alignement
           cellEndLocation: 1,
         }),
@@ -940,14 +952,14 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
       strokeOpacity: 0.5,
     });
 
-    // Formatter personnalisé pour l'axe X
+    // Formatter personnalisé pour l'axe X - utilise la ref pour toujours avoir la valeur actuelle
     xAxis.get("renderer").labels.template.adapters.add("text", (text, target) => {
       if (target.dataItem) {
         const value = (target.dataItem as any).get("value");
         if (value) {
           const date = typeof value === "number" ? new Date(value) : new Date(String(value));
-          if (!isNaN(date.getTime())) {
-            return xAxisDateFormat.format(date);
+          if (!isNaN(date.getTime()) && xAxisDateFormatRef.current) {
+            return xAxisDateFormatRef.current.format(date);
           }
         }
       }
@@ -956,7 +968,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
 
     // Configurer la taille de police et la rotation selon le mode
     xAxis.get("renderer").labels.template.setAll({
-      fontSize: isMobile ? 8 : isLandscapeMobile ? 10 : 12,
+      fontSize: isMobile ? 7 : isLandscapeMobile ? 9 : 12, // Taille réduite sur mobile
       fill: am5.color("#666"),
       rotation: isMobile ? 0 : -45, // Rotation de -45 degrés sur desktop, 0 sur mobile
       centerY: am5.p50,
@@ -1462,19 +1474,9 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
         stationInfo
       );
       
-      // Utiliser l'API d'export d'amCharts
-      const chart = chartRef.current;
-      const exportSettings = {
-        fileFormat: "png",
-        quality: 1,
-        maintainAspectRatio: true,
-      };
-
-      // amCharts 5 a une API d'export intégrée
-      // Note: Pour l'instant, on utilise html2canvas comme fallback
-      // TODO: Implémenter l'export natif amCharts si disponible
-      await exportChartAsPNG(
-        containerRef as any, // Utiliser le conteneur DOM pour html2canvas
+      // Utiliser la fonction d'export adaptée pour amCharts 5
+      await exportAmChartsAsPNG(
+        containerRef,
         filename,
         stationInfo,
         selectedPollutants,
@@ -1527,16 +1529,48 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   const chartMargins = useMemo(() => {
     if (isLandscapeMobile) {
       // Marges réduites pour le mode paysage sur mobile, mais espace pour le bouton burger
-      return { top: 45, right: 5, left: 2, bottom: 5 };
+      return { top: 40, right: 5, left: 2, bottom: 5 };
     }
     if (isMobile) {
       // Marges optimisées pour mobile portrait : marges minimales pour maximiser l'espace du graphique
-      return { top: 45, right: 5, left: 5, bottom: 15 };
+      // bottom réduit car les labels X sont plus petits et moins nombreux
+      return { top: 40, right: 5, left: 5, bottom: 10 };
     }
     // Marges normales pour les autres modes, avec espace pour le bouton burger en haut à droite
     return { top: 45, right: 30, left: 20, bottom: 5 };
   }, [isLandscapeMobile, isMobile]);
 
+  // Mise à jour des marges et des propriétés de l'axe X lors des changements d'orientation
+  useEffect(() => {
+    if (!chartRef.current || !rootRef.current) return;
+
+    const chart = chartRef.current;
+    const xAxis = chart.xAxes.getIndex(0) as am5xy.DateAxis<am5xy.AxisRendererX>;
+    
+    if (!xAxis) return;
+
+    // Mettre à jour les paddings du graphique
+    chart.set("paddingTop", chartMargins.top);
+    chart.set("paddingRight", chartMargins.right);
+    chart.set("paddingBottom", chartMargins.bottom);
+    chart.set("paddingLeft", chartMargins.left);
+
+    // Mettre à jour le minGridDistance de l'axe X
+    const renderer = xAxis.get("renderer") as am5xy.AxisRendererX;
+    if (renderer) {
+      renderer.set("minGridDistance", isMobile ? 70 : 50);
+    }
+
+    // Mettre à jour la taille de police des labels de l'axe X
+    xAxis.get("renderer").labels.template.setAll({
+      fontSize: isMobile ? 7 : isLandscapeMobile ? 9 : 12,
+    });
+  }, [chartMargins, isMobile, isLandscapeMobile]);
+
+  // Mettre à jour la ref du formatter quand xAxisDateFormat change
+  useEffect(() => {
+    xAxisDateFormatRef.current = xAxisDateFormat;
+  }, [xAxisDateFormat]);
 
   // Afficher un message si aucune donnée n'est disponible
   if (chartData.length === 0) {

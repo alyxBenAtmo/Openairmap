@@ -582,6 +582,7 @@ const ComparisonSidePanel: React.FC<ComparisonSidePanelProps> = ({
                     selectedPollutants={[comparisonState.selectedPollutant]}
                     source="comparison"
                     stations={comparisonState.comparedStations}
+                    timeStep={comparisonState.timeStep}
                   />
                 </div>
 
