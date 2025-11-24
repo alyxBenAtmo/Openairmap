@@ -13,6 +13,8 @@ import HistoricalTimeRangeSelector, {
   TimeRange,
   getMaxHistoryDays,
 } from "../controls/HistoricalTimeRangeSelector";
+import { ToggleGroup, ToggleGroupItem } from "../ui/button-group";
+import { cn } from "../../lib/utils";
 
 const NEBULEAIR_TIMESTEP_OPTIONS = [
   "instantane",
@@ -1014,7 +1016,20 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                         Pas de temps
                       </span>
                     </div>
-                    <div className="grid grid-cols-4 gap-1">
+                    <ToggleGroup
+                      type="single"
+                      value={state.chartControls.timeStep}
+                      onValueChange={(value) => {
+                        if (value) {
+                          const isDisabledBySupport = !supportedTimeSteps.includes(value);
+                          const isDisabledByRange = !isTimeStepValidForCurrentRange(value);
+                          if (!isDisabledBySupport && !isDisabledByRange) {
+                            handleTimeStepChange(value);
+                          }
+                        }
+                      }}
+                      className="w-full"
+                    >
                       {[
                         { key: "instantane", label: "Scan" },
                         { key: "quartHeure", label: "15min" },
@@ -1024,7 +1039,6 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                         const isDisabledBySupport = !supportedTimeSteps.includes(key);
                         const isDisabledByRange = !isTimeStepValidForCurrentRange(key);
                         const isDisabled = isDisabledBySupport || isDisabledByRange;
-                        const isSelected = state.chartControls.timeStep === key;
                         const maxDays = getMaxHistoryDays(key);
 
                         let tooltip = label;
@@ -1035,24 +1049,21 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                         }
 
                         return (
-                          <button
+                          <ToggleGroupItem
                             key={key}
-                            onClick={() => !isDisabled && handleTimeStepChange(key)}
+                            value={key}
                             disabled={isDisabled}
+                            className={cn(
+                              "text-xs min-w-0",
+                              isDisabled && "opacity-50"
+                            )}
                             title={tooltip}
-                            className={`px-1.5 py-1 text-xs rounded-md transition-all duration-200 ${
-                              isDisabled
-                                ? "bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
-                                : isSelected
-                                ? "bg-[#4271B3] text-white shadow-sm"
-                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            }`}
                           >
                             {label}
-                          </button>
+                          </ToggleGroupItem>
                         );
                       })}
-                    </div>
+                    </ToggleGroup>
                     
                     {/* Message explicatif si des boutons sont désactivés à cause de la période */}
                     {(() => {

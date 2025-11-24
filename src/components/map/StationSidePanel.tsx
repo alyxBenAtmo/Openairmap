@@ -14,6 +14,8 @@ import HistoricalTimeRangeSelector, {
   TimeRange,
   getMaxHistoryDays,
 } from "../controls/HistoricalTimeRangeSelector";
+import { ToggleGroup, ToggleGroupItem } from "../ui/button-group";
+import { cn } from "../../lib/utils";
 
 interface StationSidePanelProps {
   isOpen: boolean;
@@ -846,7 +848,20 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
                         Pas de temps
                       </span>
                     </div>
-                    <div className="grid grid-cols-4 gap-1">
+                    <ToggleGroup
+                      type="single"
+                      value={state.chartControls.timeStep}
+                      onValueChange={(value) => {
+                        if (value) {
+                          const isDisabledByRange = !isTimeStepValidForCurrentRange(value);
+                          const alwaysDisabled = value === "instantane"; // Toujours désactivé pour AtmoRef
+                          if (!alwaysDisabled && !isDisabledByRange) {
+                            handleTimeStepChange(value);
+                          }
+                        }
+                      }}
+                      className="w-full"
+                    >
                       {[
                         {
                           key: "instantane",
@@ -883,29 +898,26 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
                         }
 
                         return (
-                          <button
+                          <ToggleGroupItem
                             key={key}
-                            onClick={() => !isDisabled && handleTimeStepChange(key)}
+                            value={key}
                             disabled={isDisabled}
+                            className={cn(
+                              "text-xs min-w-0",
+                              isDisabled && "opacity-50"
+                            )}
                             title={tooltip}
-                            className={`px-1.5 py-1 text-xs rounded-md transition-all duration-200 ${
-                              isDisabled
-                                ? "bg-gray-200 text-gray-400 cursor-not-allowed opacity-60"
-                                : state.chartControls.timeStep === key
-                                ? "bg-[#4271B3] text-white shadow-sm"
-                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            }`}
                           >
-                            <span className="time-step-button-full">
+                            <span className="time-step-button-full truncate">
                               {key === "instantane" ? "scan : 15min" : label}
                             </span>
-                            <span className="time-step-button-short">
+                            <span className="time-step-button-short truncate">
                               {shortLabel}
                             </span>
-                          </button>
+                          </ToggleGroupItem>
                         );
                       })}
-                    </div>
+                    </ToggleGroup>
                     
                     {/* Message explicatif si des boutons sont désactivés à cause de la période */}
                     {(() => {

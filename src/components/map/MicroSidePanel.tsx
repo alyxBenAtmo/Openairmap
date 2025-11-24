@@ -14,6 +14,8 @@ import HistoricalTimeRangeSelector, {
   TimeRange,
   getMaxHistoryDays,
 } from "../controls/HistoricalTimeRangeSelector";
+import { ToggleGroup, ToggleGroupItem } from "../ui/button-group";
+import { cn } from "../../lib/utils";
 
 interface MicroSidePanelProps {
   isOpen: boolean;
@@ -926,7 +928,19 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                         Pas de temps
                       </span>
                     </div>
-                    <div className="grid grid-cols-4 gap-1">
+                    <ToggleGroup
+                      type="single"
+                      value={state.chartControls.timeStep}
+                      onValueChange={(value) => {
+                        if (value && !isTimeStepValidForCurrentRange(value)) {
+                          return;
+                        }
+                        if (value) {
+                          handleTimeStepChange(value);
+                        }
+                      }}
+                      className="w-full"
+                    >
                       {[
                         {
                           key: "instantane",
@@ -942,7 +956,6 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                         { key: "jour", label: "1j", shortLabel: "1j" },
                       ].map(({ key, label, shortLabel }) => {
                         const isDisabledByRange = !isTimeStepValidForCurrentRange(key);
-                        const isSelected = state.chartControls.timeStep === key;
                         const maxDays = getMaxHistoryDays(key);
 
                         let tooltip = key === "instantane" && sensorTimeStep !== null
@@ -953,33 +966,30 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                         }
 
                         return (
-                          <button
+                          <ToggleGroupItem
                             key={key}
-                            onClick={() => !isDisabledByRange && handleTimeStepChange(key)}
+                            value={key}
                             disabled={isDisabledByRange}
-                            className={`px-1.5 py-1 text-xs rounded-md transition-all duration-200 ${
-                              isDisabledByRange
-                                ? "bg-gray-200 text-gray-400 cursor-not-allowed opacity-60"
-                                : isSelected
-                                ? "bg-[#4271B3] text-white shadow-sm"
-                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            }`}
+                            className={cn(
+                              "text-xs min-w-0",
+                              isDisabledByRange && "opacity-50"
+                            )}
                             title={tooltip}
                           >
-                            <span className="time-step-button-full">
+                            <span className="time-step-button-full truncate">
                               {key === "instantane" && sensorTimeStep !== null
                                 ? formatTimeStep(sensorTimeStep)
                                 : label}
                             </span>
-                            <span className="time-step-button-short">
+                            <span className="time-step-button-short truncate">
                               {key === "instantane" && sensorTimeStep !== null
                                 ? formatTimeStep(sensorTimeStep)
                                 : shortLabel}
                             </span>
-                          </button>
+                          </ToggleGroupItem>
                         );
                       })}
-                    </div>
+                    </ToggleGroup>
                     
                     {/* Message explicatif si des boutons sont désactivés à cause de la période */}
                     {(() => {

@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
+import { ToggleGroup, ToggleGroupItem } from "../ui/button-group";
+import { cn } from "../../lib/utils";
 
 export interface TimeRange {
   type: "preset" | "custom";
@@ -337,7 +339,16 @@ const HistoricalTimeRangeSelector: React.FC<
       </div>
 
       {/* Boutons des périodes prédéfinies */}
-      <div className="grid grid-cols-4 gap-1 mb-2">
+      <ToggleGroup
+        type="single"
+        value={timeRange.type === "preset" ? timeRange.preset : undefined}
+        onValueChange={(value) => {
+          if (value && (value === "3h" || value === "24h" || value === "7d" || value === "30d")) {
+            handlePresetChange(value);
+          }
+        }}
+        className="w-full mb-2"
+      >
         {[
           { key: "3h", label: "3h" },
           { key: "24h", label: "24h" },
@@ -345,33 +356,27 @@ const HistoricalTimeRangeSelector: React.FC<
           { key: "30d", label: "30j" },
         ].map(({ key, label }) => {
           const isValid = isPresetValid(key as "3h" | "24h" | "7d" | "30d");
-          const isSelected = timeRange.type === "preset" && timeRange.preset === key;
           
           return (
-            <button
+            <ToggleGroupItem
               key={key}
-              onClick={() =>
-                handlePresetChange(key as "3h" | "24h" | "7d" | "30d")
-              }
+              value={key}
               disabled={!isValid}
               title={
                 !isValid && maxDays
                   ? `Limité à ${formatMaxDaysDisplay(maxDays)} pour ce pas de temps`
                   : undefined
               }
-              className={`px-1.5 py-1 text-xs rounded-md transition-all duration-200 ${
-                !isValid
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed opacity-60"
-                  : isSelected
-                  ? "bg-[#4271B3] text-white shadow-sm"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
+              className={cn(
+                "text-xs min-w-0",
+                !isValid && "opacity-50"
+              )}
             >
               {label}
-            </button>
+            </ToggleGroupItem>
           );
         })}
-      </div>
+      </ToggleGroup>
       
       
 
