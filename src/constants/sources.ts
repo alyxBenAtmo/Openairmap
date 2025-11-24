@@ -2,13 +2,13 @@ import { Sources } from "../types";
 
 export const sources: Sources = {
   atmoRef: {
-    name: "Station de référence atmosud",
+    name: "Station de référence AtmoSud",
     code: "atmoRef",
     activated: true,
     supportedTimeSteps: ["instantane", "quartHeure", "heure", "jour"],
   }, // Stations de référence AtmoSud
   atmoMicro: {
-    name: "Microcapteurs qualifiés",
+    name: "Microcapteurs qualifiés AtmoSud",
     code: "atmoMicro",
     activated: true,
     supportedTimeSteps: ["instantane", "deuxMin", "quartHeure", "heure"],
