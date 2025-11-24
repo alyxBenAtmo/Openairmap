@@ -49,6 +49,15 @@ export class PurpleAirService extends BaseDataService {
     signalAirSelectedTypes?: string[];
   }): Promise<MeasurementDevice[]> {
     try {
+      // Vérifier si le pas de temps est supporté
+      const supportedTimeSteps = ["instantane", "deuxMin"];
+      if (!supportedTimeSteps.includes(params.timeStep)) {
+        console.warn(
+          `Pas de temps ${params.timeStep} non supporté par PurpleAir`
+        );
+        return [];
+      }
+
       // Vérifier si le polluant est supporté par PurpleAir
       if (!this.isPollutantSupported(params.pollutant)) {
         console.warn(`Polluant ${params.pollutant} non supporté par PurpleAir`);

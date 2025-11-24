@@ -10,15 +10,29 @@ import {
 } from "../ui/dropdown-menu";
 import { Checkbox } from "../ui/checkbox";
 import { cn } from "../../lib/utils";
+import {
+  isSourceCompatibleWithTimeStep,
+  getSourceDisplayName,
+  getSupportedTimeStepNames,
+  getFirstCompatibleTimeStep,
+} from "../../utils/sourceCompatibility";
+import { pasDeTemps } from "../../constants/timeSteps";
+import { Toast } from "../ui/toast";
 
 interface SourceDropdownProps {
   selectedSources: string[];
+  selectedTimeStep?: string;
   onSourceChange: (sources: string[]) => void;
+  onTimeStepChange?: (timeStep: string) => void;
+  onToast?: (toast: Omit<Toast, "id">) => void;
 }
 
 const SourceDropdown: React.FC<SourceDropdownProps> = ({
   selectedSources,
+  selectedTimeStep,
   onSourceChange,
+  onTimeStepChange,
+  onToast,
 }) => {
   // Définir les sources communautaires
   const communautaireSources = [
@@ -43,7 +57,47 @@ const SourceDropdown: React.FC<SourceDropdownProps> = ({
   );
 
   const handleSourceToggle = (sourceCode: string) => {
-    const newSources = selectedSources.includes(sourceCode)
+    const isCurrentlySelected = selectedSources.includes(sourceCode);
+    
+    // Si on essaie d'activer une source
+    if (!isCurrentlySelected) {
+      // Vérifier la compatibilité si le pas de temps est fourni
+      if (selectedTimeStep && onToast) {
+        const isCompatible = isSourceCompatibleWithTimeStep(
+          sourceCode,
+          selectedTimeStep
+        );
+
+        if (!isCompatible) {
+          // Afficher une notification toast
+          const supportedSteps = getSupportedTimeStepNames(sourceCode);
+          const firstCompatibleStep = getFirstCompatibleTimeStep(sourceCode);
+          const sourceName = getSourceDisplayName(sourceCode);
+
+          onToast({
+            title: `${sourceName} non disponible`,
+            description: `Cette source n'est disponible qu'aux pas de temps : ${supportedSteps.join(", ")}.`,
+            variant: "warning",
+            action:
+              firstCompatibleStep && onTimeStepChange
+                ? {
+                    label: `Changer vers "${pasDeTemps[firstCompatibleStep]?.name || firstCompatibleStep}"`,
+                    onClick: () => {
+                      onTimeStepChange(firstCompatibleStep);
+                    },
+                  }
+                : undefined,
+            duration: 6000,
+          });
+
+          // Ne pas activer la source si elle n'est pas compatible
+          return;
+        }
+      }
+    }
+
+    // Comportement normal : activer/désactiver
+    const newSources = isCurrentlySelected
       ? selectedSources.filter((s) => s !== sourceCode)
       : [...selectedSources, sourceCode];
     onSourceChange(newSources);

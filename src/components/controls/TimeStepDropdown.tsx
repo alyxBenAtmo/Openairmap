@@ -9,17 +9,27 @@ import {
   DropdownMenuRadioItem,
 } from "../ui/dropdown-menu";
 import { cn } from "../../lib/utils";
+import {
+  isSourceCompatibleWithTimeStep,
+  getSourceDisplayName,
+  getSupportedTimeStepNames,
+} from "../../utils/sourceCompatibility";
+import { Toast } from "../ui/toast";
 
 interface TimeStepDropdownProps {
   selectedTimeStep: string;
   selectedSources: string[];
   onTimeStepChange: (timeStep: string) => void;
+  onSourceChange?: (sources: string[]) => void;
+  onToast?: (toast: Omit<Toast, "id">) => void;
 }
 
 const TimeStepDropdown: React.FC<TimeStepDropdownProps> = ({
   selectedTimeStep,
   selectedSources,
   onTimeStepChange,
+  onSourceChange,
+  onToast,
 }) => {
   // Fonction pour obtenir les pas de temps supportés par les sources sélectionnées
   const supportedTimeSteps = useMemo(() => {
@@ -83,6 +93,78 @@ const TimeStepDropdown: React.FC<TimeStepDropdownProps> = ({
     }
   }, [selectedTimeStep, supportedTimeSteps, onTimeStepChange]);
 
+  // Gérer le changement de pas de temps avec vérification des incompatibilités
+  const handleTimeStepChange = (newTimeStep: string) => {
+    // Si le pas de temps ne change pas, ne rien faire
+    if (newTimeStep === selectedTimeStep) {
+      return;
+    }
+
+    // Changer le pas de temps d'abord (pour que le dropdown reflète le choix)
+    onTimeStepChange(newTimeStep);
+
+    // Vérifier les sources incompatibles avec le nouveau pas de temps
+    const incompatibleSources = selectedSources.filter(
+      (source) => !isSourceCompatibleWithTimeStep(source, newTimeStep)
+    );
+
+    // Si des sources sont incompatibles, afficher une notification
+    if (incompatibleSources.length > 0 && onToast) {
+      const sourceNames = incompatibleSources.map((source) =>
+        getSourceDisplayName(source)
+      );
+      const timeStepName =
+        pasDeTemps[newTimeStep as keyof typeof pasDeTemps]?.name ||
+        newTimeStep;
+
+      // Créer le message selon le nombre de sources
+      const title =
+        incompatibleSources.length === 1
+          ? `${sourceNames[0]} non disponible`
+          : `${incompatibleSources.length} sources non disponibles`;
+
+      // Construire la description avec la liste des sources incompatibles
+      let description = "";
+      if (incompatibleSources.length === 1) {
+        description = `${sourceNames[0]} n'est pas disponible au pas de temps "${timeStepName}".`;
+        // Afficher les pas de temps supportés pour cette source
+        const supportedSteps = getSupportedTimeStepNames(incompatibleSources[0]);
+        if (supportedSteps.length > 0) {
+          description += ` Disponible uniquement en : ${supportedSteps.join(", ")}.`;
+        }
+      } else {
+        // Plusieurs sources incompatibles : lister toutes les sources
+        description = `Les sources suivantes ne sont pas disponibles au pas de temps "${timeStepName}" : ${sourceNames.join(", ")}.`;
+        
+        // Afficher les pas de temps supportés pour la première source (exemple)
+        const firstIncompatible = incompatibleSources[0];
+        const supportedSteps = getSupportedTimeStepNames(firstIncompatible);
+        if (supportedSteps.length > 0) {
+          description += ` ${sourceNames[0]} est disponible uniquement en : ${supportedSteps.join(", ")}.`;
+        }
+      }
+
+      onToast({
+        title,
+        description,
+        variant: "warning",
+        action: onSourceChange
+          ? {
+              label: "Désactiver les sources incompatibles",
+              onClick: () => {
+                // Désactiver les sources incompatibles
+                const compatibleSources = selectedSources.filter(
+                  (source) => isSourceCompatibleWithTimeStep(source, newTimeStep)
+                );
+                onSourceChange(compatibleSources);
+              },
+            }
+          : undefined,
+        duration: 7000,
+      });
+    }
+  };
+
   const getDisplayText = () => {
     const timeStep = pasDeTemps[selectedTimeStep as keyof typeof pasDeTemps];
     return timeStep ? timeStep.name : "Choisir un pas de temps";
@@ -120,7 +202,7 @@ const TimeStepDropdown: React.FC<TimeStepDropdownProps> = ({
       >
         <DropdownMenuRadioGroup
           value={selectedTimeStep}
-          onValueChange={onTimeStepChange}
+          onValueChange={handleTimeStepChange}
         >
           {Object.entries(pasDeTemps)
             .filter(([code]) => supportedTimeSteps.includes(code))

@@ -3,6 +3,8 @@ import PollutantDropdown from "./PollutantDropdown";
 import SourceDropdown from "./SourceDropdown";
 import TimeStepDropdown from "./TimeStepDropdown";
 
+import { Toast } from "../ui/toast";
+
 interface ControlPanelProps {
   selectedPollutant: string;
   selectedSources: string[];
@@ -10,6 +12,7 @@ interface ControlPanelProps {
   onPollutantChange: (pollutant: string) => void;
   onSourceChange: (sources: string[]) => void;
   onTimeStepChange: (timeStep: string) => void;
+  onToast?: (toast: Omit<Toast, "id">) => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -19,6 +22,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onPollutantChange,
   onSourceChange,
   onTimeStepChange,
+  onToast,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -73,12 +77,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             />
             <SourceDropdown
               selectedSources={selectedSources}
+              selectedTimeStep={selectedTimeStep}
               onSourceChange={onSourceChange}
+              onTimeStepChange={onTimeStepChange}
+              onToast={onToast}
             />
             <TimeStepDropdown
               selectedTimeStep={selectedTimeStep}
               selectedSources={selectedSources}
               onTimeStepChange={onTimeStepChange}
+              onSourceChange={onSourceChange}
+              onToast={onToast}
             />
           </div>
         )}

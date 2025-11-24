@@ -21,10 +21,15 @@ import MobileMenuBurger from "./components/controls/MobileMenuBurger";
 import ModelingLayerControl from "./components/controls/ModelingLayerControl";
 import InformationModal from "./components/modals/InformationModal";
 import { ModelingLayerType } from "./constants/mapLayers";
+import { useToast } from "./hooks/useToast";
+import { ToastContainer } from "./components/ui/toast";
 
 const App: React.FC = () => {
   // Configuration basée sur le domaine
   const domainConfig = useDomainConfig();
+
+  // Hook pour les notifications toast
+  const { toasts, addToast, removeToast } = useToast();
 
   // Trouver le pas de temps activé par défaut (calculé une seule fois)
   const defaultTimeStep = useMemo(() => {
@@ -309,6 +314,7 @@ const App: React.FC = () => {
             loading={loading}
             currentModelingLayer={currentModelingLayer}
             onModelingLayerChange={setCurrentModelingLayer}
+            onToast={addToast}
           />
 
           {/* Contrôles intégrés dans l'en-tête - Desktop uniquement */}
@@ -321,12 +327,17 @@ const App: React.FC = () => {
               />
               <SourceDropdown
                 selectedSources={selectedSources}
+                selectedTimeStep={selectedTimeStep}
                 onSourceChange={setSelectedSources}
+                onTimeStepChange={setSelectedTimeStep}
+                onToast={addToast}
               />
               <TimeStepDropdown
                 selectedTimeStep={selectedTimeStep}
                 selectedSources={selectedSources}
                 onTimeStepChange={setSelectedTimeStep}
+                onSourceChange={setSelectedSources}
+                onToast={addToast}
               />
             </div>
 
@@ -457,6 +468,9 @@ const App: React.FC = () => {
         onClose={() => setIsInfoModalOpen(false)}
         domainConfig={domainConfig}
       />
+
+      {/* Conteneur de notifications toast */}
+      <ToastContainer toasts={toasts} onClose={removeToast} />
     </div>
   );
 };

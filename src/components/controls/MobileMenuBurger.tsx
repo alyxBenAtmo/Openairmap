@@ -6,6 +6,7 @@ import HistoricalModeButton from "./HistoricalModeButton";
 import AutoRefreshControl from "./AutoRefreshControl";
 import ModelingLayerControl from "./ModelingLayerControl";
 import { ModelingLayerType } from "../../constants/mapLayers";
+import { Toast } from "../ui/toast";
 
 interface MobileMenuBurgerProps {
   selectedPollutant: string;
@@ -22,6 +23,7 @@ interface MobileMenuBurgerProps {
   loading: boolean;
   currentModelingLayer: ModelingLayerType | null;
   onModelingLayerChange: (layerType: ModelingLayerType | null) => void;
+  onToast?: (toast: Omit<Toast, "id">) => void;
 }
 
 const MobileMenuBurger: React.FC<MobileMenuBurgerProps> = ({
@@ -39,6 +41,7 @@ const MobileMenuBurger: React.FC<MobileMenuBurgerProps> = ({
   loading,
   currentModelingLayer,
   onModelingLayerChange,
+  onToast,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -115,7 +118,10 @@ const MobileMenuBurger: React.FC<MobileMenuBurgerProps> = ({
               </label>
               <SourceDropdown
                 selectedSources={selectedSources}
+                selectedTimeStep={selectedTimeStep}
                 onSourceChange={onSourceChange}
+                onTimeStepChange={onTimeStepChange}
+                onToast={onToast}
               />
             </div>
 
@@ -128,6 +134,8 @@ const MobileMenuBurger: React.FC<MobileMenuBurgerProps> = ({
                 selectedTimeStep={selectedTimeStep}
                 selectedSources={selectedSources}
                 onTimeStepChange={onTimeStepChange}
+                onSourceChange={onSourceChange}
+                onToast={onToast}
               />
             </div>
 
