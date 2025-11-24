@@ -1,5 +1,15 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useMemo, useRef, useEffect } from "react";
 import { sources } from "../../constants/sources";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
+import { Checkbox } from "../ui/checkbox";
+import { cn } from "../../lib/utils";
 
 interface SourceDropdownProps {
   selectedSources: string[];
@@ -10,23 +20,6 @@ const SourceDropdown: React.FC<SourceDropdownProps> = ({
   selectedSources,
   onSourceChange,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   // Définir les sources communautaires
   const communautaireSources = [
     "communautaire.nebuleair",
@@ -36,11 +29,17 @@ const SourceDropdown: React.FC<SourceDropdownProps> = ({
   ];
 
   // Vérifier l'état des groupes
-  const allCommunautaireSelected = communautaireSources.every((source) =>
-    selectedSources.includes(source)
+  const allCommunautaireSelected = useMemo(
+    () =>
+      communautaireSources.every((source) =>
+        selectedSources.includes(source)
+      ),
+    [selectedSources]
   );
-  const someCommunautaireSelected = communautaireSources.some((source) =>
-    selectedSources.includes(source)
+  const someCommunautaireSelected = useMemo(
+    () =>
+      communautaireSources.some((source) => selectedSources.includes(source)),
+    [selectedSources]
   );
 
   const handleSourceToggle = (sourceCode: string) => {
@@ -93,248 +92,171 @@ const SourceDropdown: React.FC<SourceDropdownProps> = ({
   };
 
   return (
-    <div className="relative flex items-center space-x-2" ref={dropdownRef}>
-      {/* <label className="text-xs font-medium text-gray-700 whitespace-nowrap">
-        Sources
-      </label> */}
-
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="relative bg-[#4271B3] border border-[#4271B3] rounded-md px-2.5 py-1 text-left shadow-sm focus:outline-none focus:ring-1 focus:ring-[#4271B3] focus:border-[#4271B3] hover:bg-[#325a96] hover:border-[#325a96] transition-colors text-sm min-w-[180px]"
-      >
-        <span
-          className={`block truncate pr-6 ${
-            selectedSources.length === 0 ? "text-white/80" : "text-white"
-          }`}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="relative bg-gradient-to-br from-gray-50 to-white border border-gray-200/60 text-gray-800 hover:from-gray-100 hover:to-gray-50 hover:border-gray-300 shadow-sm backdrop-blur-sm rounded-lg px-3 py-2 text-left text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4271B3]/20 focus:border-[#4271B3] min-w-[180px]"
         >
-          {getDisplayText()}
-        </span>
-        <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-          <svg
-            className={`h-4 w-4 text-white/80 transition-transform ${
-              isOpen ? "rotate-180" : ""
-            }`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          <span className="block truncate pr-6">{getDisplayText()}</span>
+          <span className="absolute inset-y-0 right-0 flex items-center pr-2.5 pointer-events-none text-gray-600">
+            <svg
+              className="h-4 w-4 transition-transform duration-200"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
               strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
-        </span>
-      </button>
-
-      {isOpen && (
-        <div className="absolute z-[2000] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg right-0 top-full max-h-64 overflow-auto">
-          {/* Sources principales */}
-          <div className="p-2">
-            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 px-1">
-              Sources principales
-            </div>
-
-            {/* AtmoRef */}
-            <button
-              type="button"
-              onClick={() => handleSourceToggle("atmoRef")}
-              className={`w-full flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
-                selectedSources.includes("atmoRef")
-                  ? "bg-[#e7eef8] text-[#1f3c6d] border border-[#c1d3eb]"
-                  : "text-gray-700 hover:bg-gray-50"
-              }`}
             >
-              <div
-                className={`w-4 h-4 rounded border mr-3 flex items-center justify-center ${
-                  selectedSources.includes("atmoRef")
-                    ? "bg-[#325a96] border-[#325a96]"
-                    : "border-gray-300"
-                }`}
-              >
-                {selectedSources.includes("atmoRef") && (
-                  <svg
-                    className="w-3 h-3 text-white"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </span>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        alignOffset={0}
+        className="w-[var(--radix-dropdown-menu-trigger-width)] max-h-64 overflow-auto"
+      >
+        {/* Sources principales */}
+        <div className="p-1">
+          <DropdownMenuLabel className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 px-1">
+            Sources principales
+          </DropdownMenuLabel>
+
+          {/* AtmoRef */}
+          <DropdownMenuCheckboxItem
+            checked={selectedSources.includes("atmoRef")}
+            onCheckedChange={() => handleSourceToggle("atmoRef")}
+            className={cn(
+              "py-2 pr-3 text-sm",
+              selectedSources.includes("atmoRef") &&
+                "bg-[#e7eef8] text-[#1f3c6d]"
+            )}
+          >
+            Station de référence atmosud
+          </DropdownMenuCheckboxItem>
+
+          {/* AtmoMicro */}
+          <DropdownMenuCheckboxItem
+            checked={selectedSources.includes("atmoMicro")}
+            onCheckedChange={() => handleSourceToggle("atmoMicro")}
+            className={cn(
+              "py-2 pr-3 text-sm",
+              selectedSources.includes("atmoMicro") &&
+                "bg-[#e7eef8] text-[#1f3c6d]"
+            )}
+          >
+            Microcapteurs qualifiés
+          </DropdownMenuCheckboxItem>
+        </div>
+
+        <DropdownMenuSeparator />
+
+        {/* Groupe communautaire */}
+        <div className="p-1">
+          <CommunautaireGroupCheckbox
+            allSelected={allCommunautaireSelected}
+            someSelected={someCommunautaireSelected}
+            onToggle={() => handleGroupToggle("communautaire")}
+          />
+
+          {/* Sous-menu communautaire */}
+          <div className="ml-6 mt-1 space-y-1">
+            {[
+              { code: "communautaire.nebuleair", name: "NebuleAir" },
+              {
+                code: "communautaire.sensorCommunity",
+                name: "Sensor.Community",
+              },
+              { code: "communautaire.purpleair", name: "PurpleAir" },
+              { code: "communautaire.mobileair", name: "MobileAir" },
+            ].map(({ code, name }) => (
+              <DropdownMenuCheckboxItem
+                key={code}
+                checked={selectedSources.includes(code)}
+                onCheckedChange={() => handleSourceToggle(code)}
+                className={cn(
+                  "py-1.5 pr-3 text-sm",
+                  selectedSources.includes(code) &&
+                    "bg-[#e7eef8] text-[#1f3c6d]"
                 )}
-              </div>
-              <span>Station de référence atmosud</span>
-            </button>
-
-            {/* AtmoMicro */}
-            <button
-              type="button"
-              onClick={() => handleSourceToggle("atmoMicro")}
-              className={`w-full flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
-                selectedSources.includes("atmoMicro")
-                  ? "bg-[#e7eef8] text-[#1f3c6d] border border-[#c1d3eb]"
-                  : "text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              <div
-                className={`w-4 h-4 rounded border mr-3 flex items-center justify-center ${
-                  selectedSources.includes("atmoMicro")
-                    ? "bg-[#325a96] border-[#325a96]"
-                    : "border-gray-300"
-                }`}
               >
-                {selectedSources.includes("atmoMicro") && (
-                  <svg
-                    className="w-3 h-3 text-white"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                )}
-              </div>
-              <span>Microcapteurs qualifiés</span>
-            </button>
-          </div>
-
-          {/* Séparateur */}
-          <div className="border-t border-gray-200 mx-2"></div>
-
-          {/* Groupe communautaire - toujours visible */}
-          <div className="p-2">
-            <button
-              type="button"
-              onClick={() => handleGroupToggle("communautaire")}
-              className="w-full flex items-center px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex items-center">
-                <div
-                  className={`w-4 h-4 rounded border mr-3 flex items-center justify-center ${
-                  allCommunautaireSelected
-                    ? "bg-[#325a96] border-[#325a96]"
-                    : someCommunautaireSelected
-                    ? "bg-[#d0def4] border-[#adc4e6]"
-                    : "border-gray-300"
-                  }`}
-                >
-                  {allCommunautaireSelected && (
-                    <svg
-                      className="w-3 h-3 text-white"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  )}
-                  {someCommunautaireSelected && !allCommunautaireSelected && (
-                    <div className="w-2 h-2 bg-blue-600 rounded-sm"></div>
-                  )}
-                </div>
-                <span className="font-medium">
-                  Autres capteurs communautaires
-                </span>
-              </div>
-            </button>
-
-            {/* Sous-menu communautaire - toujours visible */}
-            <div className="ml-6 mt-1 space-y-1">
-              {[
-                { code: "communautaire.nebuleair", name: "NebuleAir" },
-                {
-                  code: "communautaire.sensorCommunity",
-                  name: "Sensor.Community",
-                },
-                { code: "communautaire.purpleair", name: "PurpleAir" },
-                { code: "communautaire.mobileair", name: "MobileAir" },
-              ].map(({ code, name }) => (
-                <button
-                  key={code}
-                  type="button"
-                  onClick={() => handleSourceToggle(code)}
-                  className={`w-full flex items-center px-3 py-1.5 rounded-md text-sm transition-colors ${
-                    selectedSources.includes(code)
-                      ? "bg-[#e7eef8] text-[#1f3c6d]"
-                      : "text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <div
-                    className={`w-3 h-3 rounded border mr-2 flex items-center justify-center ${
-                    selectedSources.includes(code)
-                      ? "bg-[#325a96] border-[#325a96]"
-                      : "border-gray-300"
-                    }`}
-                  >
-                    {selectedSources.includes(code) && (
-                      <svg
-                        className="w-2 h-2 text-white"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    )}
-                  </div>
-                  <span>{name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* SignalAir - à la fin */}
-          <div className="p-2">
-            <button
-              type="button"
-              onClick={() => handleSourceToggle("signalair")}
-              className={`w-full flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
-                selectedSources.includes("signalair")
-                  ? "bg-[#e7eef8] text-[#1f3c6d] border border-[#c1d3eb]"
-                  : "text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              <div
-                className={`w-4 h-4 rounded border mr-3 flex items-center justify-center ${
-                  selectedSources.includes("signalair")
-                    ? "bg-[#325a96] border-[#325a96]"
-                    : "border-gray-300"
-                }`}
-              >
-                {selectedSources.includes("signalair") && (
-                  <svg
-                    className="w-3 h-3 text-white"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                )}
-              </div>
-              <span>SignalAir</span>
-            </button>
+                {name}
+              </DropdownMenuCheckboxItem>
+            ))}
           </div>
         </div>
-      )}
-    </div>
+
+        <DropdownMenuSeparator />
+
+        {/* SignalAir */}
+        <div className="p-1">
+          <DropdownMenuCheckboxItem
+            checked={selectedSources.includes("signalair")}
+            onCheckedChange={() => handleSourceToggle("signalair")}
+            className={cn(
+              "py-2 pr-3 text-sm",
+              selectedSources.includes("signalair") &&
+                "bg-[#e7eef8] text-[#1f3c6d]"
+            )}
+          >
+            SignalAir
+          </DropdownMenuCheckboxItem>
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
+// Composant séparé pour gérer l'état indéterminé du checkbox du groupe communautaire
+const CommunautaireGroupCheckbox: React.FC<{
+  allSelected: boolean;
+  someSelected: boolean;
+  onToggle: () => void;
+}> = ({ allSelected, someSelected, onToggle }) => {
+  const checkboxRef = useRef<HTMLButtonElement>(null);
+  const isIndeterminate = someSelected && !allSelected;
+
+  useEffect(() => {
+    if (checkboxRef.current) {
+      // Gérer l'état indéterminé pour Radix UI
+      if (isIndeterminate) {
+        checkboxRef.current.setAttribute("data-state", "indeterminate");
+      } else if (allSelected) {
+        checkboxRef.current.setAttribute("data-state", "checked");
+      } else {
+        checkboxRef.current.setAttribute("data-state", "unchecked");
+      }
+    }
+  }, [allSelected, isIndeterminate]);
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="w-full flex items-center pl-2 pr-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+    >
+      <div className="flex items-center relative">
+        <div className="relative mr-3 flex-shrink-0">
+          <Checkbox
+            ref={checkboxRef}
+            checked={allSelected}
+            onCheckedChange={onToggle}
+          />
+          {/* Indicateur visuel pour l'état indéterminé - centré dans le checkbox */}
+          {isIndeterminate && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-2 h-0.5 bg-[#325a96] rounded" />
+            </div>
+          )}
+        </div>
+        <span className="font-medium">Autres capteurs communautaires</span>
+      </div>
+    </button>
   );
 };
 

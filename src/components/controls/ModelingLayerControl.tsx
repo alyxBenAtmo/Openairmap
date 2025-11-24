@@ -1,7 +1,15 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useEffect } from "react";
 import { ModelingLayerType, modelingLayers } from "../../constants/mapLayers";
 import { pollutants } from "../../constants/pollutants";
 import { isModelingAvailable } from "../../services/ModelingLayerService";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "../ui/dropdown-menu";
+import { cn } from "../../lib/utils";
 
 interface ModelingLayerControlProps {
   currentModelingLayer: ModelingLayerType | null;
@@ -16,23 +24,6 @@ const ModelingLayerControl: React.FC<ModelingLayerControlProps> = ({
   selectedPollutant,
   selectedTimeStep = "heure",
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   const handleLayerSelect = (layerType: ModelingLayerType) => {
     // Toggle: si le layer est déjà sélectionné, on le désélectionne
     if (currentModelingLayer === layerType) {
@@ -40,12 +31,12 @@ const ModelingLayerControl: React.FC<ModelingLayerControlProps> = ({
     } else {
       onModelingLayerChange(layerType);
     }
-    setIsOpen(false);
   };
 
   const getDisplayLabel = (layerType: ModelingLayerType): string => {
     if (layerType === "pollutant" && selectedPollutant) {
-      const pollutantName = pollutants[selectedPollutant]?.name || selectedPollutant;
+      const pollutantName =
+        pollutants[selectedPollutant]?.name || selectedPollutant;
       return `Modélisation ${pollutantName}`;
     }
     return modelingLayers[layerType];
@@ -69,107 +60,96 @@ const ModelingLayerControl: React.FC<ModelingLayerControlProps> = ({
   }, [isDisabled, currentModelingLayer, onModelingLayerChange]);
 
   return (
-    <div className="relative flex items-center space-x-2" ref={dropdownRef}>
-      <button
-        type="button"
-        onClick={() => !isDisabled && setIsOpen(!isOpen)}
-        disabled={isDisabled}
-        className={`relative border rounded-md px-3 py-1 text-left shadow-sm focus:outline-none focus:ring-1 focus:ring-[#4271B3] focus:border-[#4271B3] transition-colors text-sm min-w-[150px] ${
-          isDisabled
-            ? "bg-gray-300 border-gray-300 cursor-not-allowed opacity-60"
-            : "bg-[#4271B3] border-[#4271B3] hover:bg-[#325a96] hover:border-[#325a96]"
-        }`}
-        title={
-          isDisabled
-            ? "Modélisations non disponibles pour le pas de temps sélectionné"
-            : currentModelingLayer
-            ? `Carte de modélisation: ${getDisplayLabel(currentModelingLayer)}`
-            : "Carte de modélisation"
-        }
-      >
-        <span
-          className={`block truncate pr-6 ${
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          disabled={isDisabled}
+          className={cn(
+            "relative border rounded-lg px-3 py-2 text-left text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4271B3]/20 focus:border-[#4271B3] transition-all duration-200 min-w-[150px]",
             isDisabled
-              ? "text-gray-600"
+              ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
+              : "bg-gradient-to-br from-gray-50 to-white border-gray-200/60 text-gray-800 hover:from-gray-100 hover:to-gray-50 hover:border-gray-300 backdrop-blur-sm"
+          )}
+          title={
+            isDisabled
+              ? "Modélisations non disponibles pour le pas de temps sélectionné"
               : currentModelingLayer
-              ? "text-white"
-              : "text-white/80"
-          }`}
+              ? `Carte de modélisation: ${getDisplayLabel(currentModelingLayer)}`
+              : "Carte de modélisation"
+          }
         >
-          {isDisabled ? "Modélisation (indisponible)" : getDisplayText()}
-        </span>
-        {!isDisabled && (
-          <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-            <svg
-              className={`h-4 w-4 text-white/80 transition-transform ${
-                isOpen ? "rotate-180" : ""
-              }`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
+          <span className="block truncate pr-6">
+            {isDisabled ? "Modélisation (indisponible)" : getDisplayText()}
           </span>
-        )}
-      </button>
-
-      {isOpen && (
-        <div className="absolute z-[2000] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg right-0 top-full">
-          <div className="p-1">
+          {!isDisabled && (
+            <span className="absolute inset-y-0 right-0 flex items-center pr-2.5 pointer-events-none text-gray-600">
+              <svg
+                className="h-4 w-4 transition-transform duration-200"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </span>
+          )}
+        </button>
+      </DropdownMenuTrigger>
+      {!isDisabled && (
+        <DropdownMenuContent 
+          align="start" 
+          alignOffset={0}
+          className="w-[var(--radix-dropdown-menu-trigger-width)]"
+        >
+          <DropdownMenuRadioGroup
+            value={currentModelingLayer || ""}
+            onValueChange={(value) => {
+              // Gérer le toggle : si on clique sur l'item déjà sélectionné, on le désélectionne
+              if (value && currentModelingLayer === value) {
+                onModelingLayerChange(null);
+              } else if (value) {
+                onModelingLayerChange(value as ModelingLayerType);
+              }
+            }}
+          >
             {layerTypes.map((layerType) => {
               const isSelected = currentModelingLayer === layerType;
               const isPollutantLayer = layerType === "pollutant";
-              const isDisabled = isPollutantLayer && !selectedPollutant;
+              const isItemDisabled = isPollutantLayer && !selectedPollutant;
 
               return (
-                <button
+                <DropdownMenuRadioItem
                   key={layerType}
-                  type="button"
-                  onClick={() => !isDisabled && handleLayerSelect(layerType)}
-                  disabled={isDisabled}
-                  className={`w-full flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
-                    isSelected
-                      ? "bg-[#e7eef8] text-[#1f3c6d] border border-[#c1d3eb]"
-                      : isDisabled
-                      ? "text-gray-400 cursor-not-allowed opacity-50"
-                      : "text-gray-700 hover:bg-gray-50"
-                  }`}
+                  value={layerType}
+                  disabled={isItemDisabled}
+                  onClick={(e) => {
+                    // Permettre le toggle en interceptant le clic
+                    if (isSelected && !isItemDisabled) {
+                      e.preventDefault();
+                      onModelingLayerChange(null);
+                    }
+                  }}
+                  className={cn(
+                    "py-2 pr-3 text-sm",
+                    isSelected && "bg-[#e7eef8] text-[#1f3c6d]",
+                    isItemDisabled &&
+                      "text-gray-400 cursor-not-allowed opacity-50"
+                  )}
                 >
-                  <div
-                    className={`w-4 h-4 rounded border mr-3 flex items-center justify-center ${
-                      isSelected
-                        ? "bg-[#325a96] border-[#325a96]"
-                        : "border-gray-300"
-                    }`}
-                  >
-                    {isSelected && (
-                      <svg
-                        className="w-3 h-3 text-white"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    )}
-                  </div>
-                  <span>{getDisplayLabel(layerType)}</span>
-                </button>
+                  {getDisplayLabel(layerType)}
+                </DropdownMenuRadioItem>
               );
             })}
-          </div>
-        </div>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
       )}
-    </div>
+    </DropdownMenu>
   );
 };
 

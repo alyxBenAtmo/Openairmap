@@ -1,6 +1,14 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { pasDeTemps } from "../../constants/timeSteps";
 import { sources } from "../../constants/sources";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "../ui/dropdown-menu";
+import { cn } from "../../lib/utils";
 
 interface TimeStepDropdownProps {
   selectedTimeStep: string;
@@ -13,25 +21,8 @@ const TimeStepDropdown: React.FC<TimeStepDropdownProps> = ({
   selectedSources,
   onTimeStepChange,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   // Fonction pour obtenir les pas de temps supportés par les sources sélectionnées
-  const getSupportedTimeSteps = () => {
+  const supportedTimeSteps = useMemo(() => {
     if (!selectedSources || selectedSources.length === 0) {
       return Object.keys(pasDeTemps);
     }
@@ -79,9 +70,7 @@ const TimeStepDropdown: React.FC<TimeStepDropdownProps> = ({
     });
 
     return Array.from(allSupportedTimeSteps);
-  };
-
-  const supportedTimeSteps = getSupportedTimeSteps();
+  }, [selectedSources]);
 
   // Vérifier si le pas de temps actuel est toujours supporté
   useEffect(() => {
@@ -94,97 +83,63 @@ const TimeStepDropdown: React.FC<TimeStepDropdownProps> = ({
     }
   }, [selectedTimeStep, supportedTimeSteps, onTimeStepChange]);
 
-  const handleTimeStepSelect = (code: string) => {
-    onTimeStepChange(code);
-    setIsOpen(false);
-  };
-
   const getDisplayText = () => {
     const timeStep = pasDeTemps[selectedTimeStep as keyof typeof pasDeTemps];
     return timeStep ? timeStep.name : "Choisir un pas de temps";
   };
 
   return (
-    <div className="relative flex items-center space-x-2" ref={dropdownRef}>
-      {/* <label className="text-xs font-medium text-gray-700 whitespace-nowrap">
-        Pas de temps
-      </label> */}
-
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="relative bg-[#4271B3] border border-[#4271B3] rounded-md px-2.5 py-1 text-left shadow-sm focus:outline-none focus:ring-1 focus:ring-[#4271B3] focus:border-[#4271B3] hover:bg-[#325a96] hover:border-[#325a96] transition-colors text-sm min-w-[110px]"
-      >
-        <span
-          className={`block truncate ${
-            selectedTimeStep ? "text-white" : "text-white/80"
-          }`}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="relative bg-gradient-to-br from-gray-50 to-white border border-gray-200/60 text-gray-800 hover:from-gray-100 hover:to-gray-50 hover:border-gray-300 shadow-sm backdrop-blur-sm rounded-lg px-3 py-2 text-left text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4271B3]/20 focus:border-[#4271B3] min-w-[110px]"
         >
-          {getDisplayText()}
-        </span>
-        <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-          <svg
-            className={`h-4 w-4 text-white/80 transition-transform ${
-              isOpen ? "rotate-180" : ""
-            }`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          <span className="block truncate pr-6">{getDisplayText()}</span>
+          <span className="absolute inset-y-0 right-0 flex items-center pr-2.5 pointer-events-none text-gray-600">
+            <svg
+              className="h-4 w-4 transition-transform duration-200"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
               strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
-        </span>
-      </button>
-
-      {isOpen && (
-        <div className="absolute z-[2000] w-48 mt-1 bg-white border border-gray-300 rounded-md shadow-lg right-0 top-full">
-          <div className="p-1">
-            {Object.entries(pasDeTemps)
-              .filter(([code]) => supportedTimeSteps.includes(code))
-              .map(([code, timeStep]) => (
-                <button
-                  key={code}
-                  type="button"
-                  onClick={() => handleTimeStepSelect(code)}
-                  className={`w-full flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
-                  selectedTimeStep === code
-                      ? "bg-[#e7eef8] text-[#1f3c6d] border border-[#c1d3eb]"
-                      : "text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  <div
-                    className={`w-4 h-4 rounded border mr-3 flex items-center justify-center ${
-                    selectedTimeStep === code
-                        ? "bg-[#325a96] border-[#325a96]"
-                        : "border-gray-300"
-                    }`}
-                  >
-                    {selectedTimeStep === code && (
-                      <svg
-                        className="w-3 h-3 text-white"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    )}
-                  </div>
-                  <span>{timeStep.name}</span>
-                </button>
-              ))}
-          </div>
-        </div>
-      )}
-    </div>
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </span>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent 
+        align="start" 
+        alignOffset={0}
+        className="w-[var(--radix-dropdown-menu-trigger-width)]"
+      >
+        <DropdownMenuRadioGroup
+          value={selectedTimeStep}
+          onValueChange={onTimeStepChange}
+        >
+          {Object.entries(pasDeTemps)
+            .filter(([code]) => supportedTimeSteps.includes(code))
+            .map(([code, timeStep]) => (
+              <DropdownMenuRadioItem
+                key={code}
+                value={code}
+                className={cn(
+                  "py-2 pr-3 text-sm",
+                  selectedTimeStep === code &&
+                    "bg-[#e7eef8] text-[#1f3c6d]"
+                )}
+              >
+                {timeStep.name}
+              </DropdownMenuRadioItem>
+            ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 

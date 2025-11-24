@@ -1,8 +1,17 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 import {
   pollutants,
   isPollutantSupportedForTimeStep,
 } from "../../constants/pollutants";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "../ui/dropdown-menu";
+import { cn } from "../../lib/utils";
 
 interface PollutantDropdownProps {
   selectedPollutant: string;
@@ -15,28 +24,6 @@ const PollutantDropdown: React.FC<PollutantDropdownProps> = ({
   onPollutantChange,
   selectedTimeStep,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handlePollutantSelect = (code: string) => {
-    onPollutantChange(code);
-    setIsOpen(false);
-  };
-
   const availablePollutants = useMemo(
     () =>
       Object.entries(pollutants).filter(([code]) =>
@@ -66,84 +53,55 @@ const PollutantDropdown: React.FC<PollutantDropdownProps> = ({
   };
 
   return (
-    <div className="relative flex items-center space-x-2" ref={dropdownRef}>
-      {/* <label className="text-xs font-medium text-gray-700 whitespace-nowrap">
-        Polluant
-      </label> */}
-
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="relative bg-[#4271B3] border border-[#4271B3] rounded-md px-2.5 py-1 text-left shadow-sm focus:outline-none focus:ring-1 focus:ring-[#4271B3] focus:border-[#4271B3] hover:bg-[#325a96] hover:border-[#325a96] transition-colors text-sm min-w-[110px]"
-      >
-        <span
-          className={`block truncate pr-6 ${
-            selectedPollutant ? "text-white" : "text-white/80"
-          }`}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="relative bg-gradient-to-br from-gray-50 to-white border border-gray-200/60 text-gray-800 hover:from-gray-100 hover:to-gray-50 hover:border-gray-300 shadow-sm backdrop-blur-sm rounded-lg px-3 py-2 text-left text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4271B3]/20 focus:border-[#4271B3] min-w-[110px]"
         >
-          {getDisplayText()}
-        </span>
-        <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-          <svg
-            className={`h-4 w-4 text-white/80 transition-transform ${
-              isOpen ? "rotate-180" : ""
-            }`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
+          <span className="block truncate pr-6">{getDisplayText()}</span>
+          <span className="absolute inset-y-0 right-0 flex items-center pr-2.5 pointer-events-none text-gray-600">
+            <svg
+              className="h-4 w-4 transition-transform duration-200"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
               strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
-        </span>
-      </button>
-
-      {isOpen && (
-        <div className="absolute z-[2000] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg right-0 top-full">
-          <div className="p-1">
-            {availablePollutants.map(([code, pollutant]) => (
-              <button
-                key={code}
-                type="button"
-                onClick={() => handlePollutantSelect(code)}
-                className={`w-full flex items-center px-3 py-2 rounded-md text-sm transition-colors ${
-                  selectedPollutant === code
-                    ? "bg-[#e7eef8] text-[#1f3c6d] border border-[#c1d3eb]"
-                    : "text-gray-700 hover:bg-gray-50"
-                }`}
-              >
-                <div
-                  className={`w-4 h-4 rounded border mr-3 flex items-center justify-center ${
-                    selectedPollutant === code
-                      ? "bg-[#325a96] border-[#325a96]"
-                      : "border-gray-300"
-                  }`}
-                >
-                  {selectedPollutant === code && (
-                    <svg
-                      className="w-3 h-3 text-white"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  )}
-                </div>
-                <span>{pollutant.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </span>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent 
+        align="start" 
+        alignOffset={0}
+        className="w-[var(--radix-dropdown-menu-trigger-width)]"
+      >
+        <DropdownMenuRadioGroup
+          value={selectedPollutant}
+          onValueChange={onPollutantChange}
+        >
+          {availablePollutants.map(([code, pollutant]) => (
+            <DropdownMenuRadioItem
+              key={code}
+              value={code}
+              className={cn(
+                "py-2 pr-3 text-sm",
+                selectedPollutant === code &&
+                  "bg-[#e7eef8] text-[#1f3c6d]"
+              )}
+            >
+              {pollutant.name}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 

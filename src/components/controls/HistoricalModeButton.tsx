@@ -1,23 +1,21 @@
 import React from "react";
 import { HistoricalModeButtonProps } from "../../types";
+import { Toggle } from "../ui/toggle";
+import { cn } from "../../lib/utils";
 
 const HistoricalModeButton: React.FC<HistoricalModeButtonProps> = ({
   isActive,
   onToggle,
 }) => {
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className={`
-        relative flex items-center space-x-2 px-3 py-1.5 rounded-md shadow-sm
-        transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4271B3]
-        ${
-          isActive
-            ? "bg-[#4271B3] text-white border-2 border-[#4271B3] hover:bg-[#325a96]"
-            : "bg-white text-gray-700 border-2 border-[#325A96] hover:bg-gray-50 hover:border-[#4271B3]"
-        }
-      `}
+    <Toggle
+      pressed={isActive}
+      onPressedChange={onToggle}
+      className={cn(
+        "relative flex items-center space-x-2 px-3 py-2 rounded-lg shadow-sm transition-all duration-200",
+        "data-[state=on]:bg-gradient-to-br data-[state=on]:from-[#4271B3] data-[state=on]:to-[#325a96]",
+        "data-[state=off]:bg-gradient-to-br data-[state=off]:from-gray-50 data-[state=off]:to-white data-[state=off]:border data-[state=off]:border-gray-200/60"
+      )}
       title={
         isActive
           ? "Désactiver le mode historique"
@@ -26,7 +24,10 @@ const HistoricalModeButton: React.FC<HistoricalModeButtonProps> = ({
     >
       {/* Icône horloge */}
       <svg
-        className={`w-5 h-5 ${isActive ? "text-white" : "text-gray-600"}`}
+        className={cn(
+          "w-5 h-5 transition-colors",
+          isActive ? "text-white" : "text-gray-600"
+        )}
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -40,15 +41,13 @@ const HistoricalModeButton: React.FC<HistoricalModeButtonProps> = ({
       </svg>
 
       {/* Texte du bouton */}
-      <span className="font-medium text-sm">
-        {isActive ? "Mode Historique" : "Mode Historique"}
-      </span>
+      <span className="font-medium text-sm">Mode Historique</span>
 
       {/* Indicateur d'état */}
       {isActive && (
-        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
+        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white shadow-sm"></div>
       )}
-    </button>
+    </Toggle>
   );
 };
 
