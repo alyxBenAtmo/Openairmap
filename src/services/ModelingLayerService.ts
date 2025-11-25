@@ -241,3 +241,24 @@ export function isModelingAvailable(timeStep: string): boolean {
   return timeStep !== "instantane" && timeStep !== "scan";
 }
 
+/**
+ * Charge les données de vent depuis l'API AtmoSud
+ * @param dateStr - La date au format YYYYMMDD (ex: "20240115")
+ * @param hourStr - L'heure au format HH (ex: "14")
+ * @returns Les données de vent au format JSON
+ * @throws Error si la requête HTTP échoue
+ */
+export async function loadWindFromAtmoSud(
+  dateStr: string,
+  hourStr: string
+): Promise<any> {
+  const windUrl = `https://meteo.atmosud.org/${dateStr}/wind_field_${hourStr}.json`;
+  console.log("🌬️ [WIND-AtmoSud] Chargement des données de vent:", windUrl);
+
+  const response = await fetch(windUrl);
+  if (!response.ok) {
+    throw new Error(`Erreur HTTP: ${response.status}`);
+  }
+  return await response.json();
+}
+
