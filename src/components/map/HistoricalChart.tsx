@@ -4,6 +4,7 @@ import * as am5xy from "@amcharts/amcharts5/xy";
 import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
 import { HistoricalDataPoint, StationInfo } from "../../types";
 import { pollutants, POLLUTANT_COLORS } from "../../constants/pollutants";
+import { QUALITY_COLORS } from "../../constants/qualityColors";
 import {
   exportAmChartsAsPNG,
   exportDataAsCSV,
@@ -302,6 +303,40 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     };
     return unitMap[unit] || unit;
   };
+
+  // Fonction pour vérifier si deux seuils sont identiques
+  const areThresholdsEqual = (thresholds1: any, thresholds2: any): boolean => {
+    if (!thresholds1 || !thresholds2) return false;
+    const levels = ["bon", "moyen", "degrade", "mauvais", "tresMauvais", "extrMauvais"];
+    return levels.every(level => {
+      const t1 = thresholds1[level];
+      const t2 = thresholds2[level];
+      return t1 && t2 && t1.min === t2.min && t1.max === t2.max;
+    });
+  };
+
+  // Fonction pour obtenir les seuils communs des polluants sélectionnés
+  const getCommonThresholds = useMemo(() => {
+    if (selectedPollutants.length === 0) return null;
+
+    // En mode comparaison, on a un seul polluant
+    const pollutantsToCheck = source === "comparison" && stations.length > 0
+      ? [selectedPollutants[0]]
+      : selectedPollutants;
+
+    // Récupérer les seuils du premier polluant
+    const firstPollutant = pollutantsToCheck[0];
+    const firstThresholds = pollutants[firstPollutant]?.thresholds;
+    if (!firstThresholds) return null;
+
+    // Vérifier si tous les polluants ont les mêmes seuils
+    const allHaveSameThresholds = pollutantsToCheck.every(pollutant => {
+      const pollutantThresholds = pollutants[pollutant]?.thresholds;
+      return pollutantThresholds && areThresholdsEqual(firstThresholds, pollutantThresholds);
+    });
+
+    return allHaveSameThresholds ? firstThresholds : null;
+  }, [selectedPollutants, source, stations]);
 
   // Grouper les polluants par unité
   const groupPollutantsByUnit = () => {
@@ -1016,6 +1051,38 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
       });
     });
 
+    // Ajouter les zones colorées des seuils si tous les polluants ont les mêmes seuils
+    if (getCommonThresholds) {
+      const thresholds = getCommonThresholds;
+      const levels = [
+        { key: "bon", color: QUALITY_COLORS.bon },
+        { key: "moyen", color: QUALITY_COLORS.moyen },
+        { key: "degrade", color: QUALITY_COLORS.degrade },
+        { key: "mauvais", color: QUALITY_COLORS.mauvais },
+        { key: "tresMauvais", color: QUALITY_COLORS.tresMauvais },
+        { key: "extrMauvais", color: QUALITY_COLORS.extrMauvais },
+      ];
+
+      // Ajouter les zones sur tous les axes Y (gauche et droite)
+      yAxisMap.forEach((yAxis) => {
+        levels.forEach((level) => {
+          const threshold = thresholds[level.key as keyof typeof thresholds];
+          if (threshold) {
+            const range = yAxis.createAxisRange(yAxis.makeDataItem({
+              value: threshold.min,
+              endValue: threshold.max,
+            }));
+
+            range.get("axisFill")!.setAll({
+              fill: am5.color(level.color),
+              fillOpacity: 0.4,
+              visible: true,
+            });
+          }
+        });
+      });
+    }
+
     // Créer les séries de données
     seriesConfigs.forEach((seriesConfig) => {
       const yAxis = yAxisMap.get(seriesConfig.yAxisId);
@@ -1450,6 +1517,57 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
       }
     });
   }, [seriesConfigs, amChartsData, source, stations, selectedPollutants]);
+
+  // Mise à jour des zones de seuils
+  useEffect(() => {
+    if (!chartRef.current || !rootRef.current) return;
+
+    const chart = chartRef.current;
+    const yAxisMap = new Map<string, am5xy.ValueAxis<am5xy.AxisRendererY>>();
+    
+    chart.yAxes.values.forEach((yAxis) => {
+      const id = (yAxis as any).get("id");
+      if (id) {
+        yAxisMap.set(id, yAxis as am5xy.ValueAxis<am5xy.AxisRendererY>);
+      }
+    });
+
+    // Supprimer toutes les zones existantes
+    yAxisMap.forEach((yAxis) => {
+      yAxis.axisRanges.clear();
+    });
+
+    // Ajouter les nouvelles zones si les seuils sont communs
+    if (getCommonThresholds) {
+      const thresholds = getCommonThresholds;
+      const levels = [
+        { key: "bon", color: QUALITY_COLORS.bon },
+        { key: "moyen", color: QUALITY_COLORS.moyen },
+        { key: "degrade", color: QUALITY_COLORS.degrade },
+        { key: "mauvais", color: QUALITY_COLORS.mauvais },
+        { key: "tresMauvais", color: QUALITY_COLORS.tresMauvais },
+        { key: "extrMauvais", color: QUALITY_COLORS.extrMauvais },
+      ];
+
+      yAxisMap.forEach((yAxis) => {
+        levels.forEach((level) => {
+          const threshold = thresholds[level.key as keyof typeof thresholds];
+          if (threshold) {
+            const range = yAxis.createAxisRange(yAxis.makeDataItem({
+              value: threshold.min,
+              endValue: threshold.max,
+            }));
+
+            range.get("axisFill")!.setAll({
+              fill: am5.color(level.color),
+              fillOpacity: 0.5,
+              visible: true,
+            });
+          }
+        });
+      });
+    }
+  }, [getCommonThresholds]);
 
   // Nettoyage au démontage
   useEffect(() => {

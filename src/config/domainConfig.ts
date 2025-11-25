@@ -28,6 +28,7 @@ export const DOMAIN_CONFIG: Record<string, DomainConfig> = {
   },
 };
 
+
 export const getConfigForDomain = (domain: string): DomainConfig => {
   return DOMAIN_CONFIG[domain] || DOMAIN_CONFIG.default;
 };

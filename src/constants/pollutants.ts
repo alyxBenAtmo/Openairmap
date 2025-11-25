@@ -3,61 +3,61 @@ import { Pollutant } from "../types";
 // Configuration des seuils pour les particules fines PM1 et PM2.5
 export const seuilsPm1Pm25 = {
   bon: { code: "bon", min: 0, max: 5 },
-  moyen: { code: "moyen", min: 6, max: 15 },
-  degrade: { code: "degrade", min: 16, max: 50 },
-  mauvais: { code: "mauvais", min: 51, max: 90 },
-  tresMauvais: { code: "tresMauvais", min: 91, max: 140 },
-  extrMauvais: { code: "extrMauvais", min: 141, max: 9999 },
+  moyen: { code: "moyen", min: 5, max: 15 },
+  degrade: { code: "degrade", min: 15, max: 50 },
+  mauvais: { code: "mauvais", min: 50, max: 90 },
+  tresMauvais: { code: "tresMauvais", min: 90, max: 140 },
+  extrMauvais: { code: "extrMauvais", min: 140, max: 9999 },
 };
 
 // Configuration des seuils pour les particules fines PM10
 export const seuilsPm10 = {
   bon: { code: "bon", min: 0, max: 15 },
-  moyen: { code: "moyen", min: 16, max: 45 },
-  degrade: { code: "degrade", min: 46, max: 120 },
-  mauvais: { code: "mauvais", min: 121, max: 195 },
-  tresMauvais: { code: "tresMauvais", min: 196, max: 270 },
-  extrMauvais: { code: "extrMauvais", min: 271, max: 10000 },
+  moyen: { code: "moyen", min: 15, max: 45 },
+  degrade: { code: "degrade", min: 45, max: 120 },
+  mauvais: { code: "mauvais", min: 120, max: 195 },
+  tresMauvais: { code: "tresMauvais", min: 195, max: 270 },
+  extrMauvais: { code: "extrMauvais", min: 270, max: 10000 },
 };
 
 // Configuration des seuils pour le dioxyde d'azote (NO2)
 export const seuilsNo2 = {
   bon: { code: "bon", min: 0, max: 10 },
-  moyen: { code: "moyen", min: 11, max: 25 },
-  degrade: { code: "degrade", min: 26, max: 60 },
-  mauvais: { code: "mauvais", min: 61, max: 100 },
-  tresMauvais: { code: "tresMauvais", min: 101, max: 150 },
-  extrMauvais: { code: "extrMauvais", min: 151, max: 9999 },
+  moyen: { code: "moyen", min: 10, max: 25 },
+  degrade: { code: "degrade", min: 25, max: 60 },
+  mauvais: { code: "mauvais", min: 60, max: 100 },
+  tresMauvais: { code: "tresMauvais", min: 100, max: 150 },
+  extrMauvais: { code: "extrMauvais", min: 150, max: 9999 },
 };
 
 // Configuration des seuils pour l'ozone (O3)
 export const seuilsO3 = {
   bon: { code: "bon", min: 0, max: 60 },
-  moyen: { code: "moyen", min: 61, max: 100 },
-  degrade: { code: "degrade", min: 101, max: 120 },
-  mauvais: { code: "mauvais", min: 121, max: 160 },
-  tresMauvais: { code: "tresMauvais", min: 161, max: 180 },
-  extrMauvais: { code: "extrMauvais", min: 181, max: 9999 },
+  moyen: { code: "moyen", min: 60, max: 100 },
+  degrade: { code: "degrade", min: 100, max: 120 },
+  mauvais: { code: "mauvais", min: 120, max: 160 },
+  tresMauvais: { code: "tresMauvais", min: 160, max: 180 },
+  extrMauvais: { code: "extrMauvais", min: 180, max: 9999 },
 };
 
 // Configuration des seuils pour le dioxyde de soufre (SO2)
 export const seuilsSo2 = {
   bon: { code: "bon", min: 0, max: 20 },
-  moyen: { code: "moyen", min: 21, max: 40 },
-  degrade: { code: "degrade", min: 41, max: 125 },
-  mauvais: { code: "mauvais", min: 126, max: 190 },
-  tresMauvais: { code: "tresMauvais", min: 191, max: 275 },
-  extrMauvais: { code: "extrMauvais", min: 276, max: 9999 },
+  moyen: { code: "moyen", min: 20, max: 40 },
+  degrade: { code: "degrade", min: 40, max: 125 },
+  mauvais: { code: "mauvais", min: 125, max: 190 },
+  tresMauvais: { code: "tresMauvais", min: 190, max: 275 },
+  extrMauvais: { code: "extrMauvais", min: 275, max: 9999 },
 };
 
 // Configuration des seuils pour le bruit (valeurs indicatives en dB(A))
 export const seuilsBruit = {
   bon: { code: "bon", min: 0, max: 55 },
-  moyen: { code: "moyen", min: 56, max: 65 },
-  degrade: { code: "degrade", min: 66, max: 75 },
-  mauvais: { code: "mauvais", min: 76, max: 85 },
-  tresMauvais: { code: "tresMauvais", min: 86, max: 95 },
-  extrMauvais: { code: "extrMauvais", min: 96, max: 150 },
+  moyen: { code: "moyen", min: 55, max: 65 },
+  degrade: { code: "degrade", min: 65, max: 75 },
+  mauvais: { code: "mauvais", min: 75, max: 85 },
+  tresMauvais: { code: "tresMauvais", min: 85, max: 95 },
+  extrMauvais: { code: "extrMauvais", min: 95, max: 150 },
 };
 
 export const pollutants: Record<string, Pollutant> = {
