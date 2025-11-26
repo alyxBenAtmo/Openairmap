@@ -11,6 +11,14 @@ Le **Mode Historique** permet aux utilisateurs de visualiser des données de qua
 - **Amélioration des données AtmoMicro** pour l'agrégation quart-horaire
 - **Messages informatifs** contextuels selon la configuration
 
+### 🆕 Nouvelles Fonctionnalités (v2.1)
+
+- **Panneau de lecture draggable** : Contrôles de lecture dans un panneau déplaçable
+- **Panel de sélection rabattable** : Le panel de sélection se rabat automatiquement après le chargement
+- **Isolation des side panels** : Fermeture automatique de tous les side panels en mode historique
+- **Désactivation des interactions** : Les marqueurs ne peuvent plus ouvrir de side panels en mode historique
+- **Indicateur de chargement** : Feedback visuel pendant le rechargement des données
+
 ## 🏗️ Architecture Générale
 
 ### Concepts React Expliqués
@@ -33,10 +41,11 @@ src/
 │   └── AtmoRefService.ts            # API AtmoRef (stations fixes)
 ├── components/controls/              # Interface utilisateur
 │   ├── HistoricalModeButton.tsx     # Bouton d'activation
-│   ├── HistoricalControlPanel.tsx   # Panel principal
+│   ├── HistoricalControlPanel.tsx   # Panel de sélection de dates
+│   ├── HistoricalPlaybackControl.tsx # Panneau de lecture draggable
 │   ├── DateRangeSelector.tsx        # Sélection de dates
-│   ├── TemporalTimeline.tsx         # Curseur temporel
-│   └── TemporalPlaybackControls.tsx # Contrôles play/pause
+│   ├── TemporalTimeline.tsx         # Curseur temporel (déprécié dans panel)
+│   └── TemporalPlaybackControls.tsx # Contrôles play/pause (déprécié dans panel)
 └── App.tsx                          # Point d'entrée principal
 ```
 
@@ -483,7 +492,9 @@ const HistoricalModeButton: React.FC<HistoricalModeButtonProps> = ({
 };
 ```
 
-#### Panel de Contrôle (`HistoricalControlPanel.tsx`)
+#### Panel de Sélection de Dates (`HistoricalControlPanel.tsx`)
+
+🆕 **v2.1** : Le panel de sélection se rabat automatiquement après le chargement des données et ne contient plus les contrôles de lecture.
 
 ```typescript
 const HistoricalControlPanel: React.FC<HistoricalControlPanelProps> = ({
@@ -491,67 +502,85 @@ const HistoricalControlPanel: React.FC<HistoricalControlPanelProps> = ({
   state,
   controls,
   onLoadData,
-  onSeekToDate,
+  onPanelVisibilityChange,
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isPanelVisible, setIsPanelVisible] = useState(true);
+  const userManuallyOpenedRef = useRef(false);
 
-  // Gestion des clics extérieurs
+  // Rabattre le panel après le chargement des données
+  useEffect(() => {
+    if (
+      state.data.length > 0 &&
+      !state.loading &&
+      isExpanded &&
+      !userManuallyOpenedRef.current
+    ) {
+      setIsExpanded(false);
+    }
+  }, [state.data.length, state.loading, isExpanded]);
+
+  // Rabattre le panel en cliquant à l'extérieur (au lieu de le fermer)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
         panelRef.current &&
-        !panelRef.current.contains(event.target as Node)
+        !panelRef.current.contains(event.target as Node) &&
+        isExpanded
       ) {
-        setIsPanelVisible(false); // Masquer le panel
+        setIsExpanded(false);
       }
     };
 
-    if (isVisible && isPanelVisible) {
+    if (isVisible && isPanelVisible && isExpanded) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isVisible, isPanelVisible]);
+  }, [isVisible, isPanelVisible, isExpanded]);
 
   if (!isVisible) return null;
 
   return (
     <>
-      {/* Panel principal */}
+      {/* Panel principal - toujours visible, peut être rabattu */}
       {isPanelVisible && (
         <div
           ref={panelRef}
-          className="fixed top-4 right-4 z-[2000] bg-white border rounded-lg shadow-xl max-w-md"
+          className={`fixed top-[60px] right-4 z-[2000] bg-white border border-gray-300 rounded-lg shadow-xl max-w-md w-full transition-all duration-300 ${
+            isExpanded ? "max-h-[90vh]" : "h-auto"
+          }`}
         >
           {/* Header avec boutons de contrôle */}
-          <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
             <h3>Mode Historique</h3>
             <div className="flex space-x-2">
-              <button onClick={() => setIsExpanded(!isExpanded)}>
-                {/* Icône réduction */}
+              <button onClick={() => {
+                setIsExpanded(!isExpanded);
+                if (!isExpanded) {
+                  userManuallyOpenedRef.current = true;
+                }
+              }}>
+                {/* Icône réduction/développement */}
               </button>
-              <button onClick={() => setIsPanelVisible(false)}>
-                {/* Icône fermeture */}
-              </button>
-              <button onClick={onToggleHistoricalMode}>
-                {/* Icône désactivation */}
+              <button onClick={() => setIsExpanded(false)}>
+                {/* Icône rabattre */}
               </button>
             </div>
           </div>
 
           {/* Contenu du panel */}
-          {isExpanded && (
-            <div className="p-4 space-y-4">
+          {isExpanded ? (
+            <div className="p-4 space-y-4 max-h-[calc(90vh-80px)] overflow-y-auto">
               {/* Sélecteur de dates */}
               <DateRangeSelector
                 startDate={state.startDate}
                 endDate={state.endDate}
                 onStartDateChange={controls.onStartDateChange}
                 onEndDateChange={controls.onEndDateChange}
-                maxDateRange={maxDateRange} // 🆕 Limitation dynamique
+                maxDateRange={maxDateRange}
                 disabled={state.loading}
               />
 
@@ -564,44 +593,144 @@ const HistoricalControlPanel: React.FC<HistoricalControlPanelProps> = ({
                 {state.loading ? "Chargement..." : "Charger les données"}
               </button>
 
-              {/* Timeline */}
-              {state.data.length > 0 && (
-                <TemporalTimeline
-                  startDate={state.startDate}
-                  endDate={state.endDate}
-                  currentDate={state.currentDate}
-                  dataPoints={state.data}
-                  onSeek={onSeekToDate}
-                  timeStep={state.timeStep}
-                />
-              )}
-
-              {/* Contrôles de lecture */}
-              {state.data.length > 0 && (
-                <TemporalPlaybackControls
-                  isPlaying={state.isPlaying}
-                  currentDate={state.currentDate}
-                  onPlayPause={controls.onPlayPause}
-                  onSpeedChange={controls.onSpeedChange}
-                  onPrevious={goToPrevious}
-                  onNext={goToNext}
-                />
-              )}
+              {/* Note: Les contrôles de lecture ont été déplacés dans HistoricalPlaybackControl */}
+            </div>
+          ) : (
+            <div className="p-2 text-center text-sm text-gray-500">
+              Panel réduit - Cliquez sur le bouton pour développer
             </div>
           )}
         </div>
       )}
-
-      {/* Bouton de réouverture */}
-      {!isPanelVisible && (
-        <button
-          onClick={() => setIsPanelVisible(true)}
-          className="fixed top-4 right-4 z-[2001] bg-blue-600 text-white p-3 rounded-full shadow-lg"
-        >
-          {/* Icône horloge */}
-        </button>
-      )}
     </>
+  );
+};
+```
+
+#### Panneau de Lecture Draggable (`HistoricalPlaybackControl.tsx`)
+
+🆕 **v2.1** : Nouveau composant draggable contenant tous les contrôles de lecture.
+
+```typescript
+const HistoricalPlaybackControl: React.FC<HistoricalPlaybackControlProps> = ({
+  state,
+  controls,
+  onToggleHistoricalMode,
+  onOpenDatePanel,
+  onSeekToDate,
+  onGoToPrevious,
+  onGoToNext,
+}) => {
+  const [position, setPosition] = useState({ x: 20, y: window.innerHeight - 300 });
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Gestion du drag
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!containerRef.current || state.loading) return;
+    // ... logique de drag
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      className={`fixed z-[2000] bg-white border border-gray-300 rounded-lg shadow-xl p-4 min-w-[280px] max-w-[320px] ${
+        state.loading ? "opacity-75" : ""
+      }`}
+      style={{ left: `${position.x}px`, top: `${position.y}px` }}
+    >
+      {/* Header draggable */}
+      <div
+        className={`flex items-center justify-between mb-3 pb-2 border-b ${
+          state.loading ? "cursor-not-allowed" : "cursor-grab"
+        }`}
+        onMouseDown={state.loading ? undefined : handleMouseDown}
+      >
+        <h4>Contrôles de lecture</h4>
+        <div className="flex space-x-1">
+          <button onClick={onOpenDatePanel} disabled={state.loading}>
+            {/* Icône calendrier */}
+          </button>
+          <button onClick={onToggleHistoricalMode} disabled={state.loading}>
+            {/* Icône fermeture */}
+          </button>
+        </div>
+      </div>
+
+      {/* Indicateur de chargement */}
+      {state.loading && (
+        <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-center space-x-2">
+            <svg className="animate-spin w-4 h-4 text-blue-600" /* spinner */ />
+            <span>Chargement des données en cours...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Date actuelle */}
+      <div className={`mb-3 text-center ${state.loading ? "opacity-50" : ""}`}>
+        <div className="text-xs text-gray-500 mb-1">Date actuelle</div>
+        <div className="text-sm font-medium">{formatDate(state.currentDate)}</div>
+      </div>
+
+      {/* Barre de progression */}
+      {hasData && !state.loading && (
+        <div className="mb-3">
+          {/* Barre de progression */}
+        </div>
+      )}
+
+      {/* Contrôles de lecture - masqués pendant le chargement */}
+      {hasData && !state.loading && (
+        <div className="flex items-center justify-center space-x-2 mb-3">
+          <button onClick={onGoToPrevious} disabled={state.loading}>
+            {/* Précédent */}
+          </button>
+          <button onClick={controls.onPlayPause} disabled={state.loading}>
+            {/* Play/Pause */}
+          </button>
+          <button onClick={onGoToNext} disabled={state.loading}>
+            {/* Suivant */}
+          </button>
+        </div>
+      )}
+
+      {/* Vitesse de lecture - masquée pendant le chargement */}
+      {hasData && !state.loading && (
+        <div className="flex items-center justify-between mb-2">
+          <span>Vitesse :</span>
+          <div className="flex space-x-1">
+            {[0.5, 1, 2, 4, 8].map((speed) => (
+              <button
+                key={speed}
+                onClick={() => controls.onSpeedChange(speed)}
+                disabled={state.loading}
+                className={state.playbackSpeed === speed ? "bg-blue-600 text-white" : ""}
+              >
+                {speed}x
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* État */}
+      <div className={`flex items-center justify-between text-xs ${state.loading ? "opacity-50" : ""}`}>
+        {state.loading ? (
+          <>
+            <svg className="animate-spin w-3 h-3" /* spinner */ />
+            <span>Chargement...</span>
+          </>
+        ) : (
+          <>
+            <div className={`w-2 h-2 rounded-full ${state.isPlaying ? "bg-green-500 animate-pulse" : "bg-gray-400"}`} />
+            <span>{state.isPlaying ? "Lecture" : "Pause"}</span>
+          </>
+        )}
+        {hasData && !state.loading && (
+          <span>{state.data.length} points</span>
+        )}
+      </div>
+    </div>
   );
 };
 ```
@@ -617,7 +746,11 @@ toggleHistoricalMode() appelé
     ↓
 state.isActive = true
     ↓
-HistoricalControlPanel rendu
+Tous les side panels existants se ferment complètement
+    ↓
+Les clics sur les marqueurs sont désactivés
+    ↓
+HistoricalControlPanel rendu (développé)
     ↓
 Utilisateur sélectionne dates
     ↓
@@ -629,15 +762,27 @@ onLoadData() appelé
 ```
 loadHistoricalData() appelé
     ↓
-AtmoMicroService.fetchTemporalData()
+state.loading = true
     ↓
-Requêtes API en chunks de 30 jours
+HistoricalPlaybackControl affiche l'indicateur de chargement
     ↓
-Données groupées par timestamp
+Tous les contrôles de lecture désactivés
+    ↓
+AtmoMicroService.fetchTemporalData() + AtmoRefService.fetchTemporalData()
+    ↓
+Requêtes API en chunks de 30 jours (en parallèle)
+    ↓
+Données groupées par timestamp avec fusion intelligente
     ↓
 TemporalDataPoint[] créés
     ↓
 state.data mis à jour
+    ↓
+state.loading = false
+    ↓
+HistoricalControlPanel se rabat automatiquement
+    ↓
+HistoricalPlaybackControl apparaît avec les contrôles activés
     ↓
 Carte affiche les données du premier point
 ```
@@ -828,7 +973,49 @@ L'interface affiche des messages informatifs selon la configuration :
 }
 ```
 
-### 3. Fonctionnalités Avancées
+### 3. 🆕 Isolation du Mode Historique
+
+**v2.1** : Quand le mode historique est activé, tous les side panels existants se ferment automatiquement et les interactions avec les marqueurs sont désactivées.
+
+```typescript
+// Dans AirQualityMap.tsx
+useEffect(() => {
+  if (isHistoricalModeActive) {
+    // Fermer complètement tous les side panels
+    sidePanels.handleCloseSidePanel();
+    signalAir.handleCloseSignalAirPanel();
+    signalAir.handleCloseSignalAirDetailPanel();
+    mobileAir.handleCloseMobileAirSelectionPanel();
+    mobileAir.handleCloseMobileAirDetailPanel();
+  }
+}, [isHistoricalModeActive]);
+
+// Désactiver les clics sur les marqueurs
+const handleMarkerClick = async (device: MeasurementDevice) => {
+  if (isHistoricalModeActive) {
+    return; // Ne rien faire en mode historique
+  }
+  // ... logique normale
+};
+```
+
+**Avantages** :
+- ✅ Interface épurée, focus sur la visualisation temporelle
+- ✅ Évite les conflits entre les modes
+- ✅ Expérience utilisateur cohérente
+
+### 4. 🆕 Panneau de Lecture Draggable
+
+**v2.1** : Les contrôles de lecture sont maintenant dans un panneau draggable séparé qui apparaît après le chargement des données.
+
+**Caractéristiques** :
+- **Position initiale** : Bas à gauche de l'écran
+- **Drag & Drop** : Déplaçable n'importe où sur la carte
+- **Limites** : Reste dans les limites de la fenêtre
+- **Indicateur de chargement** : Affiche un spinner et désactive tous les contrôles pendant le rechargement
+- **Contrôles complets** : Play/Pause, Précédent/Suivant, Vitesse, Date actuelle, Progression
+
+### 5. Fonctionnalités Avancées
 
 - **Export** : Sauvegarder les données visualisées
 - **Comparaison** : Superposer plusieurs périodes
@@ -1146,7 +1333,30 @@ Cette approche rend le code maintenable, testable et extensible.
 
 ## 📝 Changelog
 
-### Version 2.0 (Décembre 2024) 🆕
+### Version 2.1 (Janvier 2025) 🆕
+
+#### Nouvelles Fonctionnalités
+
+- **Panneau de lecture draggable** : Contrôles de lecture dans un panneau déplaçable sur la carte
+- **Panel de sélection rabattable** : Le panel de sélection se rabat automatiquement après le chargement des données
+- **Isolation des side panels** : Fermeture automatique de tous les side panels (stations, SignalAir, MobileAir) en mode historique
+- **Désactivation des interactions** : Les marqueurs ne peuvent plus ouvrir de side panels en mode historique
+- **Indicateur de chargement** : Feedback visuel complet pendant le rechargement des données avec désactivation des contrôles
+
+#### Améliorations Techniques
+
+- Séparation des responsabilités : Panel de sélection pour les dates, Panneau draggable pour les contrôles
+- Gestion d'état améliorée : Suivi de l'ouverture manuelle du panel pour éviter les rabattements intempestifs
+- UX améliorée : Le panel reste visible mais rabattu, permettant un accès rapide
+- Feedback visuel : Indicateurs de chargement, états disabled appropriés, transitions fluides
+
+#### Corrections
+
+- Résolution du problème de réouverture du panel qui se refermait instantanément
+- Amélioration de la gestion du drag pendant le chargement
+- Meilleure cohérence visuelle entre les différents états
+
+### Version 2.0 (Décembre 2024)
 
 #### Nouvelles Fonctionnalités
 

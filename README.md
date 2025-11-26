@@ -271,11 +271,34 @@ src/
 │   │   ├── AirQualityMap.tsx
 │   │   ├── Legend.tsx
 │   │   ├── HistoricalChart.tsx
+│   │   ├── ComparisonSidePanel.tsx    # Panneau de comparaison
 │   │   ├── StationSidePanel.tsx      # AtmoRef
 │   │   ├── MicroSidePanel.tsx        # AtmoMicro
 │   │   ├── NebuleAirSidePanel.tsx    # NebuleAir
+│   │   ├── PurpleAirSidePanel.tsx    # PurpleAir
+│   │   ├── SensorCommunitySidePanel.tsx # SensorCommunity
 │   │   ├── MobileAirSidePanel.tsx    # MobileAir sélection
-│   │   └── MobileAirSelectionPanel.tsx # MobileAir visualisation
+│   │   ├── MobileAirSelectionPanel.tsx # MobileAir visualisation
+│   │   ├── MobileAirDetailPanel.tsx  # MobileAir détails
+│   │   ├── MobileAirRoutes.tsx       # MobileAir routes
+│   │   ├── SignalAirDetailPanel.tsx # SignalAir détails
+│   │   ├── SignalAirSelectionPanel.tsx # SignalAir sélection
+│   │   ├── CustomSpiderfiedMarkers.tsx # Marqueurs spiderfiés
+│   │   ├── SpiderfiedMarkers.tsx     # Marqueurs spiderfiés (legacy)
+│   │   ├── SearchControlDemo.tsx     # Contrôle de recherche
+│   │   ├── hooks/                    # Hooks spécifiques à la carte
+│   │   │   ├── useMapView.ts         # Gestion de la vue (zoom, centre, spiderfy)
+│   │   │   ├── useMapLayers.ts       # Gestion des couches (base, modélisation, vent)
+│   │   │   ├── useWildfireLayer.ts   # Gestion de la couche feux de forêt
+│   │   │   ├── useMapAttribution.ts  # Gestion de l'attribution Leaflet
+│   │   │   ├── useSidePanels.ts      # Gestion des panneaux latéraux
+│   │   │   ├── useSignalAir.ts       # Gestion de SignalAir
+│   │   │   └── useMobileAir.ts       # Gestion de MobileAir
+│   │   ├── utils/                    # Utilitaires pour la carte
+│   │   │   ├── mapIconUtils.ts       # Création d'icônes de marqueurs
+│   │   │   └── mapMarkerUtils.ts     # Utilitaires pour les marqueurs
+│   │   └── handlers/                 # Handlers pour la carte
+│   │       └── comparisonHandlers.ts # Handlers pour le mode comparaison
 │   └── App.tsx        # Composant principal
 ├── services/          # Services de données
 │   ├── BaseDataService.ts
@@ -286,11 +309,16 @@ src/
 │   ├── MobileAirService.ts
 │   ├── PurpleAirService.ts
 │   ├── SensorCommunityService.ts
+│   ├── FeuxDeForetService.ts
+│   ├── ModelingLayerService.ts
 │   └── DataServiceFactory.ts
-├── hooks/             # Hooks personnalisés
-│   └── useAirQualityData.ts
+├── hooks/             # Hooks personnalisés globaux
+│   ├── useAirQualityData.ts
 │   ├── useTemporalVisualization.ts
-│   └── useDomainConfig.ts
+│   ├── useDomainConfig.ts
+│   ├── useCustomSpiderfier.ts
+│   ├── useSpiderfier.ts
+│   └── useToast.ts
 ├── constants/         # Constantes
 │   ├── pollutants.ts
 │   ├── sources.ts

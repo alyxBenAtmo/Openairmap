@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -104,6 +104,7 @@ interface AirQualityMapProps {
     period: { startDate: string; endDate: string }
   ) => void;
   onMobileAirSourceDeselected?: () => void;
+  isHistoricalModeActive?: boolean;
 }
 
 const defaultClusterConfig = {
@@ -143,6 +144,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   onSignalAirSourceDeselected,
   onMobileAirSensorSelected,
   onMobileAirSourceDeselected,
+  isHistoricalModeActive = false,
 }) => {
   // Configuration des clusters et spiderfier
   const [clusterConfig, setClusterConfig] = useState(defaultClusterConfig);
@@ -211,6 +213,29 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   const isComparisonPanelVisible =
     sidePanels.comparisonState.isComparisonMode &&
     sidePanels.comparisonState.comparedStations.length > 0;
+
+  // Référence pour suivre l'état précédent du mode historique
+  const prevHistoricalModeRef = useRef(isHistoricalModeActive);
+
+  // Effet pour fermer tous les side panels quand le mode historique est activé
+  useEffect(() => {
+    // Ne fermer les panels que lors du passage de false à true
+    if (isHistoricalModeActive && !prevHistoricalModeRef.current) {
+      // Fermer complètement tous les side panels (pas juste rabattus)
+      sidePanels.handleCloseSidePanel();
+      
+      // Fermer les panels SignalAir
+      signalAir.handleCloseSignalAirPanel();
+      signalAir.handleCloseSignalAirDetailPanel();
+      
+      // Fermer les panels MobileAir
+      mobileAir.handleCloseMobileAirSelectionPanel();
+      mobileAir.handleCloseMobileAirDetailPanel();
+    }
+    
+    // Mettre à jour la référence
+    prevHistoricalModeRef.current = isHistoricalModeActive;
+  }, [isHistoricalModeActive]);
 
   // Gestion de l'attribution Leaflet
   useMapAttribution({
@@ -316,7 +341,38 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     );
   };
 
+  // Wrapper pour désactiver les clics SignalAir en mode historique
+  const handleSignalAirMarkerClickWrapper = (report: SignalAirReport) => {
+    if (isHistoricalModeActive) {
+      return;
+    }
+    signalAir.handleSignalAirMarkerClick(report);
+  };
+
+  // Wrappers pour désactiver les clics MobileAir en mode historique
+  const handleMobileAirPointClickWrapper = (
+    route: any,
+    point: any
+  ) => {
+    if (isHistoricalModeActive) {
+      return;
+    }
+    mobileAir.handleMobileAirPointClick(route, point);
+  };
+
+  const handleMobileAirRouteClickWrapper = (route: any) => {
+    if (isHistoricalModeActive) {
+      return;
+    }
+    mobileAir.handleMobileAirRouteClick(route);
+  };
+
   const handleMarkerClick = async (device: MeasurementDevice) => {
+    // Désactiver les clics sur les marqueurs en mode historique
+    if (isHistoricalModeActive) {
+      return;
+    }
+
     // Exclure SignalAir
     if (device.source === "signalair") {
       return;
@@ -808,9 +864,9 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
           <MobileAirRoutes
             routes={mobileAir.activeMobileAirRoute ? [mobileAir.activeMobileAirRoute] : []}
             selectedPollutant={selectedPollutant}
-            onPointClick={mobileAir.handleMobileAirPointClick}
+            onPointClick={handleMobileAirPointClickWrapper}
             onPointHover={mobileAir.handleMobileAirPointHover}
-            onRouteClick={mobileAir.handleMobileAirRouteClick}
+            onRouteClick={handleMobileAirRouteClickWrapper}
             highlightedPoint={mobileAir.highlightedMobileAirPoint}
           />
 
@@ -871,7 +927,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
               position={[report.latitude, report.longitude]}
               icon={createSignalIconWrapper(report)}
               eventHandlers={{
-                click: () => signalAir.handleSignalAirMarkerClick(report),
+                click: () => handleSignalAirMarkerClickWrapper(report),
               }}
             />
           ))}

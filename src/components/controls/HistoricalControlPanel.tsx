@@ -1,8 +1,6 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { HistoricalControlPanelProps } from "../../types";
 import DateRangeSelector from "./DateRangeSelector";
-import TemporalTimeline from "./TemporalTimeline";
-import TemporalPlaybackControls from "./TemporalPlaybackControls";
 
 const HistoricalControlPanel: React.FC<
   HistoricalControlPanelProps & {
@@ -11,6 +9,8 @@ const HistoricalControlPanel: React.FC<
     onGoToPrevious?: () => void;
     onGoToNext?: () => void;
     onToggleHistoricalMode?: () => void;
+    onPanelVisibilityChange?: (visible: boolean) => void;
+    onExpandRequest?: (expandFn: () => void) => void;
   }
 > = ({
   isVisible,
@@ -21,37 +21,77 @@ const HistoricalControlPanel: React.FC<
   onGoToPrevious,
   onGoToNext,
   onToggleHistoricalMode,
+    onPanelVisibilityChange,
+    onExpandRequest,
 }) => {
+  // Fonction pour développer le panel (exposée via ref)
+  const expandPanel = useCallback(() => {
+    setIsExpanded(true);
+    setIsPanelVisible(true);
+    userManuallyOpenedRef.current = true;
+  }, []);
   const [isExpanded, setIsExpanded] = useState(true);
   const [isPanelVisible, setIsPanelVisible] = useState(true);
   const panelRef = useRef<HTMLDivElement>(null);
+  const userManuallyOpenedRef = useRef(false); // Pour suivre si l'utilisateur a manuellement rouvert le panel
 
-  // Fermer le panel en cliquant à l'extérieur
+  // Rabattre le panel en cliquant à l'extérieur (au lieu de le fermer)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
         panelRef.current &&
-        !panelRef.current.contains(event.target as Node)
+        !panelRef.current.contains(event.target as Node) &&
+        isExpanded
       ) {
-        setIsPanelVisible(false);
+        setIsExpanded(false);
       }
     };
 
-    if (isVisible && isPanelVisible) {
+    if (isVisible && isPanelVisible && isExpanded) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isVisible, isPanelVisible]);
+  }, [isVisible, isPanelVisible, isExpanded]);
 
   // Réinitialiser la visibilité du panel quand le mode historique est activé
   useEffect(() => {
     if (isVisible) {
       setIsPanelVisible(true);
+      setIsExpanded(true);
+      userManuallyOpenedRef.current = false;
     }
   }, [isVisible]);
+
+  // Exposer la fonction d'expansion au parent via callback
+  useEffect(() => {
+    if (onExpandRequest) {
+      // Utiliser une fonction qui stocke la référence
+      (onExpandRequest as any)(expandPanel);
+    }
+  }, [onExpandRequest, expandPanel]);
+
+  // Rabattre le panel après le chargement des données (au lieu de le fermer)
+  useEffect(() => {
+    if (
+      state.data.length > 0 &&
+      !state.loading &&
+      isExpanded &&
+      !userManuallyOpenedRef.current
+    ) {
+      setIsExpanded(false);
+    }
+  }, [state.data.length, state.loading, isExpanded]);
+
+  // Notifier le parent des changements de visibilité (seulement si le panel est complètement fermé)
+  useEffect(() => {
+    // Ne notifier que si le panel est complètement fermé, pas juste rabattu
+    if (!isPanelVisible) {
+      onPanelVisibilityChange?.(false);
+    }
+  }, [isPanelVisible, onPanelVisibilityChange]);
 
   if (!isVisible) return null;
 
@@ -79,7 +119,9 @@ const HistoricalControlPanel: React.FC<
       {isPanelVisible && (
         <div
           ref={panelRef}
-          className="fixed top-[60px] right-4 z-[2000] bg-white border border-gray-300 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-hidden"
+          className={`fixed top-[60px] right-4 z-[2000] bg-white border border-gray-300 rounded-lg shadow-xl max-w-md w-full transition-all duration-300 overflow-hidden ${
+            isExpanded ? "max-h-[90vh]" : "h-auto"
+          }`}
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
@@ -104,7 +146,12 @@ const HistoricalControlPanel: React.FC<
             <div className="flex items-center space-x-2">
               <button
                 type="button"
-                onClick={() => setIsExpanded(!isExpanded)}
+                onClick={() => {
+                  setIsExpanded(!isExpanded);
+                  if (!isExpanded) {
+                    userManuallyOpenedRef.current = true;
+                  }
+                }}
                 className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
                 title={isExpanded ? "Réduire" : "Développer"}
               >
@@ -126,9 +173,11 @@ const HistoricalControlPanel: React.FC<
               </button>
               <button
                 type="button"
-                onClick={() => setIsPanelVisible(false)}
+                onClick={() => {
+                  setIsExpanded(false);
+                }}
                 className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                title="Masquer le panel"
+                title="Rabattre le panel"
               >
                 <svg
                   className="w-4 h-4"
@@ -170,7 +219,7 @@ const HistoricalControlPanel: React.FC<
           </div>
 
           {/* Content */}
-          {isExpanded && (
+          {isExpanded ? (
             <div className="p-4 space-y-4 max-h-[calc(90vh-80px)] overflow-y-auto">
               {/* Instructions */}
               <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
@@ -322,95 +371,13 @@ const HistoricalControlPanel: React.FC<
                 </div>
               )}
 
-              {/* Contrôles de navigation temporelle */}
-              {state.data.length > 0 && (
-                <div className="space-y-4 border-t border-gray-200 pt-4">
-                  <div className="text-sm font-medium text-gray-700">
-                    Navigation temporelle
-                  </div>
-
-                  {/* Timeline */}
-                  <TemporalTimeline
-                    startDate={state.startDate}
-                    endDate={state.endDate}
-                    currentDate={state.currentDate}
-                    dataPoints={state.data}
-                    onSeek={onSeekToDate || controls.onCurrentDateChange}
-                    timeStep={state.timeStep}
-                    disabled={state.loading}
-                  />
-
-                  {/* Contrôles de lecture */}
-                  <TemporalPlaybackControls
-                    isPlaying={state.isPlaying}
-                    currentDate={state.currentDate}
-                    startDate={state.startDate}
-                    endDate={state.endDate}
-                    playbackSpeed={state.playbackSpeed}
-                    onPlayPause={controls.onPlayPause}
-                    onStop={() => {
-                      controls.onPlayPause(); // Arrêter la lecture
-                      controls.onCurrentDateChange(state.startDate); // Revenir au début
-                    }}
-                    onSpeedChange={controls.onSpeedChange}
-                    onSeek={onSeekToDate || controls.onCurrentDateChange}
-                    onPrevious={
-                      onGoToPrevious ||
-                      (() => {
-                        const currentIndex = state.data.findIndex(
-                          (point) => point.timestamp === state.currentDate
-                        );
-                        if (currentIndex > 0) {
-                          controls.onCurrentDateChange(
-                            state.data[currentIndex - 1].timestamp
-                          );
-                        }
-                      })
-                    }
-                    onNext={
-                      onGoToNext ||
-                      (() => {
-                        const currentIndex = state.data.findIndex(
-                          (point) => point.timestamp === state.currentDate
-                        );
-                        if (currentIndex < state.data.length - 1) {
-                          controls.onCurrentDateChange(
-                            state.data[currentIndex + 1].timestamp
-                          );
-                        }
-                      })
-                    }
-                    disabled={state.loading}
-                    dataPointsCount={state.data.length}
-                    dataPoints={state.data}
-                  />
-                </div>
-              )}
+            </div>
+          ) : (
+            <div className="p-2 text-center text-sm text-gray-500">
+              Panel réduit - Cliquez sur le bouton pour développer
             </div>
           )}
         </div>
-      )}
-      {/* Bouton pour rouvrir le panel quand il est masqué */}
-      {!isPanelVisible && (
-        <button
-          onClick={() => setIsPanelVisible(true)}
-          className="fixed top-[130px] right-1 z-[2001] bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
-          title="Rouvrir le panel de contrôle historique"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-        </button>
       )}
     </>
   );

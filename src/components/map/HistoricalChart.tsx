@@ -179,6 +179,8 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   timeStep,
   sensorTimeStep,
 }) => {
+  console.log("data", data);
+  console.log("timeStep", timeStep);
   // État pour détecter le mode paysage sur mobile
   const [isLandscapeMobile, setIsLandscapeMobile] = useState(false);
   // État pour détecter si on est sur mobile

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import AirQualityMap from "./components/map/AirQualityMap";
 import { useAirQualityData } from "./hooks/useAirQualityData";
 import { useTemporalVisualization } from "./hooks/useTemporalVisualization";
@@ -17,6 +17,7 @@ import SourceDropdown from "./components/controls/SourceDropdown";
 import TimeStepDropdown from "./components/controls/TimeStepDropdown";
 import HistoricalModeButton from "./components/controls/HistoricalModeButton";
 import HistoricalControlPanel from "./components/controls/HistoricalControlPanel";
+import HistoricalPlaybackControl from "./components/controls/HistoricalPlaybackControl";
 import MobileMenuBurger from "./components/controls/MobileMenuBurger";
 import ModelingLayerControl from "./components/controls/ModelingLayerControl";
 import InformationModal from "./components/modals/InformationModal";
@@ -200,6 +201,11 @@ const App: React.FC = () => {
     }
   }, [selectedPollutant, selectedTimeStep]);
 
+  // État pour contrôler la visibilité du panel de sélection de date
+  // Note: Le panel ne se ferme plus complètement, il se rabat juste
+  const [isDatePanelVisible, setIsDatePanelVisible] = useState(true);
+  const expandPanelRef = useRef<(() => void) | null>(null);
+
   // Hook pour la visualisation temporelle
   const {
     state: temporalState,
@@ -217,6 +223,13 @@ const App: React.FC = () => {
     selectedSources,
     timeStep: selectedTimeStep,
   });
+
+  // Réinitialiser la visibilité du panel quand le mode historique est activé
+  useEffect(() => {
+    if (isHistoricalModeActive) {
+      setIsDatePanelVisible(true);
+    }
+  }, [isHistoricalModeActive]);
 
   // Hook pour récupérer les données (mode normal)
   const {
@@ -448,11 +461,12 @@ const App: React.FC = () => {
           onSignalAirSourceDeselected={handleSignalAirSourceDeselected}
           onMobileAirSensorSelected={handleMobileAirSensorSelected}
           onMobileAirSourceDeselected={handleMobileAirSourceDeselected}
+          isHistoricalModeActive={isHistoricalModeActive}
         />
 
-        {/* Panel de contrôle historique */}
+        {/* Panel de contrôle historique (sélection de date) */}
         <HistoricalControlPanel
-          isVisible={isHistoricalModeActive}
+          isVisible={isHistoricalModeActive && isDatePanelVisible}
           onToggleHistoricalMode={toggleHistoricalMode}
           state={temporalState}
           controls={temporalControls}
@@ -460,7 +474,30 @@ const App: React.FC = () => {
           onSeekToDate={seekToDate}
           onGoToPrevious={goToPrevious}
           onGoToNext={goToNext}
+          onPanelVisibilityChange={setIsDatePanelVisible}
+          onExpandRequest={(expandFn) => {
+            expandPanelRef.current = expandFn;
+          }}
         />
+
+        {/* Panneau de lecture draggable */}
+        {isHistoricalModeActive && hasHistoricalData && (
+          <HistoricalPlaybackControl
+            state={temporalState}
+            controls={temporalControls}
+            onToggleHistoricalMode={toggleHistoricalMode}
+            onOpenDatePanel={() => {
+              setIsDatePanelVisible(true);
+              // Développer le panel s'il est rabattu
+              if (expandPanelRef.current) {
+                expandPanelRef.current();
+              }
+            }}
+            onSeekToDate={seekToDate}
+            onGoToPrevious={goToPrevious}
+            onGoToNext={goToNext}
+          />
+        )}
       </main>
 
       <InformationModal
