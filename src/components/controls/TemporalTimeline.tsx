@@ -238,7 +238,7 @@ const TemporalTimeline: React.FC<TemporalTimelineProps> = ({
 
         {/* Labels de dates */}
         <div className="flex justify-between mt-2 text-xs text-gray-600">
-          <span>{formatDate(effectiveStartDate)}</span>
+          <span className="ml-1">{formatDate(effectiveStartDate)}</span>
           <span className="font-bold text-blue-600">
             {hoverTimestamp
               ? formatDate(hoverTimestamp)

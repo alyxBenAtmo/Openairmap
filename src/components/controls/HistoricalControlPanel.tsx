@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { HistoricalControlPanelProps } from "../../types";
-import DateRangeSelector from "./DateRangeSelector";
+import PollutionEpisodeCalendar from "./PollutionEpisodeCalendar";
 
 const HistoricalControlPanel: React.FC<
   HistoricalControlPanelProps & {
@@ -11,6 +11,7 @@ const HistoricalControlPanel: React.FC<
     onToggleHistoricalMode?: () => void;
     onPanelVisibilityChange?: (visible: boolean) => void;
     onExpandRequest?: (expandFn: () => void) => void;
+    selectedPollutant?: string; // Polluant sélectionné pour filtrer les épisodes
   }
 > = ({
   isVisible,
@@ -23,6 +24,7 @@ const HistoricalControlPanel: React.FC<
   onToggleHistoricalMode,
     onPanelVisibilityChange,
     onExpandRequest,
+    selectedPollutant,
 }) => {
   // Fonction pour développer le panel (exposée via ref)
   const expandPanel = useCallback(() => {
@@ -262,15 +264,22 @@ const HistoricalControlPanel: React.FC<
                 </div>
               </div>
 
-              {/* Sélecteur de dates */}
-              <DateRangeSelector
-                startDate={state.startDate}
-                endDate={state.endDate}
-                onStartDateChange={controls.onStartDateChange}
-                onEndDateChange={controls.onEndDateChange}
-                maxDateRange={maxDateRange}
-                disabled={state.loading}
-              />
+              {/* Calendrier des épisodes de pollution */}
+              <div className="space-y-4">
+                <div className="text-sm font-medium text-gray-700">
+                  Sélectionner une période temporelle
+                </div>
+                <PollutionEpisodeCalendar
+                  selectedPollutant={selectedPollutant || ""}
+                  selectedStartDate={state.startDate}
+                  selectedEndDate={state.endDate}
+                  onDateRangeChange={(startDate, endDate) => {
+                    controls.onStartDateChange(startDate);
+                    controls.onEndDateChange(endDate);
+                  }}
+                  maxDateRange={maxDateRange}
+                />
+              </div>
 
               {/* État de chargement */}
               {state.loading && (

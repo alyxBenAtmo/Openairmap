@@ -478,6 +478,7 @@ const App: React.FC = () => {
           onExpandRequest={(expandFn) => {
             expandPanelRef.current = expandFn;
           }}
+          selectedPollutant={selectedPollutant}
         />
 
         {/* Panneau de lecture draggable */}
