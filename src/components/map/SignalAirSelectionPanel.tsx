@@ -114,11 +114,12 @@ const SignalAirSelectionPanel: React.FC<SignalAirSelectionPanelProps> = ({
 
   const getPanelClasses = () => {
     const baseClasses =
-      "bg-white shadow-xl flex flex-col border-l border-gray-200 transition-all duration-300 h-full md:h-[calc(100vh-64px)]";
+      "bg-white shadow-xl flex flex-col border-l border-gray-200 transition-all duration-300 h-full md:h-[calc(100vh-64px)] relative z-[1500]";
 
     switch (currentPanelSize) {
       case "fullscreen":
-        return `${baseClasses} w-full max-w-full`;
+        // En fullscreen, utiliser absolute pour ne pas affecter le layout de la carte
+        return `${baseClasses} absolute inset-0 w-full max-w-full`;
       case "hidden":
         return `${baseClasses} hidden`;
       case "normal":

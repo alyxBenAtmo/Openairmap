@@ -539,7 +539,8 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
 
     switch (currentPanelSize) {
       case "fullscreen":
-        return `${baseClasses} w-full`;
+        // En fullscreen, utiliser absolute pour ne pas affecter le layout de la carte
+        return `${baseClasses} absolute inset-0 w-full`;
       case "hidden":
         // Retirer complètement du flux pour éviter l'espace réservé
         return `${baseClasses} hidden`;

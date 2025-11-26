@@ -73,11 +73,12 @@ const SensorCommunitySidePanel: React.FC<SensorCommunitySidePanelProps> = ({
 
   const getPanelClasses = () => {
   const baseClasses =
-    "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300 h-full md:h-[calc(100vh-64px)]";
+    "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300 h-full md:h-[calc(100vh-64px)] relative z-[1500]";
 
     switch (currentPanelSize) {
       case "fullscreen":
-        return `${baseClasses} w-full`;
+        // En fullscreen, utiliser absolute pour ne pas affecter le layout de la carte
+        return `${baseClasses} absolute inset-0 w-full`;
       case "hidden":
         // Retirer complètement du flux pour éviter l'espace réservé
         return `${baseClasses} hidden`;

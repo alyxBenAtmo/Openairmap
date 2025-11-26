@@ -596,7 +596,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   // Utiliser signalAir.* et mobileAir.* pour accéder aux handlers
 
   return (
-    <div className="w-full h-full flex items-stretch">
+    <div className="w-full h-full flex items-stretch relative">
       {/* Side Panel - Comparaison */}
       {sidePanels.comparisonState.isComparisonMode &&
         sidePanels.comparisonState.comparedStations.length > 0 && (
