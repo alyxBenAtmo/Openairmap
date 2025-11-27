@@ -30,6 +30,7 @@ const PollutionEpisodeCalendar: React.FC<PollutionEpisodeCalendarProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
+  const [hoveredDatePosition, setHoveredDatePosition] = useState<{ x: number; y: number } | null>(null);
   const [rangeStart, setRangeStart] = useState<string | null>(
     selectedStartDate || null
   );
@@ -75,6 +76,20 @@ const PollutionEpisodeCalendar: React.FC<PollutionEpisodeCalendarProps> = ({
   const episodesByDate = useMemo(() => {
     return episodeService.groupEpisodesByDate(episodes);
   }, [episodes, episodeService]);
+
+  // Trouver le dernier épisode (le plus récent)
+  const lastEpisode = useMemo(() => {
+    if (episodes.length === 0) return null;
+    
+    // Trier les épisodes par date décroissante et prendre le premier
+    const sorted = [...episodes].sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return dateB - dateA; // Décroissant
+    });
+    
+    return sorted[0];
+  }, [episodes]);
 
   // Obtenir les jours du mois
   const getDaysInMonth = (date: Date): Date[] => {
@@ -127,11 +142,27 @@ const PollutionEpisodeCalendar: React.FC<PollutionEpisodeCalendarProps> = ({
     return episodeService.getHighestLevelForDate(dateEpisodes);
   };
 
+  // Obtenir les départements concernés pour une date
+  const getDepartmentsForDate = (dateKey: string): string[] => {
+    const dateEpisodes = episodesByDate.get(dateKey);
+    if (!dateEpisodes || dateEpisodes.length === 0) return [];
+    
+    // Extraire les départements uniques
+    const departments = new Set<string>();
+    dateEpisodes.forEach((episode) => {
+      if (episode.zone_libelle) {
+        departments.add(episode.zone_libelle);
+      }
+    });
+    
+    return Array.from(departments).sort();
+  };
+
   // Obtenir la couleur selon le niveau
   const getLevelColor = (niveau_code: number | null): string => {
     if (niveau_code === null) return "";
-    if (niveau_code === 2) return "bg-red-500 text-white"; // Alerte
-    if (niveau_code === 1) return "bg-orange-400 text-white"; // Information-recommandation
+    if (niveau_code === 2) return "bg-red-500/70 text-white"; // Alerte avec opacité
+    if (niveau_code === 1) return "bg-orange-400/70 text-white"; // Information-recommandation avec opacité
     return "";
   };
 
@@ -353,11 +384,11 @@ const PollutionEpisodeCalendar: React.FC<PollutionEpisodeCalendarProps> = ({
       {selectedPollutant && (
         <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-center space-x-4 text-xs">
           <div className="flex items-center space-x-1">
-            <div className="w-4 h-4 rounded bg-orange-400"></div>
+            <div className="w-4 h-4 rounded bg-orange-400/70"></div>
             <span className="text-gray-600">Information</span>
           </div>
           <div className="flex items-center space-x-1">
-            <div className="w-4 h-4 rounded bg-red-500"></div>
+            <div className="w-4 h-4 rounded bg-red-500/70"></div>
             <span className="text-gray-600">Alerte</span>
           </div>
         </div>
@@ -394,8 +425,18 @@ const PollutionEpisodeCalendar: React.FC<PollutionEpisodeCalendarProps> = ({
                 key={`${dateKey}-${index}`}
                 type="button"
                 onClick={() => !isFutureDate && handleDateClick(dateKey)}
-                onMouseEnter={() => setHoveredDate(dateKey)}
-                onMouseLeave={() => setHoveredDate(null)}
+                onMouseEnter={(e) => {
+                  setHoveredDate(dateKey);
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setHoveredDatePosition({
+                    x: rect.left + rect.width / 2,
+                    y: rect.top - 10,
+                  });
+                }}
+                onMouseLeave={() => {
+                  setHoveredDate(null);
+                  setHoveredDatePosition(null);
+                }}
                 disabled={!isCurrentMonthDay || isFutureDate}
                 className={`
                   relative h-9 w-full rounded-md text-xs font-medium transition-all
@@ -423,19 +464,15 @@ const PollutionEpisodeCalendar: React.FC<PollutionEpisodeCalendarProps> = ({
                       : ""
                   }
                 `}
-                title={
-                  episodeLevel
-                    ? `${episodeLevel.niveau_libelle} - ${day.toLocaleDateString("fr-FR")}`
-                    : day.toLocaleDateString("fr-FR")
-                }
+                title={day.toLocaleDateString("fr-FR")}
               >
                 <span>{day.getDate()}</span>
                 {episodeLevel && (
                   <div
                     className={`absolute bottom-0.5 left-1/2 transform -translate-x-1/2 w-1 h-1 rounded-full ${
                       episodeLevel.niveau_code === 2
-                        ? "bg-red-700"
-                        : "bg-orange-600"
+                        ? "bg-red-700/70"
+                        : "bg-orange-600/70"
                     }`}
                   />
                 )}
@@ -444,6 +481,48 @@ const PollutionEpisodeCalendar: React.FC<PollutionEpisodeCalendarProps> = ({
           })}
         </div>
       </div>
+
+      {/* Tooltip personnalisé pour les épisodes */}
+      {hoveredDate && hoveredDatePosition && (() => {
+        const hoveredEpisodeLevel = getEpisodeLevel(hoveredDate);
+        if (!hoveredEpisodeLevel) return null;
+        
+        return (
+          <div
+            className="fixed z-[3000] bg-gray-900 text-white text-xs rounded-lg shadow-lg p-3 pointer-events-none max-w-xs"
+            style={{
+              left: `${hoveredDatePosition.x}px`,
+              top: `${hoveredDatePosition.y}px`,
+              transform: "translate(-50%, -100%)",
+            }}
+          >
+            <div className="font-semibold mb-1">
+              {new Date(hoveredDate).toLocaleDateString("fr-FR", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              })}
+            </div>
+            <div className="mb-2">
+              <span className="font-medium">{hoveredEpisodeLevel.niveau_libelle}</span>
+            </div>
+            {(() => {
+              const departments = getDepartmentsForDate(hoveredDate);
+              if (departments.length > 0) {
+                return (
+                  <div className="border-t border-gray-700 pt-2 mt-2">
+                    <div className="font-medium mb-1">Départements concernés :</div>
+                    <div className="text-gray-300">
+                      {departments.join(", ")}
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+          </div>
+        );
+      })()}
 
       {/* Informations sur la période sélectionnée */}
       {rangeStart && rangeEnd && (
@@ -476,9 +555,52 @@ const PollutionEpisodeCalendar: React.FC<PollutionEpisodeCalendarProps> = ({
 
       {/* Informations sur les épisodes */}
       {selectedPollutant && episodes.length > 0 && (
-        <div className="px-3 py-2 bg-gray-50 border-t border-gray-200 text-xs text-gray-600">
-          {episodes.length} épisode{episodes.length > 1 ? "s" : ""} de pollution
-          trouvé{episodes.length > 1 ? "s" : ""} pour ce polluant
+        <div className="px-3 py-2 bg-gray-50 border-t border-gray-200">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-600">
+              {episodes.length} épisode{episodes.length > 1 ? "s" : ""} de pollution
+              trouvé{episodes.length > 1 ? "s" : ""} pour ce polluant
+            </span>
+            {lastEpisode && (
+              <button
+                type="button"
+                onClick={() => {
+                  const lastEpisodeDate = new Date(lastEpisode.date);
+                  
+                  // Naviguer vers le mois du dernier épisode
+                  setCurrentMonth(
+                    new Date(lastEpisodeDate.getFullYear(), lastEpisodeDate.getMonth(), 1)
+                  );
+                  
+                  if (onDateRangeChange) {
+                    // Sélectionner la date du dernier épisode comme date de début et de fin
+                    onDateRangeChange(lastEpisode.date, lastEpisode.date);
+                    setRangeStart(lastEpisode.date);
+                    setRangeEnd(lastEpisode.date);
+                  } else if (onDateSelect) {
+                    onDateSelect(lastEpisode.date);
+                  }
+                }}
+                className="ml-2 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors flex items-center space-x-1"
+                title={`Sélectionner le dernier épisode : ${new Date(lastEpisode.date).toLocaleDateString("fr-FR")}`}
+              >
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 7l5 5m0 0l-5 5m5-5H6"
+                  />
+                </svg>
+                <span>Dernier épisode</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
       {selectedPollutant && episodes.length === 0 && !loading && (
