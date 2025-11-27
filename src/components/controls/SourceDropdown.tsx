@@ -288,11 +288,20 @@ const CommunautaireGroupCheckbox: React.FC<{
     }
   }, [allSelected, isIndeterminate]);
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onToggle();
+    }
+  };
+
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onToggle}
-      className="w-full flex items-center pl-2 pr-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+      onKeyDown={handleKeyDown}
+      className="w-full flex items-center pl-2 pr-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#4271B3]/20 focus:ring-offset-1"
     >
       <div className="flex items-center relative">
         <div className="relative mr-3 flex-shrink-0">
@@ -310,7 +319,7 @@ const CommunautaireGroupCheckbox: React.FC<{
         </div>
         <span className="font-medium">Autres capteurs communautaires</span>
       </div>
-    </button>
+    </div>
   );
 };
 
