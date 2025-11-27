@@ -169,6 +169,10 @@ export const useSignalAir = ({
     newSize: "normal" | "fullscreen" | "hidden"
   ) => {
     setSignalAirDetailPanelSize(newSize);
+    // Réactiver le panel si on change de "hidden" à autre chose
+    if (newSize !== "hidden" && !isSignalAirDetailPanelOpen) {
+      setIsSignalAirDetailPanelOpen(true);
+    }
   };
 
   const handleCenterOnSignalAirReport = (report: SignalAirReport) => {

@@ -976,82 +976,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
           </div>
         )}
 
-        {selectedSources.includes("signalair") &&
-          !signalAir.isSignalAirPanelOpen &&
-          signalAir.userClosedSignalAirPanel && (
-          <button
-            onClick={signalAir.handleOpenSignalAirPanel}
-            className="fixed top-1/3 right-2 z-[2001] bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
-            title="Rouvrir le panneau SignalAir"
-            aria-label="Rouvrir le panneau SignalAir"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <rect
-                x="5"
-                y="4"
-                width="14"
-                height="16"
-                rx="2"
-                ry="2"
-                strokeWidth={1.5}
-              />
-              <path
-                strokeLinecap="round"
-                strokeWidth={1.5}
-                d="M9 8h6M9 12h6M9 16h3"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M16 16c1.2-1 1.2-3 0-4"
-              />
-            </svg>
-          </button>
-        )}
 
-        {selectedSources.includes("communautaire.mobileair") &&
-          !mobileAir.isMobileAirSelectionPanelOpen && (
-          <button
-            onClick={mobileAir.handleOpenMobileAirSelectionPanel}
-            className="fixed top-[45%] right-2 z-[2001] bg-green-600 text-white p-3 rounded-full shadow-lg hover:bg-green-700 transition-colors"
-            title="Rouvrir le panneau MobileAir"
-            aria-label="Rouvrir le panneau MobileAir"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <rect
-                x="5"
-                y="4"
-                width="14"
-                height="16"
-                rx="2"
-                ry="2"
-                strokeWidth={1.5}
-              />
-              <path
-                strokeLinecap="round"
-                strokeWidth={1.5}
-                d="M9 8h6M9 12h6M9 16h3"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M16 16c1.2-1 1.2-3 0-4"
-              />
-            </svg>
-          </button>
-        )}
 
         {/* Contrôles de la carte */}
         <div
@@ -1148,61 +1073,263 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
         {/* Indicateur de spiderfier actif supprimé */}
       </div>
 
-      {/* Bouton pour rouvrir le panel masqué */}
-      {(sidePanels.isSidePanelOpen || isComparisonPanelVisible) && sidePanels.panelSize === "hidden" && (
-        <button
-          onClick={() => sidePanels.handleSidePanelSizeChange("normal")}
-          className="fixed top-1/2 -translate-y-1/2 left-2 z-[2001] bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
-          title={
-            sidePanels.comparisonState.isComparisonMode
-              ? "Rouvrir le panneau de comparaison"
-              : "Rouvrir le panneau de données"
-          }
-          aria-label={
-            sidePanels.comparisonState.isComparisonMode
-              ? "Rouvrir le panneau de comparaison"
-              : "Rouvrir le panneau de données"
-          }
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5l7 7-7 7"
-            />
-          </svg>
-        </button>
-      )}
+      {/* Fonction pour obtenir l'icône SignalAir selon le type */}
+      {(() => {
+        const getSignalAirIconPath = (signalType?: string | null): string => {
+          if (!signalType) return "/markers/signalAirMarkers/odeur.png";
+          
+          const typeMap: Record<string, string> = {
+            odeur: "odeur",
+            bruit: "bruits",
+            brulage: "brulage",
+            visuel: "visuel",
+            pollen: "pollen",
+          };
+          
+          const mappedType = typeMap[signalType.toLowerCase()] || "odeur";
+          return `/markers/signalAirMarkers/${mappedType}.png`;
+        };
 
-      {/* Bouton pour rouvrir le panel MobileAir de détail masqué */}
-      {mobileAir.mobileAirRoutes.length > 0 &&
-        mobileAir.mobileAirDetailPanelSize === "hidden" && (
-        <button
-          onClick={mobileAir.handleOpenMobileAirDetailPanel}
-          className="fixed top-1/3 left-2 z-[2001] bg-green-600 text-white p-3 rounded-full shadow-lg hover:bg-green-700 transition-colors"
-          title="Rouvrir le panneau MobileAir"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M13 10V3L4 14h7v7l9-11h-7z"
-            />
-          </svg>
-        </button>
-      )}
+        // Calculer quels boutons doivent être affichés
+        const buttons: Array<{ key: string; element: JSX.Element }> = [];
+        const spacing = 60; // Espacement entre les boutons
+
+        // Bouton pour rouvrir le panel de station masqué
+        if ((sidePanels.isSidePanelOpen || isComparisonPanelVisible) && 
+            sidePanels.panelSize === "hidden") {
+          buttons.push({
+            key: "station-panel",
+            element: (
+              <button
+                key="station-panel"
+                onClick={() => sidePanels.handleSidePanelSizeChange("normal")}
+                className="bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
+                title={
+                  sidePanels.comparisonState.isComparisonMode
+                    ? "Rouvrir le panneau de comparaison"
+                    : "Rouvrir le panneau de données"
+                }
+                aria-label={
+                  sidePanels.comparisonState.isComparisonMode
+                    ? "Rouvrir le panneau de comparaison"
+                    : "Rouvrir le panneau de données"
+                }
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                  />
+                </svg>
+              </button>
+            ),
+          });
+        }
+
+        // Bouton pour rouvrir le panel SignalAir masqué
+        if (signalAir.isSignalAirDetailPanelOpen &&
+            signalAir.signalAirDetailPanelSize === "hidden" &&
+            signalAir.selectedSignalAirReport) {
+          buttons.push({
+            key: "signalair-panel",
+            element: (
+              <button
+                key="signalair-panel"
+                onClick={() => signalAir.handleSignalAirDetailPanelSizeChange("normal")}
+                className="bg-white p-2 rounded-full shadow-lg hover:bg-gray-100 transition-colors border-2 border-gray-300"
+                title="Rouvrir le panneau SignalAir"
+                aria-label="Rouvrir le panneau SignalAir"
+              >
+                <img
+                  src={getSignalAirIconPath(signalAir.selectedSignalAirReport.signalType)}
+                  alt={`Type: ${signalAir.selectedSignalAirReport.signalType || "signalement"}`}
+                  className="w-6 h-6"
+                  onError={(e) => {
+                    // Fallback vers une icône par défaut si l'image ne charge pas
+                    (e.target as HTMLImageElement).src = "/markers/signalAirMarkers/odeur.png";
+                  }}
+                />
+              </button>
+            ),
+          });
+        }
+
+        // Bouton pour rouvrir le panel MobileAir de détail masqué
+        if (mobileAir.mobileAirRoutes.length > 0 &&
+            mobileAir.mobileAirDetailPanelSize === "hidden") {
+          buttons.push({
+            key: "mobileair-detail-panel",
+            element: (
+              <button
+                key="mobileair-detail-panel"
+                onClick={mobileAir.handleOpenMobileAirDetailPanel}
+                className="bg-green-600 text-white p-3 rounded-full shadow-lg hover:bg-green-700 transition-colors"
+                title="Rouvrir le panneau MobileAir (détail)"
+                aria-label="Rouvrir le panneau MobileAir (détail)"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
+                </svg>
+              </button>
+            ),
+          });
+        }
+
+        // Bouton pour rouvrir le panel MobileAir Selection masqué
+        // Afficher si la source est sélectionnée ET que le panel n'est pas visible
+        if (selectedSources.includes("communautaire.mobileair") &&
+            (!mobileAir.isMobileAirSelectionPanelOpen || 
+             mobileAir.mobileAirSelectionPanelSize === "hidden")) {
+          buttons.push({
+            key: "mobileair-selection-panel",
+            element: (
+              <button
+                key="mobileair-selection-panel"
+                onClick={() => {
+                  // Si le panel n'est pas ouvert, l'ouvrir d'abord
+                  if (!mobileAir.isMobileAirSelectionPanelOpen) {
+                    mobileAir.handleOpenMobileAirSelectionPanel();
+                  }
+                  // Ensuite changer la taille à normal
+                  mobileAir.handleMobileAirSelectionPanelSizeChange("normal");
+                }}
+                className="bg-green-600 text-white p-3 rounded-full shadow-lg hover:bg-green-700 transition-colors"
+                title="Rouvrir le panneau de sélection MobileAir"
+                aria-label="Rouvrir le panneau de sélection MobileAir"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <rect
+                    x="5"
+                    y="4"
+                    width="14"
+                    height="16"
+                    rx="2"
+                    ry="2"
+                    strokeWidth={1.5}
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeWidth={1.5}
+                    d="M9 8h6M9 12h6M9 16h3"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M16 16c1.2-1 1.2-3 0-4"
+                  />
+                </svg>
+              </button>
+            ),
+          });
+        }
+
+        // Bouton pour rouvrir le panel SignalAir Selection masqué
+        // Afficher si la source est sélectionnée ET que le panel n'est pas visible
+        if (selectedSources.includes("signalair") &&
+            (!signalAir.isSignalAirPanelOpen || 
+             signalAir.signalAirPanelSize === "hidden")) {
+          buttons.push({
+            key: "signalair-selection-panel",
+            element: (
+              <button
+                key="signalair-selection-panel"
+                onClick={() => {
+                  // Si le panel n'est pas ouvert, l'ouvrir d'abord
+                  if (!signalAir.isSignalAirPanelOpen) {
+                    signalAir.handleOpenSignalAirPanel();
+                  }
+                  // Ensuite changer la taille à normal
+                  signalAir.handleSignalAirPanelSizeChange("normal");
+                }}
+                className="bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
+                title="Rouvrir le panneau de sélection SignalAir"
+                aria-label="Rouvrir le panneau de sélection SignalAir"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <rect
+                    x="5"
+                    y="4"
+                    width="14"
+                    height="16"
+                    rx="2"
+                    ry="2"
+                    strokeWidth={1.5}
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeWidth={1.5}
+                    d="M9 8h6M9 12h6M9 16h3"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M16 16c1.2-1 1.2-3 0-4"
+                  />
+                </svg>
+              </button>
+            ),
+          });
+        }
+
+        // Calculer les positions maintenant qu'on connaît le nombre total de boutons
+        const totalButtons = buttons.length;
+        if (totalButtons === 0) return null;
+
+        return (
+          <>
+            {buttons.map((btn, index) => {
+              // Calculer l'offset depuis le centre vertical
+              // Si 1 bouton: index 0, offset 0 (centré)
+              // Si 2 boutons: index 0 offset -spacing/2, index 1 offset +spacing/2
+              // Si 3 boutons: index 0 offset -spacing, index 1 offset 0, index 2 offset +spacing
+              const centerIndex = (totalButtons - 1) / 2;
+              const offset = (index - centerIndex) * spacing;
+              
+              return (
+                <div
+                  key={btn.key}
+                  className="fixed left-2 z-[2001]"
+                  style={{
+                    top: "50%",
+                    transform: `translateY(calc(-50% + ${offset}px))`,
+                  }}
+                >
+                  {btn.element}
+                </div>
+              );
+            })}
+          </>
+        );
+      })()}
 
     </div>
   );
