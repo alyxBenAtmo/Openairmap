@@ -277,8 +277,8 @@ const HistoricalControlPanel: React.FC<
                     controls.onStartDateChange(startDate);
                     controls.onEndDateChange(endDate);
                   }}
-                  maxDateRange={maxDateRange}
-                />
+                maxDateRange={maxDateRange}
+              />
               </div>
 
               {/* État de chargement */}

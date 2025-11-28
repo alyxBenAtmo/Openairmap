@@ -6,12 +6,13 @@ export interface PollutionEpisode {
   polluant_libelle: string;
   zone: string;
   zone_libelle: string;
-  niveau_code: number;
-  niveau_libelle: string;
+  niveau: number; // 1 = Information-recommandation, 2 = Alerte
+  niveau_code: string; // "IR" pour Information-recommandation, "A" pour Alerte
+  niveau_libelle: string; // "Information-recommandation", "Alerte niveau 1", "Alerte niveau 2"
 }
 
 export class PollutionEpisodeService {
-  private readonly API_URL = "https://api.atmosud.org/episodes/obs/liste";
+  private readonly API_URL = "https://api.atmosud.org/episodes/liste";
   private episodesCache: PollutionEpisode[] | null = null;
   private lastFetchTime: number = 0;
   private readonly CACHE_DURATION = 60 * 60 * 1000; // 1 heure en millisecondes
@@ -141,12 +142,14 @@ export class PollutionEpisodeService {
    */
   getHighestLevelForDate(
     episodes: PollutionEpisode[]
-  ): { niveau_code: number; niveau_libelle: string } | null {
+  ): { niveau: number; niveau_code: string; niveau_libelle: string } | null {
     if (episodes.length === 0) return null;
 
-    // niveau_code: 1 = Information-recommandation, 2 = Alerte
-    const sorted = [...episodes].sort((a, b) => b.niveau_code - a.niveau_code);
+    // niveau: 1 = Information-recommandation, 2 = Alerte
+    // Trier par niveau décroissant (2 > 1)
+    const sorted = [...episodes].sort((a, b) => b.niveau - a.niveau);
     return {
+      niveau: sorted[0].niveau,
       niveau_code: sorted[0].niveau_code,
       niveau_libelle: sorted[0].niveau_libelle,
     };

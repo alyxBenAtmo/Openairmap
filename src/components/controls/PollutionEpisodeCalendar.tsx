@@ -134,7 +134,8 @@ const PollutionEpisodeCalendar: React.FC<PollutionEpisodeCalendarProps> = ({
 
   // Obtenir le niveau d'alerte pour une date
   const getEpisodeLevel = (dateKey: string): {
-    niveau_code: number;
+    niveau: number;
+    niveau_code: string;
     niveau_libelle: string;
   } | null => {
     const dateEpisodes = episodesByDate.get(dateKey);
@@ -159,10 +160,10 @@ const PollutionEpisodeCalendar: React.FC<PollutionEpisodeCalendarProps> = ({
   };
 
   // Obtenir la couleur selon le niveau
-  const getLevelColor = (niveau_code: number | null): string => {
-    if (niveau_code === null) return "";
-    if (niveau_code === 2) return "bg-red-500/70 text-white"; // Alerte avec opacité
-    if (niveau_code === 1) return "bg-orange-400/70 text-white"; // Information-recommandation avec opacité
+  const getLevelColor = (niveau: number | null): string => {
+    if (niveau === null) return "";
+    if (niveau === 2) return "bg-red-500/70 text-white"; // Alerte avec opacité
+    if (niveau === 1) return "bg-orange-400/70 text-white"; // Information-recommandation avec opacité
     return "";
   };
 
@@ -413,7 +414,7 @@ const PollutionEpisodeCalendar: React.FC<PollutionEpisodeCalendarProps> = ({
           {days.map((day, index) => {
             const dateKey = formatDateKey(day);
             const episodeLevel = getEpisodeLevel(dateKey);
-            const levelColor = getLevelColor(episodeLevel?.niveau_code || null);
+            const levelColor = getLevelColor(episodeLevel?.niveau || null);
             const inRange = isInRange(dateKey);
             const isBoundary = isRangeBoundary(dateKey);
             const isCurrentMonthDay = isCurrentMonth(day);
@@ -470,7 +471,7 @@ const PollutionEpisodeCalendar: React.FC<PollutionEpisodeCalendarProps> = ({
                 {episodeLevel && (
                   <div
                     className={`absolute bottom-0.5 left-1/2 transform -translate-x-1/2 w-1 h-1 rounded-full ${
-                      episodeLevel.niveau_code === 2
+                      episodeLevel.niveau === 2
                         ? "bg-red-700/70"
                         : "bg-orange-600/70"
                     }`}
