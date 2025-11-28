@@ -61,6 +61,19 @@ const MobileAirRoutes: React.FC<MobileAirRoutesProps> = memo(
     };
     // Utiliser les fonctions centralisées pour la cohérence avec la légende
 
+    // Fonction pour forcer les valeurs négatives à 0
+    // Les concentrations de polluants ne peuvent pas être négatives
+    const ensureNonNegativeValue = (value: number | undefined | null): number | undefined => {
+      // Retourner undefined/null si la valeur n'est pas définie
+      if (value === undefined || value === null) return undefined;
+      // Vérifier que c'est un nombre valide et forcer les négatives à 0
+      if (typeof value === "number" && !isNaN(value)) {
+        return Math.max(0, value);
+      }
+      // Si ce n'est pas un nombre valide, retourner undefined
+      return undefined;
+    };
+
     // Fonction pour créer des segments colorés pour un parcours
     const createColoredSegments = (route: MobileAirRoute) => {
       const segments: Array<{
@@ -82,13 +95,15 @@ const MobileAirRoutes: React.FC<MobileAirRoutesProps> = memo(
 
         // Obtenir la valeur du polluant pour le point actuel
         const pollutantKey = getPollutantKey(selectedPollutant);
-        const value = currentPoint[
+        const rawValue = currentPoint[
           pollutantKey as keyof typeof currentPoint
         ] as number;
 
-        if (value != null && !isNaN(value)) {
-          const color = getQualityColor(value, selectedPollutant, pollutants);
-          const quality = getQualityLevel(value, selectedPollutant, pollutants);
+        // Forcer les valeurs négatives à 0 avant de calculer les couleurs
+        const correctedValue = ensureNonNegativeValue(rawValue);
+        if (correctedValue !== undefined) {
+          const color = getQualityColor(correctedValue, selectedPollutant, pollutants);
+          const quality = getQualityLevel(correctedValue, selectedPollutant, pollutants);
 
           segments.push({
             positions: [
@@ -97,7 +112,7 @@ const MobileAirRoutes: React.FC<MobileAirRoutesProps> = memo(
             ],
             color,
             quality,
-            value,
+            value: correctedValue,
           });
         }
       }
@@ -161,16 +176,18 @@ const MobileAirRoutes: React.FC<MobileAirRoutesProps> = memo(
               {/* Points cliquables */}
               {route.points.map((point, index) => {
                 const pollutantKey = getPollutantKey(selectedPollutant);
-                const value = point[
+                const rawValue = point[
                   pollutantKey as keyof MobileAirDataPoint
                 ] as number;
+                // Forcer les valeurs négatives à 0 avant de calculer les couleurs
+                const correctedValue = ensureNonNegativeValue(rawValue) || 0;
                 const color = getQualityColor(
-                  value || 0,
+                  correctedValue,
                   selectedPollutant,
                   pollutants
                 );
                 const quality = getQualityLevel(
-                  value || 0,
+                  correctedValue,
                   selectedPollutant,
                   pollutants
                 );

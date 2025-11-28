@@ -133,44 +133,60 @@ export const createCustomIcon = (
   const valueText = document.createElement("div");
   valueText.className = "value-text";
 
+  // Fonction pour forcer les valeurs négatives à 0
+  // Les concentrations de polluants ne peuvent pas être négatives
+  const ensureNonNegativeValue = (value: number | undefined | null): number | undefined => {
+    // Retourner undefined/null si la valeur n'est pas définie
+    if (value === undefined || value === null) return undefined;
+    // Vérifier que c'est un nombre valide et forcer les négatives à 0
+    if (typeof value === "number" && !isNaN(value)) {
+      return Math.max(0, value);
+    }
+    // Si ce n'est pas un nombre valide, retourner undefined
+    return undefined;
+  };
+
   // Gestion normale pour les appareils de mesure
-  if (device.status === "active" && device.value >= 0) {
-    const displayValue = Math.round(device.value);
-    valueText.textContent = displayValue.toString();
+  // Forcer les valeurs négatives à 0 avant l'affichage
+  if (device.status === "active") {
+    const correctedValue = ensureNonNegativeValue(device.value);
+    if (correctedValue !== undefined) {
+      const displayValue = Math.round(correctedValue);
+      valueText.textContent = displayValue.toString();
 
-    // Ajuster la taille du texte selon la longueur de la valeur
-    if (displayValue >= 1000) {
-      valueText.style.fontSize = "10px";
-    } else if (displayValue >= 100) {
-      valueText.style.fontSize = "12px"; // Police plus petite pour les valeurs à 3 chiffres
-    } else if (displayValue >= 10) {
-      valueText.style.fontSize = "16px"; // Police moyenne pour les valeurs à 2 chiffres
-    } else {
-      valueText.style.fontSize = "18px"; // Police normale pour les valeurs à 1 chiffre
-    }
+      // Ajuster la taille du texte selon la longueur de la valeur
+      if (displayValue >= 1000) {
+        valueText.style.fontSize = "10px";
+      } else if (displayValue >= 100) {
+        valueText.style.fontSize = "12px"; // Police plus petite pour les valeurs à 3 chiffres
+      } else if (displayValue >= 10) {
+        valueText.style.fontSize = "16px"; // Police moyenne pour les valeurs à 2 chiffres
+      } else {
+        valueText.style.fontSize = "18px"; // Police normale pour les valeurs à 1 chiffre
+      }
 
-    // Couleur du texte selon le niveau de qualité
-    const textColors: Record<string, string> = {
-      bon: "#000000",
-      moyen: "#000000",
-      degrade: "#000000",
-      mauvais: "#000000", // Noir au lieu de blanc pour les marqueurs rouges
-      tresMauvais: "#F2F2F2", // Noir au lieu de blanc pour les marqueurs rouges
-      extrMauvais: "#F2F2F2",
-      default: "#666666",
-    };
+      // Couleur du texte selon le niveau de qualité
+      const textColors: Record<string, string> = {
+        bon: "#000000",
+        moyen: "#000000",
+        degrade: "#000000",
+        mauvais: "#000000", // Noir au lieu de blanc pour les marqueurs rouges
+        tresMauvais: "#F2F2F2", // Noir au lieu de blanc pour les marqueurs rouges
+        extrMauvais: "#F2F2F2",
+        default: "#666666",
+      };
 
-    valueText.style.color = textColors[qualityLevel] || "#000000";
+      valueText.style.color = textColors[qualityLevel] || "#000000";
 
-    // Ajouter un contour blanc pour améliorer la lisibilité
-    if (qualityLevel == "extrMauvais" || qualityLevel == "tresMauvais") {
-      // Contour plus subtil pour éviter l'effet de "paté"
-      valueText.style.textShadow =
-        "1px 1px 2px rgba(0, 0, 0, 0.8), -1px -1px 2px rgba(0, 0, 0, 0.8)";
-    }
+      // Ajouter un contour blanc pour améliorer la lisibilité
+      if (qualityLevel == "extrMauvais" || qualityLevel == "tresMauvais") {
+        // Contour plus subtil pour éviter l'effet de "paté"
+        valueText.style.textShadow =
+          "1px 1px 2px rgba(0, 0, 0, 0.8), -1px -1px 2px rgba(0, 0, 0, 0.8)";
+      }
 
-    // Indicateur de valeur corrigée pour AtmoMicro
-    if (device.source === "atmoMicro" && device.has_correction) {
+      // Indicateur de valeur corrigée pour AtmoMicro
+      if (device.source === "atmoMicro" && device.has_correction) {
       // Ajouter un indicateur visuel pour les données consolidées
       const correctionIndicator = document.createElement("div");
       correctionIndicator.style.cssText = `
@@ -197,6 +213,7 @@ export const createCustomIcon = (
       `;
 
       div.appendChild(correctionIndicator);
+      }
     }
   }
 

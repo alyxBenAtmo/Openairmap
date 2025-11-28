@@ -306,6 +306,19 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     return unitMap[unit] || unit;
   };
 
+  // Fonction pour forcer les valeurs négatives à 0
+  // Les concentrations de polluants ne peuvent pas être négatives
+  const ensureNonNegativeValue = (value: number | undefined | null): number | undefined => {
+    // Retourner undefined/null si la valeur n'est pas définie
+    if (value === undefined || value === null) return undefined;
+    // Vérifier que c'est un nombre valide et forcer les négatives à 0
+    if (typeof value === "number" && !isNaN(value)) {
+      return Math.max(0, value);
+    }
+    // Si ce n'est pas un nombre valide, retourner undefined
+    return undefined;
+  };
+
   // Fonction pour vérifier si deux seuils sont identiques
   const areThresholdsEqual = (thresholds1: any, thresholds2: any): boolean => {
     if (!thresholds1 || !thresholds2) return false;
@@ -437,7 +450,8 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
               );
               if (dataPoint) {
                 // Utiliser l'ID de la station comme clé
-                point[station.id] = dataPoint.value;
+                // Forcer les valeurs négatives à 0 (les concentrations ne peuvent pas être négatives)
+                point[station.id] = ensureNonNegativeValue(dataPoint.value);
 
                 // Stocker l'unité pour cette station
                 let unit = dataPoint.unit;
@@ -550,13 +564,15 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
           });
           if (dataPoint) {
             // Valeur corrigée si disponible
+            // Forcer les valeurs négatives à 0 (les concentrations ne peuvent pas être négatives)
             if (dataPoint.corrected_value !== undefined) {
-              point[`${pollutant}_corrected`] = dataPoint.corrected_value;
+              point[`${pollutant}_corrected`] = ensureNonNegativeValue(dataPoint.corrected_value);
             }
 
             // Valeur brute
+            // Forcer les valeurs négatives à 0 (les concentrations ne peuvent pas être négatives)
             if (dataPoint.raw_value !== undefined) {
-              point[`${pollutant}_raw`] = dataPoint.raw_value;
+              point[`${pollutant}_raw`] = ensureNonNegativeValue(dataPoint.raw_value);
             }
 
             // Valeur principale : pour AtmoMicro avec données corrigées, utiliser _corrected
@@ -564,13 +580,15 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
             if (source === "atmoMicro") {
               // Pour AtmoMicro, utiliser _raw comme valeur principale si pas de données corrigées
               if (dataPoint.corrected_value === undefined) {
-                point[`${pollutant}_raw`] = dataPoint.value;
+                // Forcer les valeurs négatives à 0 (les concentrations ne peuvent pas être négatives)
+                point[`${pollutant}_raw`] = ensureNonNegativeValue(dataPoint.value);
               }
               // Si corrected_value existe, il est déjà assigné ci-dessus
             } else {
               // Pour toutes les autres sources (AtmoRef, etc.), utiliser la clé principale
               // Toujours assigner la valeur principale, même si corrected_value existe
-              point[pollutant] = dataPoint.value;
+              // Forcer les valeurs négatives à 0 (les concentrations ne peuvent pas être négatives)
+              point[pollutant] = ensureNonNegativeValue(dataPoint.value);
             }
 
             // Stocker l'unité pour ce polluant
