@@ -257,6 +257,18 @@ Chaque source de données dispose de son propre panneau latéral avec des foncti
 ```
 src/
 ├── components/          # Composants React
+│   ├── charts/         # Composants de graphiques amCharts
+│   │   ├── HistoricalChart.tsx       # Graphique historique principal
+│   │   ├── ExportMenu.tsx            # Menu d'export (PNG/CSV)
+│   │   ├── AmChartsLineChart.tsx     # Wrapper générique amCharts
+│   │   ├── hooks/                    # Hooks spécifiques aux graphiques
+│   │   │   ├── useAmChartsChart.ts   # Gestion création/mise à jour graphique
+│   │   │   └── useHistoricalChartData.ts # Transformation des données
+│   │   └── utils/                    # Utilitaires pour les graphiques
+│   │       ├── amChartsHelpers.ts    # Fonctions utilitaires amCharts
+│   │       ├── historicalChartConfig.ts # Configuration séries/formatage
+│   │       ├── historicalChartDataTransformers.ts # Transformations données
+│   │       └── historicalChartUtils.ts # Utilitaires généraux
 │   ├── controls/       # Composants de contrôle (menus)
 │   │   ├── PollutantDropdown.tsx
 │   │   ├── SourceDropdown.tsx
@@ -267,22 +279,10 @@ src/
 │   │   ├── ClusterControl.tsx
 │   │   ├── AutoRefreshControl.tsx
 │   │   └── HistoricalTimeRangeSelector.tsx
-│   ├── map/           # Composants de carte et side panels
+│   ├── map/           # Composants de carte Leaflet uniquement
 │   │   ├── AirQualityMap.tsx
 │   │   ├── Legend.tsx
-│   │   ├── HistoricalChart.tsx
-│   │   ├── ComparisonSidePanel.tsx    # Panneau de comparaison
-│   │   ├── StationSidePanel.tsx      # AtmoRef
-│   │   ├── MicroSidePanel.tsx        # AtmoMicro
-│   │   ├── NebuleAirSidePanel.tsx    # NebuleAir
-│   │   ├── PurpleAirSidePanel.tsx    # PurpleAir
-│   │   ├── SensorCommunitySidePanel.tsx # SensorCommunity
-│   │   ├── MobileAirSidePanel.tsx    # MobileAir sélection
-│   │   ├── MobileAirSelectionPanel.tsx # MobileAir visualisation
-│   │   ├── MobileAirDetailPanel.tsx  # MobileAir détails
-│   │   ├── MobileAirRoutes.tsx       # MobileAir routes
-│   │   ├── SignalAirDetailPanel.tsx # SignalAir détails
-│   │   ├── SignalAirSelectionPanel.tsx # SignalAir sélection
+│   │   ├── MobileAirRoutes.tsx       # Routes MobileAir
 │   │   ├── CustomSpiderfiedMarkers.tsx # Marqueurs spiderfiés
 │   │   ├── SpiderfiedMarkers.tsx     # Marqueurs spiderfiés (legacy)
 │   │   ├── SearchControlDemo.tsx     # Contrôle de recherche
@@ -299,7 +299,21 @@ src/
 │   │   │   └── mapMarkerUtils.ts     # Utilitaires pour les marqueurs
 │   │   └── handlers/                 # Handlers pour la carte
 │   │       └── comparisonHandlers.ts # Handlers pour le mode comparaison
-│   └── App.tsx        # Composant principal
+│   ├── panels/         # Panneaux latéraux (SidePanels)
+│   │   ├── StationSidePanel.tsx      # AtmoRef
+│   │   ├── MicroSidePanel.tsx        # AtmoMicro
+│   │   ├── ComparisonSidePanel.tsx   # Panneau de comparaison
+│   │   ├── NebuleAirSidePanel.tsx    # NebuleAir
+│   │   ├── PurpleAirSidePanel.tsx    # PurpleAir
+│   │   ├── SensorCommunitySidePanel.tsx # SensorCommunity
+│   │   ├── MobileAirSidePanel.tsx    # MobileAir sélection
+│   │   ├── MobileAirSelectionPanel.tsx # MobileAir visualisation
+│   │   ├── MobileAirDetailPanel.tsx  # MobileAir détails
+│   │   ├── SignalAirDetailPanel.tsx  # SignalAir détails
+│   │   ├── SignalAirSelectionPanel.tsx # SignalAir sélection
+│   │   └── index.ts                   # Exports des panels
+│   ├── modals/         # Modales
+│   └── ui/             # Composants UI réutilisables
 ├── services/          # Services de données
 │   ├── BaseDataService.ts
 │   ├── AtmoRefService.ts
@@ -699,7 +713,8 @@ Tous les panneaux latéraux partagent des fonctionnalités communes :
 
 ### **Graphiques et Visualisation**
 
-- **Recharts 3.0.0** : Graphiques pour les données historiques
+- **@amcharts/amcharts5** : Bibliothèque de graphiques amCharts 5
+- **amcharts5/themes/Animated** : Thème animé pour amCharts
 
 ### **Développement et Tests**
 
