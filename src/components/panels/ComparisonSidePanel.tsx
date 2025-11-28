@@ -8,7 +8,7 @@ import {
 import { pollutants } from "../../constants/pollutants";
 import { AtmoRefService } from "../../services/AtmoRefService";
 import { AtmoMicroService } from "../../services/AtmoMicroService";
-import HistoricalChart from "./HistoricalChart";
+import HistoricalChart from "../charts/HistoricalChart";
 import HistoricalTimeRangeSelector, {
   TimeRange,
   getMaxHistoryDays,

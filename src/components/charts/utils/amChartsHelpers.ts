@@ -1,0 +1,275 @@
+/**
+ * Fonctions utilitaires pour créer et configurer les éléments amCharts
+ */
+
+import * as am5 from "@amcharts/amcharts5";
+import * as am5xy from "@amcharts/amcharts5/xy";
+import { pollutants } from "../../../constants/pollutants";
+import { QUALITY_COLORS } from "../../../constants/qualityColors";
+import { encodeUnit } from "./historicalChartUtils";
+import { getLuminance } from "./historicalChartUtils";
+import { SeriesConfig } from "./historicalChartConfig";
+
+/**
+ * Configure le tooltip pour une série
+ */
+export const createSeriesTooltip = (
+  root: am5.Root,
+  seriesConfig: SeriesConfig
+): am5.Tooltip => {
+  const seriesTooltip = am5.Tooltip.new(root, {
+    getFillFromSprite: false,
+    autoTextColor: false,
+  });
+  
+  const backgroundColor = seriesConfig.color;
+  const luminance = getLuminance(backgroundColor);
+  const textColor = luminance > 128 ? "#000000" : "#ffffff";
+  
+  seriesTooltip.label.set("fill", am5.color(textColor));
+  seriesTooltip.get("background")!.set("fill", am5.color(seriesConfig.color));
+  seriesTooltip.get("background")!.set("fillOpacity", 0.9);
+  seriesTooltip.get("background")!.set("stroke", am5.color(seriesConfig.color));
+  seriesTooltip.get("background")!.set("strokeWidth", 1);
+  
+  seriesTooltip.label.adapters.add("text", (text, target) => {
+    const dataItem = target.dataItem;
+    if (!dataItem) return text || "";
+
+    const data = (dataItem as any).dataContext as any;
+    const value = data?.[seriesConfig.dataKey];
+    
+    // Formater la date
+    let dateStr = "";
+    if (data?.timestamp) {
+      const timestampValue = data.timestamp;
+      const date = typeof timestampValue === "number" ? new Date(timestampValue) : new Date(timestampValue);
+      if (!isNaN(date.getTime())) {
+        dateStr = date.toLocaleString("fr-FR", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+    }
+    
+    // Obtenir le nom du polluant
+    const pollutantKey = seriesConfig.dataKey.replace(/_corrected$|_raw$/, "");
+    const pollutantName = pollutants[pollutantKey]?.name || seriesConfig.name;
+    
+    // Obtenir l'unité
+    let unit = data?.[`${pollutantKey}_unit`] || "";
+    if (!unit && pollutants[pollutantKey]) {
+      unit = pollutants[pollutantKey].unit;
+    }
+    const encodedUnit = encodeUnit(unit);
+    
+    // Construire le texte du tooltip
+    let tooltipText = "";
+    if (dateStr) {
+      tooltipText += `${dateStr}\n`;
+    }
+    tooltipText += `${pollutantName}: ${typeof value === "number" ? value.toFixed(1) : value} ${encodedUnit}`;
+    
+    return tooltipText;
+  });
+  
+  return seriesTooltip;
+};
+
+/**
+ * Crée une série de ligne pour amCharts
+ */
+export const createLineSeries = (
+  root: am5.Root,
+  chart: am5xy.XYChart,
+  xAxis: am5xy.DateAxis<am5xy.AxisRendererX>,
+  yAxis: am5xy.ValueAxis<am5xy.AxisRendererY>,
+  seriesConfig: SeriesConfig,
+  amChartsData: any[]
+): am5xy.LineSeries => {
+  const lineSeries = chart.series.push(
+    am5xy.LineSeries.new(root, {
+      name: seriesConfig.name,
+      xAxis: xAxis,
+      yAxis: yAxis,
+      valueYField: seriesConfig.dataKey,
+      valueXField: "timestamp",
+      stroke: am5.color(seriesConfig.color),
+      visible: true,
+    })
+  );
+
+  // Configurer l'épaisseur et le style de ligne
+  lineSeries.strokes.template.set("strokeWidth", seriesConfig.strokeWidth);
+  if (seriesConfig.strokeDasharray !== "0") {
+    const dashArray = seriesConfig.strokeDasharray
+      .split(" ")
+      .map((d) => parseFloat(d))
+      .filter((d) => !isNaN(d));
+    if (dashArray.length > 0) {
+      lineSeries.strokes.template.set("strokeDasharray", dashArray);
+    }
+  }
+
+  // Configurer connectNulls
+  if (seriesConfig.connectNulls) {
+    lineSeries.set("connect", true);
+  }
+
+  // Configurer le tooltip
+  const seriesTooltip = createSeriesTooltip(root, seriesConfig);
+  lineSeries.set("tooltip", seriesTooltip);
+
+  // Ajouter des bullets invisibles pour l'interaction
+  lineSeries.bullets.push((root, series, dataItem) => {
+    const circle = am5.Circle.new(root, {
+      radius: 3,
+      fill: am5.color(seriesConfig.color),
+      fillOpacity: 0,
+      strokeOpacity: 0,
+    });
+    
+    return am5.Bullet.new(root, {
+      sprite: circle,
+    });
+  });
+
+  // Ajouter les données
+  lineSeries.data.setAll(amChartsData);
+
+  return lineSeries;
+};
+
+/**
+ * Ajoute les zones de seuils aux axes Y
+ */
+export const addThresholdZones = (
+  yAxisMap: Map<string, am5xy.ValueAxis<am5xy.AxisRendererY>>,
+  thresholds: any
+): void => {
+  const levels = [
+    { key: "bon", color: QUALITY_COLORS.bon },
+    { key: "moyen", color: QUALITY_COLORS.moyen },
+    { key: "degrade", color: QUALITY_COLORS.degrade },
+    { key: "mauvais", color: QUALITY_COLORS.mauvais },
+    { key: "tresMauvais", color: QUALITY_COLORS.tresMauvais },
+    { key: "extrMauvais", color: QUALITY_COLORS.extrMauvais },
+  ];
+
+  yAxisMap.forEach((yAxis) => {
+    levels.forEach((level) => {
+      const threshold = thresholds[level.key as keyof typeof thresholds];
+      if (threshold) {
+        const range = yAxis.createAxisRange(yAxis.makeDataItem({
+          value: threshold.min,
+          endValue: threshold.max,
+        }));
+
+        range.get("axisFill")!.setAll({
+          fill: am5.color(level.color),
+          fillOpacity: 0.4,
+          visible: true,
+        });
+      }
+    });
+  });
+};
+
+/**
+ * Configure la légende du graphique
+ */
+export const setupLegend = (
+  root: am5.Root,
+  chart: am5xy.XYChart,
+  seriesConfigs: SeriesConfig[],
+  isMobile: boolean
+): am5.Legend => {
+  const legend = chart.children.push(
+    am5.Legend.new(root, {
+      centerX: am5.p50,
+      x: am5.p50,
+      marginTop: isMobile ? 2 : 8,
+      marginBottom: 0,
+      marginLeft: isMobile ? 0 : 8,
+      marginRight: isMobile ? 0 : 8,
+    })
+  );
+
+  // Personnaliser les items de la légende
+  legend.labels.template.setAll({
+    fontSize: isMobile ? 9 : 12,
+  });
+
+  legend.markers.template.setAll({
+    width: isMobile ? 10 : 12,
+    height: isMobile ? 10 : 12,
+  });
+
+  // Créer des marqueurs personnalisés avec styles (plein/discontinu)
+  legend.markers.template.adapters.add("strokeDasharray" as any, (strokeDasharray: any, target: any) => {
+    const dataItem = target.dataItem;
+    if (dataItem) {
+      const series = dataItem.dataContext as am5xy.LineSeries;
+      if (series) {
+        const seriesName = series.get("name");
+        const seriesConfig = seriesConfigs.find((s) => s.name === seriesName);
+        if (seriesConfig) {
+          return seriesConfig.strokeDasharray !== "0" ? [3, 3] : undefined;
+        }
+      }
+    }
+    return strokeDasharray;
+  });
+
+  // Adapter pour la couleur des marqueurs de la légende
+  legend.markers.template.adapters.add("stroke" as any, (stroke: any, target: any) => {
+    const dataItem = target.dataItem;
+    if (dataItem) {
+      const series = dataItem.dataContext as am5xy.LineSeries;
+      if (series) {
+        const seriesStroke = series.get("stroke");
+        if (seriesStroke) {
+          return seriesStroke;
+        }
+      }
+    }
+    return stroke;
+  });
+
+  legend.markers.template.adapters.add("fill" as any, (fill: any, target: any) => {
+    const dataItem = target.dataItem;
+    if (dataItem) {
+      const series = dataItem.dataContext as am5xy.LineSeries;
+      if (series) {
+        const seriesStroke = series.get("stroke");
+        if (seriesStroke) {
+          return seriesStroke;
+        }
+      }
+    }
+    return fill;
+  });
+
+  legend.data.setAll(chart.series.values);
+
+  // Gérer le clic sur la légende pour masquer/afficher les séries
+  legend.itemContainers.template.events.on("click", (ev) => {
+    const dataItem = ev.target.dataItem;
+    if (dataItem) {
+      const series = dataItem.dataContext as am5xy.LineSeries;
+      if (series) {
+        if (series.isHidden()) {
+          series.show();
+        } else {
+          series.hide();
+        }
+      }
+    }
+  });
+
+  return legend;
+};
+

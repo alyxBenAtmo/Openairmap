@@ -12,5 +12,5 @@ export { default as TemporalPlaybackControls } from "./controls/TemporalPlayback
 export { default as TemporalSpeedSelector } from "./controls/TemporalSpeedSelector";
 export { default as MobileMenuBurger } from "./controls/MobileMenuBurger";
 export { default as AirQualityMap } from "./map/AirQualityMap";
-export { default as StationSidePanel } from "./map/StationSidePanel";
+export { default as StationSidePanel } from "./panels/StationSidePanel";
 export { default as InformationModal } from "./modals/InformationModal";

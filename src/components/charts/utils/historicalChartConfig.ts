@@ -1,0 +1,291 @@
+/**
+ * Configuration pour HistoricalChart (séries, formatage, seuils)
+ */
+
+import { pollutants } from "../../../constants/pollutants";
+import { QUALITY_COLORS } from "../../../constants/qualityColors";
+import { areThresholdsEqual } from "./historicalChartUtils";
+import { getPollutantColor } from "./historicalChartUtils";
+
+export interface SeriesConfig {
+  dataKey: string;
+  name: string;
+  color: string;
+  strokeWidth: number;
+  strokeDasharray: string;
+  yAxisId: "left" | "right";
+  connectNulls: boolean;
+}
+
+/**
+ * Obtient les seuils communs des polluants sélectionnés
+ */
+export const getCommonThresholds = (
+  selectedPollutants: string[],
+  source: string,
+  stations: any[]
+): any | null => {
+  if (selectedPollutants.length === 0) return null;
+
+  // En mode comparaison, on a un seul polluant
+  const pollutantsToCheck = source === "comparison" && stations.length > 0
+    ? [selectedPollutants[0]]
+    : selectedPollutants;
+
+  // Récupérer les seuils du premier polluant
+  const firstPollutant = pollutantsToCheck[0];
+  const firstThresholds = pollutants[firstPollutant]?.thresholds;
+  if (!firstThresholds) return null;
+
+  // Vérifier si tous les polluants ont les mêmes seuils
+  const allHaveSameThresholds = pollutantsToCheck.every(pollutant => {
+    const pollutantThresholds = pollutants[pollutant]?.thresholds;
+    return pollutantThresholds && areThresholdsEqual(firstThresholds, pollutantThresholds);
+  });
+
+  return allHaveSameThresholds ? firstThresholds : null;
+};
+
+/**
+ * Détermine le format optimal pour les labels de l'axe X selon la plage de dates
+ */
+export const getXAxisDateFormat = (
+  chartData: any[],
+  isMobile: boolean
+): { type: string; format: (date: Date) => string } => {
+  if (chartData.length === 0) {
+    return { type: 'hour', format: (date: Date) => date.toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit" }) };
+  }
+
+  // Récupérer les dates min et max
+  const dates = chartData
+    .map((point: any) => {
+      const timestamp = point.timestampValue !== undefined 
+        ? point.timestampValue 
+        : point.rawTimestamp;
+      if (typeof timestamp === 'number') {
+        return new Date(timestamp);
+      }
+      return new Date(timestamp);
+    })
+    .filter((date) => !isNaN(date.getTime()));
+
+  if (dates.length === 0) {
+    return { type: 'hour', format: (date: Date) => date.toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit" }) };
+  }
+
+  const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
+  const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+  
+  // Calculer la différence en millisecondes
+  const diffMs = maxDate.getTime() - minDate.getTime();
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  const diffMonths = (maxDate.getFullYear() - minDate.getFullYear()) * 12 + (maxDate.getMonth() - minDate.getMonth());
+  const diffYears = maxDate.getFullYear() - minDate.getFullYear();
+
+  // Déterminer le format selon la plage
+  if (diffYears > 0) {
+    return {
+      type: 'year-month',
+      format: (date: Date) => {
+        if (isMobile) {
+          return `${date.getMonth() + 1}/${date.getFullYear()}`;
+        }
+        return date.toLocaleString("fr-FR", { month: "short", year: "numeric" });
+      }
+    };
+  } else if (diffMonths > 3) {
+    return {
+      type: 'month',
+      format: (date: Date) => {
+        if (isMobile) {
+          return `${date.getMonth() + 1}/${date.getFullYear()}`;
+        }
+        return date.toLocaleString("fr-FR", { month: "short", year: "numeric" });
+      }
+    };
+  } else if (diffMonths > 0) {
+    return {
+      type: 'month-day',
+      format: (date: Date) => {
+        if (isMobile) {
+          return `${date.getDate()}/${date.getMonth() + 1}`;
+        }
+        return date.toLocaleString("fr-FR", { month: "short", day: "2-digit" });
+      }
+    };
+  } else if (diffDays > 1) {
+    return {
+      type: 'day',
+      format: (date: Date) => {
+        if (isMobile) {
+          const day = String(date.getDate()).padStart(2, "0");
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const hours = String(date.getHours()).padStart(2, "0");
+          const minutes = String(date.getMinutes()).padStart(2, "0");
+          return `${day}/${month} ${hours}:${minutes}`;
+        }
+        return date.toLocaleString("fr-FR", { day: "2-digit", month: "short" });
+      }
+    };
+  } else if (diffDays > 0) {
+    return {
+      type: 'day-hour',
+      format: (date: Date) => {
+        if (isMobile) {
+          const day = String(date.getDate()).padStart(2, "0");
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const hours = String(date.getHours()).padStart(2, "0");
+          const minutes = String(date.getMinutes()).padStart(2, "0");
+          return `${day}/${month} ${hours}:${minutes}`;
+        }
+        return date.toLocaleString("fr-FR", { 
+          day: "2-digit", 
+          month: "short", 
+          hour: "2-digit", 
+          minute: "2-digit" 
+        });
+      }
+    };
+  } else {
+    return {
+      type: 'hour',
+      format: (date: Date) => {
+        if (isMobile) {
+          const hours = String(date.getHours()).padStart(2, "0");
+          const minutes = String(date.getMinutes()).padStart(2, "0");
+          return `${hours}:${minutes}`;
+        }
+        return date.toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+      }
+    };
+  }
+};
+
+/**
+ * Génère les configurations de séries pour amCharts
+ */
+export const generateSeriesConfigs = (
+  source: string,
+  stations: any[],
+  selectedPollutants: string[],
+  unitKeys: string[],
+  unitGroups: Record<string, string[]>,
+  pollutantDataFlags: Record<string, { hasCorrected: boolean; hasRaw: boolean }>,
+  showRawData: boolean,
+  useSolidNebuleAirLines: boolean,
+  fallbackColors: string[]
+): SeriesConfig[] => {
+  if (source === "comparison" && stations.length > 0) {
+    return stations.map((station, index) => {
+      const pollutant = selectedPollutants[0];
+      const stationColor = fallbackColors[index % fallbackColors.length];
+      const pollutantName = pollutants[pollutant]?.name || pollutant;
+
+      return {
+        dataKey: station.id,
+        name: `${station.name} - ${pollutantName}`,
+        color: stationColor,
+        strokeWidth: 2,
+        strokeDasharray: "0",
+        yAxisId: "left" as const,
+        connectNulls: true,
+      };
+    });
+  }
+
+  // Mode normal : séries par unité
+  const configs: SeriesConfig[] = [];
+  unitKeys.forEach((unit, unitIndex) => {
+    const pollutantsInUnit = unitGroups[unit];
+    const yAxisId = unitIndex === 0 ? ("left" as const) : ("right" as const);
+
+    pollutantsInUnit.forEach((pollutant, pollutantIndex) => {
+      const pollutantColor = getPollutantColor(pollutant, pollutantIndex);
+      const pollutantName = pollutants[pollutant]?.name || pollutant;
+      const flags = pollutantDataFlags[pollutant] || { hasCorrected: false, hasRaw: false };
+      const hasCorrectedData = flags.hasCorrected;
+      const hasRawData = flags.hasRaw;
+
+      const isAtmoRef = source === "atmoRef";
+      const isAtmoMicro = source === "atmoMicro";
+
+      if (isAtmoRef) {
+        // AtmoRef : toujours trait plein
+        configs.push({
+          dataKey: pollutant,
+          name: pollutantName,
+          color: pollutantColor,
+          strokeWidth: 2,
+          strokeDasharray: "0",
+          yAxisId,
+          connectNulls: false,
+        });
+      } else if (isAtmoMicro) {
+        // AtmoMicro : données corrigées (trait plein) et brutes (trait discontinu)
+        if (hasCorrectedData) {
+          configs.push({
+            dataKey: `${pollutant}_corrected`,
+            name: `${pollutantName} (corrigé)`,
+            color: pollutantColor,
+            strokeWidth: 2,
+            strokeDasharray: "0",
+            yAxisId,
+            connectNulls: false,
+          });
+        }
+        if (hasRawData && (showRawData || !hasCorrectedData)) {
+          configs.push({
+            dataKey: `${pollutant}_raw`,
+            name: `${pollutantName} (brute)`,
+            color: pollutantColor,
+            strokeWidth: 2,
+            strokeDasharray: "3 3",
+            yAxisId,
+            connectNulls: false,
+          });
+        }
+      } else if (useSolidNebuleAirLines) {
+        configs.push({
+          dataKey: pollutant,
+          name: pollutantName,
+          color: pollutantColor,
+          strokeWidth: 2,
+          strokeDasharray: "0",
+          yAxisId,
+          connectNulls: false,
+        });
+      } else {
+        // Autres sources : trait discontinu par défaut
+        configs.push({
+          dataKey: pollutant,
+          name: pollutantName,
+          color: pollutantColor,
+          strokeWidth: 2,
+          strokeDasharray: "3 3",
+          yAxisId,
+          connectNulls: false,
+        });
+      }
+    });
+  });
+
+  return configs;
+};
+
+/**
+ * Calcule les marges du graphique selon le mode
+ */
+export const getChartMargins = (
+  isLandscapeMobile: boolean,
+  isMobile: boolean
+): { top: number; right: number; left: number; bottom: number } => {
+  if (isLandscapeMobile) {
+    return { top: 40, right: 5, left: 2, bottom: 5 };
+  }
+  if (isMobile) {
+    return { top: 40, right: 5, left: 5, bottom: 10 };
+  }
+  return { top: 45, right: 30, left: 20, bottom: 5 };
+};
+
