@@ -529,18 +529,20 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
 
   // Handler pour ajouter une station à la comparaison
   const handleAddStationToComparison = async (device: MeasurementDevice) => {
-    // Vérifier les limites (max 5 stations)
-    if (sidePanels.comparisonState.comparedStations.length >= 5) {
-      console.warn("Maximum 5 stations autorisées en comparaison");
-      return;
-    }
-
     // Vérifier que la station n'est pas déjà dans la liste
     const isAlreadyAdded = sidePanels.comparisonState.comparedStations.some(
       (station) => station.id === device.id
     );
+    
+    // Si la station est déjà ajoutée, la retirer (désélection)
     if (isAlreadyAdded) {
-      console.warn("Station déjà ajoutée à la comparaison");
+      handleRemoveStationFromComparison(device.id);
+      return;
+    }
+
+    // Vérifier les limites (max 5 stations) seulement si on ajoute une nouvelle station
+    if (sidePanels.comparisonState.comparedStations.length >= 5) {
+      console.warn("Maximum 5 stations autorisées en comparaison");
       return;
     }
 
