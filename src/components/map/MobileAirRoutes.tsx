@@ -249,13 +249,13 @@ const MobileAirRoutes: React.FC<MobileAirRoutesProps> = memo(
                           }}
                           interactive={false}
                         />
-                        {/* Halo lumineux autour du point */}
+                        {/* Halo gris foncé autour du point */}
                         <CircleMarker
                           center={[point.lat, point.lon]}
                           radius={12}
                           pathOptions={{
-                            color: "#FFFF00",
-                            fillColor: "#FFFF00",
+                            color: "#374151",
+                            fillColor: "#374151",
                             fillOpacity: 0.2,
                             weight: 2,
                             opacity: 0.8,
