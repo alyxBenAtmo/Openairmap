@@ -701,13 +701,45 @@ export class NebuleAirService extends BaseDataService {
     dateString: string,
     isEndDate: boolean = false
   ): string {
-    const date = new Date(dateString);
+    // Vérifier si la chaîne contient une composante horaire
+    const hasTimeComponent = /T\d{2}:\d{2}/.test(dateString);
 
+    if (!hasTimeComponent) {
+      // Si pas d'heure, traiter comme une date locale (YYYY-MM-DD)
+      // Parser la date locale
+      const [year, month, day] = dateString.split('-').map(Number);
+      
+      if (isNaN(year) || isNaN(month) || isNaN(day)) {
+        throw new Error(`Format de date invalide: ${dateString}. Format attendu: YYYY-MM-DD`);
+      }
+      
+      // CORRECTION : Créer une date locale d'abord, puis convertir en UTC
+      // Pour la date de début : minuit local = 23h UTC la veille (si UTC+1)
+      // Pour la date de fin : minuit local du jour suivant = 23h UTC du jour sélectionné (si UTC+1)
+      // Exemple : date de fin "02/12/2025" → minuit local du 3 = 23h UTC du 2 décembre
+      // Cela garantit que la date de fin est toujours après la date de début
+      if (isEndDate) {
+        // Date de fin : créer minuit local du jour suivant pour couvrir toute la journée
+        // La conversion en UTC donne 23h UTC du jour sélectionné
+        const localNextDay = new Date(year, month - 1, day + 1, 0, 0, 0, 0);
+        return localNextDay.toISOString();
+      } else {
+        // Date de début : créer minuit local, la conversion en UTC donne automatiquement 23h UTC la veille
+        const localDate = new Date(year, month - 1, day, 0, 0, 0, 0);
+        return localDate.toISOString();
+      }
+    }
+
+    // Si la date contient déjà une heure, la parser et convertir en UTC
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      throw new Error(`Date invalide: ${dateString}`);
+    }
+    
+    // Forcer l'heure selon si c'est début ou fin
     if (isEndDate) {
-      // Date de fin : toujours à 23:59:59 UTC
       date.setUTCHours(23, 59, 59, 999);
     } else {
-      // Date de début : toujours à 00:00:00 UTC
       date.setUTCHours(0, 0, 0, 0);
     }
 
@@ -735,10 +767,6 @@ export class NebuleAirService extends BaseDataService {
     // L'API retourne les valeurs directement par nom de polluant (PM1, PM25, PM10)
     const value = dataPoint[pollutant];
 
-    console.log(`🔍 [NebuleAir] Extraction valeur pour ${pollutant}:`, {
-      dataPoint,
-      value,
-    });
 
     if (value === null || value === undefined || value === "-1") {
       return null;

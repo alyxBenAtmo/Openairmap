@@ -475,18 +475,46 @@ export class AtmoMicroService extends BaseDataService {
     dateString: string,
     isEndDate: boolean = false
   ): string {
-    const date = new Date(dateString);
-
-    // Conserver l'heure lorsque la chaîne d'origine contient une composante horaire.
-    // Utiliser l'arrondi à la journée uniquement pour les dates sans heure (ex: "2025-11-12").
+    // Vérifier si la chaîne contient une composante horaire
     const hasTimeComponent = /T\d{2}:\d{2}/.test(dateString);
 
     if (!hasTimeComponent) {
-      if (isEndDate) {
-        date.setUTCHours(23, 59, 59, 999);
-      } else {
-        date.setUTCHours(0, 0, 0, 0);
+      // Si pas d'heure, traiter comme une date locale (YYYY-MM-DD)
+      // Parser la date locale
+      const [year, month, day] = dateString.split('-').map(Number);
+      
+      if (isNaN(year) || isNaN(month) || isNaN(day)) {
+        throw new Error(`Format de date invalide: ${dateString}. Format attendu: YYYY-MM-DD`);
       }
+      
+      // CORRECTION : Créer une date locale d'abord, puis convertir en UTC
+      // Pour la date de début : minuit local = 23h UTC la veille (si UTC+1)
+      // Pour la date de fin : minuit local du jour suivant = 23h UTC du jour sélectionné (si UTC+1)
+      // Exemple : date de fin "02/12/2025" → minuit local du 3 = 23h UTC du 2 décembre
+      // Cela garantit que la date de fin est toujours après la date de début
+      if (isEndDate) {
+        // Date de fin : créer minuit local du jour suivant pour couvrir toute la journée
+        // La conversion en UTC donne 23h UTC du jour sélectionné
+        const localNextDay = new Date(year, month - 1, day + 1, 0, 0, 0, 0);
+        return localNextDay.toISOString();
+      } else {
+        // Date de début : créer minuit local, la conversion en UTC donne automatiquement 23h UTC la veille
+        const localDate = new Date(year, month - 1, day, 0, 0, 0, 0);
+        return localDate.toISOString();
+      }
+    }
+
+    // Si la date contient déjà une heure, la parser et convertir en UTC
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      throw new Error(`Date invalide: ${dateString}`);
+    }
+    
+    // Forcer l'heure selon si c'est début ou fin
+    if (isEndDate) {
+      date.setUTCHours(23, 59, 59, 999);
+    } else {
+      date.setUTCHours(0, 0, 0, 0);
     }
 
     return date.toISOString();
@@ -507,10 +535,14 @@ export class AtmoMicroService extends BaseDataService {
     // Diviser la période en tranches pour éviter les timeouts
     const temporalDataPoints: TemporalDataPoint[] = [];
     const chunkSize = 30; // 30 jours par tranche (plus efficace que 7 jours)
-    const start = new Date(startDate);
-    start.setUTCHours(0, 0, 0, 0);
-    const end = new Date(endDate);
-    end.setUTCHours(23, 59, 59, 999);
+    
+    // CORRECTION : Convertir les dates locales en UTC correctement
+    const startDateISO = this.formatDateForHistoricalMode(startDate, false);
+    const endDateISO = this.formatDateForHistoricalMode(endDate, true);
+    
+    // Parser les dates ISO pour calculer les chunks
+    const start = new Date(startDateISO);
+    const end = new Date(endDateISO);
 
     // Calculer le nombre de tranches
     const totalDays = Math.ceil(
@@ -524,11 +556,10 @@ export class AtmoMicroService extends BaseDataService {
 
     // Traiter chaque tranche
     for (let i = 0; i < chunks; i++) {
-      const chunkStart = new Date(start);
-      chunkStart.setDate(chunkStart.getDate() + i * chunkSize);
-
-      const chunkEnd = new Date(chunkStart);
-      chunkEnd.setDate(chunkEnd.getDate() + chunkSize - 1);
+      // CORRECTION : Utiliser UTC pour éviter les décalages de fuseau horaire
+      const chunkStart = new Date(start.getTime() + i * chunkSize * 24 * 60 * 60 * 1000);
+      
+      const chunkEnd = new Date(chunkStart.getTime() + (chunkSize - 1) * 24 * 60 * 60 * 1000);
 
       // S'assurer qu'on ne dépasse pas la date de fin
       if (chunkEnd > end) {
@@ -542,15 +573,18 @@ export class AtmoMicroService extends BaseDataService {
       );
 
       try {
-        // Ajuster les heures pour chaque tranche
-        const formattedChunkStart = this.formatDateForHistoricalMode(
-          chunkStart.toISOString(),
-          false
-        );
-        // Pour la date de fin de la tranche, vérifier si c'est la dernière tranche
+        // Les dates sont déjà en UTC et formatées correctement, utiliser directement
+        // Pour la première tranche, utiliser les dates exactes formatées
+        // Pour la dernière tranche, utiliser la date de fin exacte
+        const isFirstChunk = i === 0;
         const isLastChunk = i === chunks - 1;
+        
+        const formattedChunkStart = isFirstChunk 
+          ? startDateISO // Utiliser la date de début formatée initialement
+          : chunkStart.toISOString();
+          
         const formattedChunkEnd = isLastChunk
-          ? this.formatDateForHistoricalMode(chunkEnd.toISOString(), true)
+          ? endDateISO // Utiliser la date de fin formatée initialement
           : chunkEnd.toISOString();
 
         // Construire l'URL optimisée selon votre exemple
