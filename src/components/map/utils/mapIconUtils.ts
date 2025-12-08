@@ -195,7 +195,7 @@ export const createCustomIcon = (
         right: -4px;
         width: 16px;
         height: 16px;
-        background-color: rgba(59, 130, 246, 0.9);
+        background-color: rgba(59, 130, 246, 0.7);
         border-radius: 50%;
         z-index: 10;
         display: flex;
