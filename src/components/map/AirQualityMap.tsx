@@ -870,6 +870,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
             onPointHover={mobileAir.handleMobileAirPointHover}
             onRouteClick={handleMobileAirRouteClickWrapper}
             highlightedPoint={mobileAir.highlightedMobileAirPoint}
+            hoveredPoint={mobileAir.hoveredMobileAirPoint}
           />
 
           {/* Marqueurs pour les incendies en cours */}
