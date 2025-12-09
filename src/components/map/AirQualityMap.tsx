@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "geoportal-extensions-leaflet";
@@ -123,6 +123,16 @@ const defaultSpiderfyConfig = {
   enabled: true, // active/desactive le spiderfier par defaut
   autoSpiderfy: true, // activation automatique du spiderfier au zoom
   autoSpiderfyZoomThreshold: 10, // seuil de zoom plus bas pour activation plus précoce
+};
+
+// Composant interne pour gérer les événements de la carte
+const MapClickHandler: React.FC<{ onMapClick: () => void }> = ({ onMapClick }) => {
+  useMapEvents({
+    click: () => {
+      onMapClick();
+    },
+  });
+  return null;
 };
 
 const AirQualityMap: React.FC<AirQualityMapProps> = ({
@@ -399,6 +409,9 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   };
 
   const handleMarkerClick = async (device: MeasurementDevice) => {
+    // Masquer le tooltip immédiatement lors d'un clic
+    hideTooltip(true);
+
     // Désactiver les clics sur les marqueurs en mode historique
     if (isHistoricalModeActive) {
       return;
@@ -807,6 +820,8 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
           minZoom={1}
           maxZoom={18}
         >
+          {/* Gestionnaire d'événements pour masquer le tooltip lors d'un clic sur la carte */}
+          <MapClickHandler onMapClick={() => hideTooltip(true)} />
           {/* Fond de carte initial */}
           <TileLayer
             attribution='&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -850,7 +865,10 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
                     position={[device.latitude, device.longitude]}
                     icon={createCustomIconWrapper(device)}
                     eventHandlers={{
-                      click: () => handleMarkerClick(device),
+                      click: () => {
+                        hideTooltip(true);
+                        handleMarkerClick(device);
+                      },
                       mouseover: (e) => showTooltip(device, e),
                       mouseout: () => hideTooltip(),
                     }}
@@ -875,6 +893,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
               getMarkerKey={getMarkerKeyWrapper}
               onMarkerHover={showTooltip}
               onMarkerHoverOut={hideTooltip}
+              onMarkerClick={() => hideTooltip(true)}
             />
           ) : (
             devices
@@ -891,7 +910,10 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
                   position={[device.latitude, device.longitude]}
                   icon={createCustomIconWrapper(device)}
                   eventHandlers={{
-                    click: () => handleMarkerClick(device),
+                    click: () => {
+                      hideTooltip(true);
+                      handleMarkerClick(device);
+                    },
                     mouseover: (e) => showTooltip(device, e),
                     mouseout: () => hideTooltip(),
                   }}

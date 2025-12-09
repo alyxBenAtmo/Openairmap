@@ -191,12 +191,11 @@ const MarkerTooltip: React.FC<MarkerTooltipProps> = ({
 
   return (
     <div
-      className="fixed z-[3000] bg-gray-800/70 backdrop-blur-sm text-white text-xs rounded-md shadow-xl p-2 pointer-events-none max-w-xs border border-gray-600/50"
+      className="fixed z-[2999] bg-gray-800/70 backdrop-blur-sm text-white text-xs rounded-md shadow-xl p-2 pointer-events-none max-w-xs border border-gray-600/50"
       style={{
         left: `${position.x}px`,
-        top: `${position.y}px`,
+        top: `${position.y - 10}px`,
         transform: 'translate(-50%, -100%)',
-        marginTop: '-8px',
       }}
     >
       {/* Nom du capteur */}

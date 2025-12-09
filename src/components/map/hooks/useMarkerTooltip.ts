@@ -48,18 +48,28 @@ export const useMarkerTooltip = () => {
   );
 
   // Fonction pour masquer le tooltip
-  const hideTooltip = useCallback(() => {
-    // Ajouter un petit délai pour éviter les clignotements
+  const hideTooltip = useCallback((immediate = false) => {
+    // Annuler le timeout précédent s'il existe
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
 
-    timeoutRef.current = setTimeout(() => {
+    if (immediate) {
+      // Masquer immédiatement (lors d'un clic)
       setTooltip({
         device: null,
         position: { x: 0, y: 0 },
       });
-    }, 100);
+    } else {
+      // Ajouter un petit délai pour éviter les clignotements lors du hover
+      timeoutRef.current = setTimeout(() => {
+        setTooltip({
+          device: null,
+          position: { x: 0, y: 0 },
+        });
+      }, 100);
+    }
   }, []);
 
   // Nettoyer le timeout au démontage
