@@ -337,7 +337,7 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
 
       // Configurer le curseur vertical au lieu des points
       const cursor = chart.set("cursor", am5xy.XYCursor.new(root, {
-        behavior: "none",
+        behavior: "zoomXY",
         xAxis: xAxis,
       }));
       

@@ -190,7 +190,7 @@ export const useAmChartsChart = ({
 
     // Créer le curseur
     const cursor = chart.set("cursor", am5xy.XYCursor.new(root, {
-      behavior: "none",
+      behavior: "zoomXY",
       xAxis: xAxis,
     }));
     
