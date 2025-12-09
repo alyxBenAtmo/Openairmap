@@ -486,9 +486,9 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       return;
     }
 
-    // En mode comparaison, gérer AtmoRef et AtmoMicro uniquement
+    // En mode comparaison, gérer AtmoRef, AtmoMicro et NebuleAir
     if (sidePanels.comparisonState.isComparisonMode) {
-      if (device.source === "atmoRef" || device.source === "atmoMicro") {
+      if (device.source === "atmoRef" || device.source === "atmoMicro" || device.source === "nebuleair") {
         await handleAddStationToComparison(device);
       }
       return;
@@ -702,6 +702,8 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
             onSizeChange={sidePanels.handleSidePanelSizeChange}
             panelSize={sidePanels.panelSize}
             initialPollutant={selectedPollutant}
+            onComparisonModeToggle={sidePanels.handleComparisonModeToggle}
+            isComparisonMode={sidePanels.comparisonState.isComparisonMode}
           />
         )}
 

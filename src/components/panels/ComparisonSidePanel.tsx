@@ -441,7 +441,11 @@ const ComparisonSidePanel: React.FC<ComparisonSidePanelProps> = ({
                     <p className="text-xs text-gray-500 truncate">
                       {station.source === "atmoRef"
                         ? "Station de référence"
-                        : "Microcapteur"}{" "}
+                        : station.source === "atmoMicro"
+                        ? "Microcapteur"
+                        : station.source === "nebuleair"
+                        ? "NebuleAir"
+                        : "Autre source"}{" "}
                       - {station.address}
                     </p>
                   </div>
