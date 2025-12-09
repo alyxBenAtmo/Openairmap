@@ -66,17 +66,27 @@ export class SignalAirService extends BaseDataService {
     yib5aa1n: "brulage",
   };
 
-  // Proxys CORS publics disponibles
+  // Proxys CORS publics disponibles (en dernier recours)
   private readonly CORS_PROXIES = {
+    // Proxy CORS alternatif plus fiable
+    corsproxy: "https://corsproxy.io/?",
+    // Autres proxys en fallback
     allorigins: "https://api.allorigins.win/raw?url=",
-    corsanywhere: "https://cors-anywhere.herokuapp.com/",
   };
 
-  // Proxy local Vite pour le développement
-  private readonly LOCAL_PROXY = "/signalair";
+  // Proxy backend (développement via Vite, production via serveur web)
+  private readonly BACKEND_PROXY = "/signalair";
 
-  // Option pour utiliser le proxy local (développement)
-  private useLocalProxy = import.meta.env.DEV;
+  // Méthode pour obtenir l'URL de base selon l'environnement
+  private getApiBaseUrl(): string {
+    // En développement, utiliser le proxy Vite
+    if (import.meta.env.DEV) {
+      return this.BACKEND_PROXY;
+    }
+    // En production/preprod, utiliser aussi le proxy backend (configuré côté serveur)
+    // Le serveur web (nginx) doit être configuré pour proxifier /signalair vers https://www.signalair.eu
+    return this.BACKEND_PROXY;
+  }
 
   // Cache pour les signalements
   private signalCache: SignalAirReport[] = [];
@@ -267,51 +277,57 @@ export class SignalAirService extends BaseDataService {
     period: { startDate: string; endDate: string }
   ): Promise<SignalAirGeoJSON | null> {
     const directUrl = `${this.SIGNAL_URLS[signalType]}/${period.startDate}/${period.endDate}`;
+    const baseUrl = this.getApiBaseUrl();
+    
+    // Construire l'URL du proxy backend
+    const proxyPath = this.SIGNAL_URLS[signalType].replace(
+      "https://www.signalair.eu",
+      ""
+    );
+    const backendProxyUrl = `${baseUrl}${proxyPath}/${period.startDate}/${period.endDate}`;
 
-    // En développement, utiliser TOUJOURS le proxy local en premier
-    if (this.useLocalProxy) {
-      try {
-        const localProxyUrl = `${this.LOCAL_PROXY}${this.SIGNAL_URLS[
-          signalType
-        ].replace("https://www.signalair.eu", "")}/${period.startDate}/${
-          period.endDate
-        }`;
+    // 1. Essayer d'abord le proxy backend (développement via Vite, production via serveur web)
+    try {
+      const response = await this.makeRequest(backendProxyUrl, {
+        method: "GET",
+        headers: {
+          Accept: "application/geo+json,application/json",
+        },
+      });
 
-        const response = await this.makeRequest(localProxyUrl, {
-          method: "GET",
-          headers: {
-            Accept: "application/geo+json,application/json",
-            "Content-Type": "application/json",
-          },
-        });
-
-        // Vérifier que la réponse est bien du JSON
-        if (
-          response &&
-          typeof response === "object" &&
-          response.type === "FeatureCollection"
-        ) {
-          return response;
-        } else {
-          return null;
-        }
-      } catch (error) {
-        console.warn(
-          `⚠️ SignalAir - Échec proxy local pour ${signalType}, tentative proxy public`
-        );
+      // Vérifier que la réponse est bien du JSON
+      if (
+        response &&
+        typeof response === "object" &&
+        response.type === "FeatureCollection"
+      ) {
+        return response;
+      } else {
+        return null;
       }
+    } catch (backendError) {
+      console.warn(
+        `⚠️ SignalAir - Échec proxy backend pour ${signalType}, tentative proxys publics:`,
+        backendError
+      );
     }
 
-    // Si pas en développement ou si le proxy local a échoué, utiliser les proxys publics
+    // 2. Si le proxy backend a échoué, utiliser les proxys publics CORS (en dernier recours)
     for (const [proxyName, proxyUrl] of Object.entries(this.CORS_PROXIES)) {
       try {
-        const fullProxyUrl = `${proxyUrl}${encodeURIComponent(directUrl)}`;
+        // Construire l'URL du proxy selon son format
+        let fullProxyUrl: string;
+        if (proxyName === "corsproxy") {
+          // corsproxy.io utilise un format différent
+          fullProxyUrl = `${proxyUrl}${encodeURIComponent(directUrl)}`;
+        } else {
+          fullProxyUrl = `${proxyUrl}${encodeURIComponent(directUrl)}`;
+        }
 
         const response = await this.makeRequest(fullProxyUrl, {
           method: "GET",
           headers: {
             Accept: "application/geo+json,application/json",
-            "Content-Type": "application/json",
           },
           mode: "cors",
           credentials: "omit",
@@ -336,13 +352,12 @@ export class SignalAirService extends BaseDataService {
       }
     }
 
-    // En dernier recours, essayer la requête directe (peut échouer à cause de CORS)
+    // 3. En dernier recours, essayer la requête directe (peut échouer à cause de CORS)
     try {
       const response = await this.makeRequest(directUrl, {
         method: "GET",
         headers: {
           Accept: "application/geo+json,application/json",
-          "Content-Type": "application/json",
         },
         mode: "cors",
         credentials: "omit",
@@ -364,7 +379,7 @@ export class SignalAirService extends BaseDataService {
         directError
       );
       throw new Error(
-        `Impossible de récupérer les données SignalAir pour ${signalType}. Tous les proxys ont échoué.`
+        `Impossible de récupérer les données SignalAir pour ${signalType}. Tous les proxys ont échoué. Vérifiez la configuration du proxy backend sur le serveur.`
       );
     }
   }
