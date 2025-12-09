@@ -174,8 +174,16 @@ export const generateSeriesConfigs = (
   pollutantDataFlags: Record<string, { hasCorrected: boolean; hasRaw: boolean }>,
   showRawData: boolean,
   useSolidNebuleAirLines: boolean,
-  fallbackColors: string[]
+  fallbackColors: string[],
+  timeStep?: string
 ): SeriesConfig[] => {
+  // Pour les pas de temps agrégés, insérer des points null et utiliser connect: false
+  // pour créer des gaps visuels dans la ligne
+  // Les points null sont insérés par fillGapsInData
+  const isAggregatedTimeStep = timeStep && ["quartHeure", "heure", "jour"].includes(timeStep);
+  // Avec connect: false et des points null, amCharts devrait dessiner des segments séparés
+  const shouldConnectNulls = !isAggregatedTimeStep;
+
   if (source === "comparison" && stations.length > 0) {
     return stations.map((station, index) => {
       const pollutant = selectedPollutants[0];
@@ -189,7 +197,7 @@ export const generateSeriesConfigs = (
         strokeWidth: 2,
         strokeDasharray: "0",
         yAxisId: "left" as const,
-        connectNulls: true,
+        connectNulls: shouldConnectNulls,
       };
     });
   }
@@ -219,7 +227,7 @@ export const generateSeriesConfigs = (
           strokeWidth: 2,
           strokeDasharray: "0",
           yAxisId,
-          connectNulls: false,
+          connectNulls: shouldConnectNulls,
         });
       } else if (isAtmoMicro) {
         // AtmoMicro : données corrigées (trait plein) et brutes (trait discontinu)
@@ -231,7 +239,7 @@ export const generateSeriesConfigs = (
             strokeWidth: 2,
             strokeDasharray: "0",
             yAxisId,
-            connectNulls: false,
+            connectNulls: shouldConnectNulls,
           });
         }
         if (hasRawData && (showRawData || !hasCorrectedData)) {
@@ -242,7 +250,7 @@ export const generateSeriesConfigs = (
             strokeWidth: 2,
             strokeDasharray: "3 3",
             yAxisId,
-            connectNulls: false,
+            connectNulls: shouldConnectNulls,
           });
         }
       } else if (useSolidNebuleAirLines) {
@@ -253,7 +261,7 @@ export const generateSeriesConfigs = (
           strokeWidth: 2,
           strokeDasharray: "0",
           yAxisId,
-          connectNulls: false,
+          connectNulls: shouldConnectNulls,
         });
       } else {
         // Autres sources : trait discontinu par défaut
@@ -264,7 +272,7 @@ export const generateSeriesConfigs = (
           strokeWidth: 2,
           strokeDasharray: "3 3",
           yAxisId,
-          connectNulls: false,
+          connectNulls: shouldConnectNulls,
         });
       }
     });
