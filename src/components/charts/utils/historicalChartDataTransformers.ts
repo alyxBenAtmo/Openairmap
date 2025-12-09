@@ -246,7 +246,29 @@ export const transformComparisonData = (
           (p) => normalizeTimestamp(p.timestamp) === timestampMs
         );
         if (dataPoint) {
-          point[station.id] = ensureNonNegativeValue(dataPoint.value);
+          // Pour les stations atmoMicro, gérer les données corrigées et brutes
+          if (station.source === "atmoMicro") {
+            // Valeur corrigée si disponible
+            if (dataPoint.corrected_value !== undefined) {
+              point[`${station.id}_corrected`] = ensureNonNegativeValue(dataPoint.corrected_value);
+            }
+            // Valeur brute
+            if (dataPoint.raw_value !== undefined) {
+              point[`${station.id}_raw`] = ensureNonNegativeValue(dataPoint.raw_value);
+            }
+            // Valeur principale : utiliser corrigée si disponible, sinon brute
+            if (dataPoint.corrected_value !== undefined) {
+              point[station.id] = ensureNonNegativeValue(dataPoint.corrected_value);
+            } else if (dataPoint.raw_value !== undefined) {
+              point[station.id] = ensureNonNegativeValue(dataPoint.raw_value);
+            } else {
+              point[station.id] = ensureNonNegativeValue(dataPoint.value);
+            }
+          } else {
+            // Pour les autres sources (atmoRef, etc.), utiliser simplement value
+            point[station.id] = ensureNonNegativeValue(dataPoint.value);
+          }
+          
           let unit = dataPoint.unit;
           if (!unit && pollutants[pollutant]) {
             unit = pollutants[pollutant].unit;

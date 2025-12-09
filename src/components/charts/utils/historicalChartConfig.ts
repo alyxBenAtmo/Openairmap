@@ -175,7 +175,8 @@ export const generateSeriesConfigs = (
   showRawData: boolean,
   useSolidNebuleAirLines: boolean,
   fallbackColors: string[],
-  timeStep?: string
+  timeStep?: string,
+  chartData?: any[]
 ): SeriesConfig[] => {
   // Pour les pas de temps agrégés, insérer des points null et utiliser connect: false
   // pour créer des gaps visuels dans la ligne
@@ -185,21 +186,74 @@ export const generateSeriesConfigs = (
   const shouldConnectNulls = !isAggregatedTimeStep;
 
   if (source === "comparison" && stations.length > 0) {
-    return stations.map((station, index) => {
+    const configs: SeriesConfig[] = [];
+    stations.forEach((station, index) => {
       const pollutant = selectedPollutants[0];
       const stationColor = fallbackColors[index % fallbackColors.length];
       const pollutantName = pollutants[pollutant]?.name || pollutant;
-
-      return {
-        dataKey: station.id,
-        name: `${station.name} - ${pollutantName}`,
-        color: stationColor,
-        strokeWidth: 2,
-        strokeDasharray: "0",
-        yAxisId: "left" as const,
-        connectNulls: shouldConnectNulls,
-      };
+      
+      // Pour les stations atmoMicro, gérer les données corrigées et brutes
+      if (station.source === "atmoMicro" && chartData) {
+        // Vérifier si cette station a des données corrigées
+        const hasCorrected = chartData.some(
+          (point: any) => point[`${station.id}_corrected`] !== undefined
+        );
+        const hasRaw = chartData.some(
+          (point: any) => point[`${station.id}_raw`] !== undefined
+        );
+        
+        // Ajouter la série corrigée si disponible
+        if (hasCorrected) {
+          configs.push({
+            dataKey: `${station.id}_corrected`,
+            name: `${station.name} - ${pollutantName} (corrigé)`,
+            color: stationColor,
+            strokeWidth: 2,
+            strokeDasharray: "0",
+            yAxisId: "left" as const,
+            connectNulls: shouldConnectNulls,
+          });
+        }
+        
+        // Ajouter la série brute si disponible et si showRawData est activé ou s'il n'y a pas de données corrigées
+        if (hasRaw && (showRawData || !hasCorrected)) {
+          configs.push({
+            dataKey: `${station.id}_raw`,
+            name: `${station.name} - ${pollutantName} (brute)`,
+            color: stationColor,
+            strokeWidth: 2,
+            strokeDasharray: "3 3",
+            yAxisId: "left" as const,
+            connectNulls: shouldConnectNulls,
+          });
+        }
+        
+        // Si aucune donnée corrigée ni brute, utiliser la valeur principale
+        if (!hasCorrected && !hasRaw) {
+          configs.push({
+            dataKey: station.id,
+            name: `${station.name} - ${pollutantName}`,
+            color: stationColor,
+            strokeWidth: 2,
+            strokeDasharray: "0",
+            yAxisId: "left" as const,
+            connectNulls: shouldConnectNulls,
+          });
+        }
+      } else {
+        // Pour les autres sources (atmoRef, etc.), utiliser simplement la valeur principale
+        configs.push({
+          dataKey: station.id,
+          name: `${station.name} - ${pollutantName}`,
+          color: stationColor,
+          strokeWidth: 2,
+          strokeDasharray: "0",
+          yAxisId: "left" as const,
+          connectNulls: shouldConnectNulls,
+        });
+      }
     });
+    return configs;
   }
 
   // Mode normal : séries par unité

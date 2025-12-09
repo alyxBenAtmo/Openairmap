@@ -289,7 +289,7 @@ export const setupLegend = (
   legend.data.setAll(chart.series.values);
 
   // Gérer le clic sur la légende pour masquer/afficher les séries
-  legend.itemContainers.template.events.on("click", (ev) => {
+  legend.itemContainers.template.events.on("pointertap", (ev) => {
     const dataItem = ev.target.dataItem;
     if (dataItem) {
       const series = dataItem.dataContext as am5xy.LineSeries;

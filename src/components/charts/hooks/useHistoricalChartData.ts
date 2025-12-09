@@ -81,21 +81,38 @@ export const useHistoricalChartData = ({
       showRawData,
       useSolidNebuleAirLines,
       fallbackColors,
-      timeStep
+      timeStep,
+      chartData
     );
 
     return configs;
   }, [source, stations, selectedPollutants, unitKeys, unitGroups, pollutantDataFlags, showRawData, useSolidNebuleAirLines, timeStep]);
 
-  // Détecter si des données corrigées sont disponibles (seulement pour AtmoMicro)
+  // Détecter si des données corrigées sont disponibles (pour AtmoMicro ou en mode comparaison avec stations atmoMicro)
   const hasCorrectedData = useMemo(() => {
-    return source === "atmoMicro" &&
-      selectedPollutants.some((pollutant) => {
+    // Mode normal AtmoMicro
+    if (source === "atmoMicro") {
+      return selectedPollutants.some((pollutant) => {
         return chartData.some(
           (point) => point[`${pollutant}_corrected`] !== undefined
         );
       });
-  }, [source, selectedPollutants, chartData]);
+    }
+    
+    // Mode comparaison : vérifier si au moins une station atmoMicro a des données corrigées
+    if (source === "comparison" && stations && stations.length > 0) {
+      return stations.some((station) => {
+        if (station.source === "atmoMicro") {
+          return chartData.some(
+            (point) => point[`${station.id}_corrected`] !== undefined
+          );
+        }
+        return false;
+      });
+    }
+    
+    return false;
+  }, [source, selectedPollutants, chartData, stations]);
 
   // Transformer les données pour amCharts (timestamp en nombre)
   // IMPORTANT: Préserver les valeurs null pour les gaps
