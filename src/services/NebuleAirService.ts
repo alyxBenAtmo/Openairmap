@@ -427,17 +427,15 @@ export class NebuleAirService extends BaseDataService {
     try {
       console.log("🔍 [NebuleAir] fetchSiteVariables appelé pour:", sensorId);
 
-      // Pour NebuleAir, tous les capteurs supportent les mêmes polluants
-      // Pas besoin de faire un appel API pour récupérer les métadonnées
       const variables: Record<
         string,
         { label: string; code_iso: string; en_service: boolean }
       > = {};
 
-      // Polluants supportés par NebuleAir - tous actifs par défaut
-      const supportedPollutants = ["PM1", "PM25", "PM10", "NOISE"];
-
-      supportedPollutants.forEach((nebuleAirPollutant) => {
+      // Polluants toujours supportés par NebuleAir
+      const alwaysSupportedPollutants = ["PM1", "PM25", "PM10"];
+      
+      alwaysSupportedPollutants.forEach((nebuleAirPollutant) => {
         // Convertir le code NebuleAir vers notre code interne
         const ourPollutantCode =
           NEBULEAIR_POLLUTANT_MAPPING[nebuleAirPollutant];
@@ -445,10 +443,44 @@ export class NebuleAirService extends BaseDataService {
           variables[ourPollutantCode] = {
             label: this.getPollutantLabel(nebuleAirPollutant),
             code_iso: this.getPollutantCodeISO(nebuleAirPollutant),
-            en_service: true, // Tous les polluants NebuleAir sont actifs
+            en_service: true,
           };
         }
       });
+
+      // Vérifier si le capteur mesure vraiment le bruit
+      // Récupérer les métadonnées du capteur pour vérifier la valeur NOISE
+      try {
+        const sensorsMetadata = await this.getCachedSensorsMetadata();
+        const sensor = sensorsMetadata.find((s) => s.sensorId === sensorId);
+        
+        if (sensor) {
+          // Vérifier si NOISE a une valeur valide (pas null, pas "-1")
+          const noiseValue = sensor.NOISE;
+          const hasValidNoise = 
+            noiseValue !== null && 
+            noiseValue !== undefined && 
+            noiseValue !== "-1" &&
+            noiseValue.trim() !== "";
+          
+          if (hasValidNoise) {
+            const ourPollutantCode = NEBULEAIR_POLLUTANT_MAPPING["NOISE"];
+            if (ourPollutantCode) {
+              variables[ourPollutantCode] = {
+                label: this.getPollutantLabel("NOISE"),
+                code_iso: this.getPollutantCodeISO("NOISE"),
+                en_service: true,
+              };
+            }
+          }
+        }
+      } catch (metadataError) {
+        console.warn(
+          `⚠️ [NebuleAir] Impossible de vérifier les métadonnées NOISE pour ${sensorId}:`,
+          metadataError
+        );
+        // En cas d'erreur, ne pas inclure NOISE par défaut
+      }
 
       console.log("✅ [NebuleAir] Variables retournées:", variables);
       return variables;

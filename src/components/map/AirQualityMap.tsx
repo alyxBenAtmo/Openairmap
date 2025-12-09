@@ -39,6 +39,7 @@ import SignalAirSelectionPanel from "../panels/SignalAirSelectionPanel";
 import SignalAirDetailPanel from "../panels/SignalAirDetailPanel";
 import MobileAirRoutes from "./MobileAirRoutes";
 import CustomSpiderfiedMarkers from "./CustomSpiderfiedMarkers";
+import MarkerTooltip from "./MarkerTooltip";
 
 import { AtmoRefService } from "../../services/AtmoRefService";
 import { AtmoMicroService } from "../../services/AtmoMicroService";
@@ -53,6 +54,7 @@ import { useMapAttribution } from "./hooks/useMapAttribution";
 import { useSidePanels } from "./hooks/useSidePanels";
 import { useSignalAir } from "./hooks/useSignalAir";
 import { useMobileAir } from "./hooks/useMobileAir";
+import { useMarkerTooltip } from "./hooks/useMarkerTooltip";
 
 // Utilitaires
 import {
@@ -206,6 +208,35 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     mapRef: mapView.mapRef,
     onMobileAirSensorSelected,
   });
+
+  // Hook pour gérer le tooltip au hover sur les marqueurs
+  const { tooltip, showTooltip, hideTooltip } = useMarkerTooltip();
+  const [tooltipMetadata, setTooltipMetadata] = useState<{
+    sensorModel?: string;
+    sensorBrand?: string;
+    measuredPollutants?: string[];
+  } | null>(null);
+
+  // Charger les métadonnées du capteur quand le tooltip est affiché
+  useEffect(() => {
+    if (tooltip.device) {
+      const loadMetadata = async () => {
+        try {
+          const { getSensorMetadata } = await import(
+            '../../utils/sensorMetadataUtils'
+          );
+          const metadata = await getSensorMetadata(tooltip.device!);
+          setTooltipMetadata(metadata);
+        } catch (error) {
+          console.error('Erreur lors du chargement des métadonnées:', error);
+          setTooltipMetadata(null);
+        }
+      };
+      loadMetadata();
+    } else {
+      setTooltipMetadata(null);
+    }
+  }, [tooltip.device]);
 
   const shouldShowStandardLegend =
     selectedSources.length > 0 || mapLayers.currentModelingWMTSLayer === null;
@@ -820,6 +851,8 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
                     icon={createCustomIconWrapper(device)}
                     eventHandlers={{
                       click: () => handleMarkerClick(device),
+                      mouseover: (e) => showTooltip(device, e),
+                      mouseout: () => hideTooltip(),
                     }}
                   />
                 ))}
@@ -840,6 +873,8 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
               nearbyDistance={10} // Distance en pixels pour considérer les marqueurs comme se chevauchant
               zoomThreshold={spiderfyConfig.autoSpiderfyZoomThreshold} // Seuil de zoom pour activer le spiderfier
               getMarkerKey={getMarkerKeyWrapper}
+              onMarkerHover={showTooltip}
+              onMarkerHoverOut={hideTooltip}
             />
           ) : (
             devices
@@ -857,6 +892,8 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
                   icon={createCustomIconWrapper(device)}
                   eventHandlers={{
                     click: () => handleMarkerClick(device),
+                    mouseover: (e) => showTooltip(device, e),
+                    mouseout: () => hideTooltip(),
                   }}
                 />
               ))
@@ -935,6 +972,15 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
             />
           ))}
         </MapContainer>
+
+        {/* Tooltip au hover sur les marqueurs */}
+        {tooltip.device && (
+          <MarkerTooltip
+            device={tooltip.device}
+            position={tooltip.position}
+            sensorMetadata={tooltipMetadata || undefined}
+          />
+        )}
 
         {signalAir.signalAirFeedback && (
           <div className="absolute top-24 right-4 z-[1000] max-w-sm bg-white border border-blue-200 text-blue-800 text-sm px-3 py-2 rounded-lg shadow-lg">

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { Marker, Polyline, CircleMarker } from "react-leaflet";
+import L from "leaflet";
 import { MeasurementDevice } from "../../types";
 import { useCustomSpiderfier } from "../../hooks/useCustomSpiderfier";
 
@@ -11,6 +12,8 @@ interface CustomSpiderfiedMarkersProps {
   nearbyDistance?: number;
   zoomThreshold?: number;
   getMarkerKey?: (device: MeasurementDevice) => string;
+  onMarkerHover?: (device: MeasurementDevice, event: L.LeafletMouseEvent) => void;
+  onMarkerHoverOut?: () => void;
 }
 
 const CustomSpiderfiedMarkers: React.FC<CustomSpiderfiedMarkersProps> = ({
@@ -21,6 +24,8 @@ const CustomSpiderfiedMarkers: React.FC<CustomSpiderfiedMarkersProps> = ({
   nearbyDistance = 20,
   zoomThreshold = 12,
   getMarkerKey,
+  onMarkerHover,
+  onMarkerHoverOut,
 }) => {
   const markerRefs = useRef<Map<string, any>>(new Map());
   const {
@@ -52,6 +57,12 @@ const CustomSpiderfiedMarkers: React.FC<CustomSpiderfiedMarkersProps> = ({
               icon={createCustomIcon(device)}
               eventHandlers={{
                 click: () => handleMarkerClick(device),
+                ...(onMarkerHover && {
+                  mouseover: (e: L.LeafletMouseEvent) => onMarkerHover(device, e),
+                }),
+                ...(onMarkerHoverOut && {
+                  mouseout: () => onMarkerHoverOut(),
+                }),
               }}
               ref={(marker) => {
                 if (marker) {

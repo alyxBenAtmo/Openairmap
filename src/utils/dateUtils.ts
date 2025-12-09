@@ -171,3 +171,53 @@ export const normalizeTimestamp = (ts: string | number): number => {
   return new Date(ts).getTime();
 };
 
+/**
+ * Formate une date pour l'affichage dans un tooltip
+ * Affiche la date et l'heure en locale française avec format relatif si récent
+ * 
+ * @param timestamp - Timestamp en format ISO string
+ * @returns Date formatée avec indication relative si récent
+ */
+export const formatTooltipDate = (timestamp: string): string => {
+  try {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    // Si moins de 1 minute, afficher "À l'instant"
+    if (diffMinutes < 1) {
+      return "À l'instant";
+    }
+
+    // Si moins de 1 heure, afficher en minutes
+    if (diffHours < 1) {
+      return `Il y a ${diffMinutes} minute${diffMinutes > 1 ? 's' : ''}`;
+    }
+
+    // Si moins de 24 heures, afficher en heures
+    if (diffDays < 1) {
+      return `Il y a ${diffHours} heure${diffHours > 1 ? 's' : ''}`;
+    }
+
+    // Si moins de 7 jours, afficher en jours
+    if (diffDays < 7) {
+      return `Il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
+    }
+
+    // Sinon, afficher la date complète
+    return date.toLocaleString('fr-FR', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch (error) {
+    console.error('Erreur lors du formatage de la date:', error);
+    return 'Date inconnue';
+  }
+};
+
