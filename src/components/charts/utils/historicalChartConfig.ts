@@ -241,13 +241,16 @@ export const generateSeriesConfigs = (
           });
         }
       } else {
-        // Pour les autres sources (atmoRef, etc.), utiliser simplement la valeur principale
+        // Pour les autres sources, déterminer le style de ligne selon la source
+        // NebuleAir : trait discontinu pour mettre en valeur les valeurs corrigées d'AtmoMicro
+        // AtmoRef et autres : trait plein
+        const isNebuleAir = station.source === "nebuleair";
         configs.push({
           dataKey: station.id,
           name: `${station.name} - ${pollutantName}`,
           color: stationColor,
           strokeWidth: 2,
-          strokeDasharray: "0",
+          strokeDasharray: isNebuleAir ? "3 3" : "0",
           yAxisId: "left" as const,
           connectNulls: shouldConnectNulls,
         });
