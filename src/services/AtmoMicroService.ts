@@ -504,19 +504,15 @@ export class AtmoMicroService extends BaseDataService {
       }
     }
 
-    // Si la date contient déjà une heure, la parser et convertir en UTC
+    // Si la date contient déjà une heure, la préserver telle quelle
+    // C'est le cas pour les périodes prédéfinies (3h, 24h, 7d, 30d) qui arrivent avec l'heure exacte
     const date = new Date(dateString);
     if (isNaN(date.getTime())) {
       throw new Error(`Date invalide: ${dateString}`);
     }
     
-    // Forcer l'heure selon si c'est début ou fin
-    if (isEndDate) {
-      date.setUTCHours(23, 59, 59, 999);
-    } else {
-      date.setUTCHours(0, 0, 0, 0);
-    }
-
+    // Préserver l'heure existante - ne pas forcer à 00:00:00 ou 23:59:59
+    // Cela permet de respecter exactement la période demandée (ex: 24h exactement)
     return date.toISOString();
   }
 
