@@ -24,6 +24,9 @@ import InformationModal from "./components/modals/InformationModal";
 import { ModelingLayerType } from "./constants/mapLayers";
 import { useToast } from "./hooks/useToast";
 import { ToastContainer } from "./components/ui/toast";
+import { generateTestDevices } from "./utils/testDataGenerator";
+import { TestControlPanel } from "./components/performance/TestControlPanel";
+import { PerformanceMonitor } from "./components/performance/PerformanceMonitor";
 
 const App: React.FC = () => {
   // Configuration basée sur le domaine
@@ -98,6 +101,11 @@ const App: React.FC = () => {
     string | null
   >(null);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+
+  // États pour le mode test de performance
+  const [testMode, setTestMode] = useState(false);
+  const [testMarkerCount, setTestMarkerCount] = useState(1000);
+  const [performanceMonitoring, setPerformanceMonitoring] = useState(false);
 
   // Fonction wrapper pour gérer le changement de période SignalAir
   const handleSignalAirDraftPeriodChange = (
@@ -251,7 +259,21 @@ const App: React.FC = () => {
   });
 
   // Déterminer quelles données utiliser selon le mode
-  const devices = isHistoricalModeActive ? getCurrentDevices() : normalDevices;
+  const baseDevices = isHistoricalModeActive ? getCurrentDevices() : normalDevices;
+
+  // Générer les devices de test si le mode test est activé
+  const testDevices = useMemo(() => {
+    if (!testMode) return [];
+    return generateTestDevices(testMarkerCount, [domainConfig.mapCenter[0], domainConfig.mapCenter[1]]);
+  }, [testMode, testMarkerCount, domainConfig.mapCenter]);
+
+  // Combiner les devices réels et de test
+  const devices = useMemo(() => {
+    if (testMode) {
+      return [...baseDevices, ...testDevices];
+    }
+    return baseDevices;
+  }, [testMode, baseDevices, testDevices]);
 
   const signalAirReports = useMemo(
     () => reports.filter((report) => report.source === "signalair"),
@@ -290,6 +312,19 @@ const App: React.FC = () => {
   // Configuration de la carte basée sur le domaine
   const mapCenter = domainConfig.mapCenter;
   const mapZoom = domainConfig.mapZoom;
+
+  // Raccourci clavier pour activer/désactiver le mode test (Ctrl+Shift+T)
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'T') {
+        e.preventDefault();
+        setTestMode((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -499,6 +534,22 @@ const App: React.FC = () => {
             onGoToNext={goToNext}
           />
         )}
+
+        {/* Panneau de contrôle de test de performance */}
+        <TestControlPanel
+          testMode={testMode}
+          onTestModeChange={setTestMode}
+          markerCount={testMarkerCount}
+          onMarkerCountChange={setTestMarkerCount}
+          performanceMonitoring={performanceMonitoring}
+          onPerformanceMonitoringChange={setPerformanceMonitoring}
+        />
+
+        {/* Moniteur de performance */}
+        <PerformanceMonitor
+          markerCount={devices.length}
+          enabled={performanceMonitoring}
+        />
       </main>
 
       <InformationModal
