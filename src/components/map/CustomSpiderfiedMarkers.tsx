@@ -3,6 +3,8 @@ import { Marker, Polyline, CircleMarker } from "react-leaflet";
 import L from "leaflet";
 import { MeasurementDevice } from "../../types";
 import { useCustomSpiderfier } from "../../hooks/useCustomSpiderfier";
+import { getMarkerZIndex } from "../../utils/markerPriority";
+import { createPinIcon } from "./utils/svgMarkerUtils";
 
 interface CustomSpiderfiedMarkersProps {
   devices: MeasurementDevice[];
@@ -54,9 +56,20 @@ const CustomSpiderfiedMarkers: React.FC<CustomSpiderfiedMarkersProps> = ({
 
         return (
           <React.Fragment key={markerKey}>
+            {/* Marqueur d'épingle séparé pour toutes les formes SVG - avec zIndexOffset très bas pour passer en dessous */}
+            {(device.source === "atmoRef" || device.source === "atmoMicro" || device.source === "nebuleair" || device.source === "sensorCommunity" || device.source === "purpleair") && (
+              <Marker
+                position={position}
+                icon={createPinIcon()}
+                zIndexOffset={-2000}
+                interactive={false}
+              />
+            )}
+            {/* Marqueur principal */}
             <Marker
               position={position}
               icon={createCustomIcon(device)}
+              zIndexOffset={getMarkerZIndex(device)}
               eventHandlers={{
                 click: () => {
                   // Masquer le tooltip lors du clic si la fonction est fournie

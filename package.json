@@ -36,9 +36,9 @@
     "leaflet": "^1.9.4",
     "leaflet-velocity": "^2.1.4",
     "overlapping-marker-spiderfier-leaflet": "^0.2.7",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "react-is": "^19.1.0",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "react-is": "^19.2.1",
     "react-leaflet": "^5.0.0",
     "react-leaflet-cluster": "^2.1.0",
     "tailwind-merge": "^3.4.0"

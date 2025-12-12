@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -45,6 +45,7 @@ import { AtmoRefService } from "../../services/AtmoRefService";
 import { AtmoMicroService } from "../../services/AtmoMicroService";
 import { NebuleAirService } from "../../services/NebuleAirService";
 import MarkerClusterGroup from "react-leaflet-cluster";
+import { sortDevicesByPriority, getMarkerZIndex } from "../../utils/markerPriority";
 
 // Hooks personnalisés
 import { useMapView } from "./hooks/useMapView";
@@ -65,6 +66,7 @@ import {
   getMarkerKey,
   isDeviceSelected,
 } from "./utils/mapIconUtils";
+import { createPinIcon } from "./utils/svgMarkerUtils";
 import { getOptimalZoomLevel } from "./utils/mapMarkerUtils";
 import {
   createLoadComparisonDataHandler,
@@ -218,6 +220,11 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     mapRef: mapView.mapRef,
     onMobileAirSensorSelected,
   });
+
+  // Trier les devices par priorité pour l'affichage (les plus prioritaires en dernier = au-dessus)
+  const sortedDevices = useMemo(() => {
+    return sortDevicesByPriority(devices);
+  }, [devices]);
 
   // Hook pour gérer le tooltip au hover sur les marqueurs
   const { tooltip, showTooltip, hideTooltip } = useMarkerTooltip();
@@ -853,7 +860,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
               animate={clusterConfig.animate}
               animateAddingMarkers={clusterConfig.animateAddingMarkers}
             >
-              {devices
+              {sortedDevices
                 .filter((device) => {
                   // Filtrer complètement les devices MobileAir (gérés par MobileAirRoutes)
                   if (device.source === "mobileair") {
@@ -862,25 +869,37 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
                   return true;
                 })
                 .map((device) => (
-                  <Marker
-                    key={getMarkerKeyWrapper(device)}
-                    position={[device.latitude, device.longitude]}
-                    icon={createCustomIconWrapper(device)}
-                    eventHandlers={{
-                      click: () => {
-                        hideTooltip(true);
-                        handleMarkerClick(device);
-                      },
-                      mouseover: (e) => showTooltip(device, e),
-                      mouseout: () => hideTooltip(),
-                    }}
-                  />
+                  <React.Fragment key={getMarkerKeyWrapper(device)}>
+                    {/* Marqueur d'épingle séparé pour toutes les formes SVG - avec zIndexOffset très bas pour passer en dessous */}
+                    {(device.source === "atmoRef" || device.source === "atmoMicro" || device.source === "nebuleair" || device.source === "sensorCommunity" || device.source === "purpleair") && (
+                      <Marker
+                        position={[device.latitude, device.longitude]}
+                        icon={createPinIcon()}
+                        zIndexOffset={-2000}
+                        interactive={false}
+                      />
+                    )}
+                    {/* Marqueur principal */}
+                    <Marker
+                      position={[device.latitude, device.longitude]}
+                      icon={createCustomIconWrapper(device)}
+                      zIndexOffset={getMarkerZIndex(device)}
+                      eventHandlers={{
+                        click: () => {
+                          hideTooltip(true);
+                          handleMarkerClick(device);
+                        },
+                        mouseover: (e) => showTooltip(device, e),
+                        mouseout: () => hideTooltip(),
+                      }}
+                    />
+                  </React.Fragment>
                 ))}
             </MarkerClusterGroup>
           ) : // Spiderfier automatique personnalisé - éclatement automatique des marqueurs qui se chevauchent
           spiderfyConfig.enabled ? (
             <CustomSpiderfiedMarkers
-              devices={devices.filter((device) => {
+              devices={sortedDevices.filter((device) => {
                 // Filtrer complètement les devices MobileAir (gérés par MobileAirRoutes)
                 if (device.source === "mobileair") {
                   return false;
@@ -898,7 +917,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
               onMarkerClick={() => hideTooltip(true)}
             />
           ) : (
-            devices
+            sortedDevices
               .filter((device) => {
                 // Filtrer complètement les devices MobileAir (gérés par MobileAirRoutes)
                 if (device.source === "mobileair") {
@@ -911,6 +930,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
                   key={getMarkerKeyWrapper(device)}
                   position={[device.latitude, device.longitude]}
                   icon={createCustomIconWrapper(device)}
+                  zIndexOffset={getMarkerZIndex(device)}
                   eventHandlers={{
                     click: () => {
                       hideTooltip(true);
@@ -1164,7 +1184,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
         };
 
         // Calculer quels boutons doivent être affichés
-        const buttons: Array<{ key: string; element: JSX.Element }> = [];
+        const buttons: Array<{ key: string; element: React.ReactElement }> = [];
         const spacing = 60; // Espacement entre les boutons
 
         // Bouton pour rouvrir le panel de station masqué
