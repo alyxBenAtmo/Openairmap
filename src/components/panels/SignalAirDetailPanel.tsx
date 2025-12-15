@@ -113,6 +113,25 @@ const SignalAirDetailPanel: React.FC<SignalAirDetailPanelProps> = ({
     }
   };
 
+  const handleCopyCoordinate = async (type: "latitude" | "longitude") => {
+    if (!report) {
+      return;
+    }
+
+    const text =
+      type === "latitude"
+        ? report.latitude.toString()
+        : report.longitude.toString();
+
+    try {
+      if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      }
+    } catch (error) {
+      console.error(`Erreur lors de la copie de la ${type} :`, error);
+    }
+  };
+
   const getPanelClasses = () => {
     const baseClasses =
       "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300 h-full md:h-[calc(100vh-64px)] relative z-[1500]";
@@ -317,6 +336,66 @@ const SignalAirDetailPanel: React.FC<SignalAirDetailPanelProps> = ({
                 Zone concernée
               </p>
               <div className="space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-gray-700">
+                  <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3">
+                    <span className="font-medium text-gray-900 sm:w-48">
+                      Latitude
+                    </span>
+                    <span className="flex-1 font-mono">
+                      {report.latitude.toFixed(5)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyCoordinate("latitude")}
+                    className="inline-flex items-center justify-center p-1.5 text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors"
+                    title="Copier la latitude"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-gray-700">
+                  <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3">
+                    <span className="font-medium text-gray-900 sm:w-48">
+                      Longitude
+                    </span>
+                    <span className="flex-1 font-mono">
+                      {report.longitude.toFixed(5)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyCoordinate("longitude")}
+                    className="inline-flex items-center justify-center p-1.5 text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors"
+                    title="Copier la longitude"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                  </button>
+                </div>
                 {renderInfoLine("Ville", report.city)}
                 {renderInfoLine("Code postal", report.postalCode)}
                 {renderInfoLine("Pays", report.countryCode)}
