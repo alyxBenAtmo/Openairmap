@@ -42,17 +42,28 @@ export const useSignalAirSpiderfier = ({
   useEffect(() => {
     if (!map) return;
 
+    const handleZoom = () => {
+      const zoom = map.getZoom();
+      setCurrentZoom(zoom);
+    };
+
     const handleZoomEnd = () => {
       const zoom = map.getZoom();
       setCurrentZoom(zoom);
     };
 
+    // Écouter les événements de zoom
+    map.on("zoom", handleZoom);
     map.on("zoomend", handleZoomEnd);
 
     // Initialiser le zoom actuel
-    setCurrentZoom(map.getZoom());
+    const initialZoom = map.getZoom();
+    if (initialZoom !== undefined) {
+      setCurrentZoom(initialZoom);
+    }
 
     return () => {
+      map.off("zoom", handleZoom);
       map.off("zoomend", handleZoomEnd);
     };
   }, [map, zoomThreshold]);

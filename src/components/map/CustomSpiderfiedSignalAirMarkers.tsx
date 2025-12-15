@@ -16,7 +16,7 @@ const CustomSpiderfiedSignalAirMarkers: React.FC<CustomSpiderfiedSignalAirMarker
   createSignalIcon,
   handleMarkerClick,
   enabled,
-  zoomThreshold = 6,
+  zoomThreshold = 12,
 }) => {
   const markerRefs = useRef<Map<string, any>>(new Map());
   const {

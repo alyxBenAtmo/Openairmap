@@ -23,7 +23,7 @@ const CustomSpiderfiedMarkers: React.FC<CustomSpiderfiedMarkersProps> = ({
   handleMarkerClick,
   enabled,
   nearbyDistance = 20,
-  zoomThreshold = 6,
+  zoomThreshold = 12,
   getMarkerKey,
   onMarkerHover,
   onMarkerHoverOut,

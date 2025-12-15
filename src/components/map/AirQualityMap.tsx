@@ -123,7 +123,7 @@ const defaultClusterConfig = {
 const defaultSpiderfyConfig = {
   enabled: true, // active/desactive le spiderfier par defaut
   autoSpiderfy: true, // activation automatique du spiderfier au zoom
-  autoSpiderfyZoomThreshold: 6, // seuil de zoom pour activer/désactiver le spiderfier
+  autoSpiderfyZoomThreshold: 12, // seuil de zoom pour activer/désactiver le spiderfier
 };
 
 // Composant interne pour gérer les événements de la carte
