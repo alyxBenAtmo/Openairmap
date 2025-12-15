@@ -27,8 +27,14 @@ export const useMarkerTooltip = (options: UseMarkerTooltipOptions = {}) => {
   const [currentZoom, setCurrentZoom] = useState<number>(0);
   const isMobile = useIsMobile();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const tooltipRef = useRef<TooltipState>(tooltip);
 
-  // Écouter les changements de zoom
+  // Mettre à jour la ref du tooltip à chaque changement
+  useEffect(() => {
+    tooltipRef.current = tooltip;
+  }, [tooltip]);
+
+  // Écouter les changements de zoom et masquer le tooltip si nécessaire
   useEffect(() => {
     const map = mapRef?.current;
     if (!map) {
@@ -40,11 +46,29 @@ export const useMarkerTooltip = (options: UseMarkerTooltipOptions = {}) => {
     const handleZoom = () => {
       const zoom = map.getZoom();
       setCurrentZoom(zoom);
+      
+      // Masquer le tooltip si le zoom devient inférieur au minimum
+      // Utiliser tooltipRef pour avoir la valeur actuelle
+      if (zoom < minZoom && tooltipRef.current.device) {
+        setTooltip({
+          device: null,
+          position: { x: 0, y: 0 },
+        });
+      }
     };
 
     const handleZoomEnd = () => {
       const zoom = map.getZoom();
       setCurrentZoom(zoom);
+      
+      // Masquer le tooltip si le zoom devient inférieur au minimum
+      // Utiliser tooltipRef pour avoir la valeur actuelle
+      if (zoom < minZoom && tooltipRef.current.device) {
+        setTooltip({
+          device: null,
+          position: { x: 0, y: 0 },
+        });
+      }
     };
 
     // Écouter les événements de zoom
@@ -61,17 +85,7 @@ export const useMarkerTooltip = (options: UseMarkerTooltipOptions = {}) => {
       map.off('zoom', handleZoom);
       map.off('zoomend', handleZoomEnd);
     };
-  }, [mapRef]);
-
-  // Masquer le tooltip si le zoom est inférieur au minimum
-  useEffect(() => {
-    if (currentZoom < minZoom && tooltip.device) {
-      setTooltip({
-        device: null,
-        position: { x: 0, y: 0 },
-      });
-    }
-  }, [currentZoom, minZoom, tooltip.device]);
+  }, [mapRef, minZoom]);
 
   // Fonction pour afficher le tooltip
   const showTooltip = useCallback(
