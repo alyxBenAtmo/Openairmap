@@ -52,25 +52,83 @@ const SourceDropdownWithNotifications: React.FC<
     null
   );
 
-  // Définir les sources communautaires
-  const communautaireSources = [
-    "communautaire.nebuleair",
-    "communautaire.sensorCommunity",
-    "communautaire.purpleair",
-    "communautaire.mobileair",
+  // Définir les groupes et leurs sources
+  const microcapteursQualifiesSources = [
+    "microcapteursQualifies.atmoMicro",
+    "microcapteursQualifies.nebuleair",
+  ];
+
+  const autreCapteurCommunautaireSources = [
+    "autreCapteurCommunautaire.purpleair",
+    "autreCapteurCommunautaire.sensorCommunity",
+  ];
+
+  const capteurEnMobiliteSources = [
+    "capteurEnMobilite.mobileair",
+  ];
+
+  const signalementCommunautaireSources = [
+    "signalementCommunautaire.signalair",
   ];
 
   // Vérifier l'état des groupes
-  const allCommunautaireSelected = useMemo(
+  const allMicrocapteursQualifiesSelected = useMemo(
     () =>
-      communautaireSources.every((source) =>
+      microcapteursQualifiesSources.every((source) =>
         selectedSources.includes(source)
       ),
     [selectedSources]
   );
-  const someCommunautaireSelected = useMemo(
+  const someMicrocapteursQualifiesSelected = useMemo(
     () =>
-      communautaireSources.some((source) => selectedSources.includes(source)),
+      microcapteursQualifiesSources.some((source) =>
+        selectedSources.includes(source)
+      ),
+    [selectedSources]
+  );
+
+  const allAutreCapteurCommunautaireSelected = useMemo(
+    () =>
+      autreCapteurCommunautaireSources.every((source) =>
+        selectedSources.includes(source)
+      ),
+    [selectedSources]
+  );
+  const someAutreCapteurCommunautaireSelected = useMemo(
+    () =>
+      autreCapteurCommunautaireSources.some((source) =>
+        selectedSources.includes(source)
+      ),
+    [selectedSources]
+  );
+
+  const allCapteurEnMobiliteSelected = useMemo(
+    () =>
+      capteurEnMobiliteSources.every((source) =>
+        selectedSources.includes(source)
+      ),
+    [selectedSources]
+  );
+  const someCapteurEnMobiliteSelected = useMemo(
+    () =>
+      capteurEnMobiliteSources.some((source) =>
+        selectedSources.includes(source)
+      ),
+    [selectedSources]
+  );
+
+  const allSignalementCommunautaireSelected = useMemo(
+    () =>
+      signalementCommunautaireSources.every((source) =>
+        selectedSources.includes(source)
+      ),
+    [selectedSources]
+  );
+  const someSignalementCommunautaireSelected = useMemo(
+    () =>
+      signalementCommunautaireSources.some((source) =>
+        selectedSources.includes(source)
+      ),
     [selectedSources]
   );
 
@@ -127,22 +185,29 @@ const SourceDropdownWithNotifications: React.FC<
     setIncompatibleSource(null);
   };
 
-  const handleGroupToggle = (groupCode: string) => {
-    if (groupCode === "communautaire") {
-      if (allCommunautaireSelected) {
-        const newSources = selectedSources.filter(
-          (source) => !communautaireSources.includes(source)
-        );
-        onSourceChange(newSources);
-      } else {
-        const newSources = [...selectedSources];
-        communautaireSources.forEach((source) => {
-          if (!newSources.includes(source)) {
-            newSources.push(source);
-          }
-        });
-        onSourceChange(newSources);
-      }
+  const handleGroupToggle = (
+    groupCode: string,
+    groupSources: string[]
+  ) => {
+    const allSelected = groupSources.every((source) =>
+      selectedSources.includes(source)
+    );
+
+    if (allSelected) {
+      // Désélectionner toutes les sources du groupe
+      const newSources = selectedSources.filter(
+        (source) => !groupSources.includes(source)
+      );
+      onSourceChange(newSources);
+    } else {
+      // Sélectionner toutes les sources du groupe
+      const newSources = [...selectedSources];
+      groupSources.forEach((source) => {
+        if (!newSources.includes(source)) {
+          newSources.push(source);
+        }
+      });
+      onSourceChange(newSources);
     }
   };
 
@@ -150,11 +215,41 @@ const SourceDropdownWithNotifications: React.FC<
     if (selectedSources.length === 0) {
       return "Choisir des sources";
     }
-    if (selectedSources.length === 1) {
-      const source = selectedSources[0];
-      return getSourceDisplayName(source);
+    
+    // Compter les sources en groupant les sous-sources de microcapteursQualifies
+    const hasAtmoRef = selectedSources.includes("atmoRef");
+    const hasMicrocapteursQualifies = selectedSources.some(s => 
+      s.includes("microcapteursQualifies")
+    );
+    const hasAutreCapteurCommunautaire = selectedSources.some(s => 
+      s.includes("autreCapteurCommunautaire")
+    );
+    const hasCapteurEnMobilite = selectedSources.some(s => 
+      s.includes("capteurEnMobilite")
+    );
+    const hasSignalementCommunautaire = selectedSources.some(s => 
+      s.includes("signalementCommunautaire")
+    );
+    
+    const visibleSourcesCount = [
+      hasAtmoRef,
+      hasMicrocapteursQualifies,
+      hasAutreCapteurCommunautaire,
+      hasCapteurEnMobilite,
+      hasSignalementCommunautaire,
+    ].filter(Boolean).length;
+    
+    if (visibleSourcesCount === 0) {
+      return "Choisir des sources";
     }
-    return `${selectedSources.length} sources sélectionnées`;
+    if (visibleSourcesCount === 1) {
+      if (hasAtmoRef) return "Station de référence atmosud";
+      if (hasMicrocapteursQualifies) return "NebuleAir";
+      if (hasAutreCapteurCommunautaire) return "Autre capteur communautaire";
+      if (hasCapteurEnMobilite) return "Capteur en mobilité";
+      if (hasSignalementCommunautaire) return "Signalement communautaire";
+    }
+    return `${visibleSourcesCount} sources sélectionnées`;
   };
 
   return (
@@ -258,13 +353,8 @@ const SourceDropdownWithNotifications: React.FC<
           </>
         )}
 
-        {/* Sources principales */}
+        {/* Stations de référence */}
         <div className="p-1">
-          <DropdownMenuLabel className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 px-1">
-            Sources principales
-          </DropdownMenuLabel>
-
-          {/* AtmoRef */}
           <SourceItem
             code="atmoRef"
             name="Station de référence atmosud"
@@ -275,71 +365,107 @@ const SourceDropdownWithNotifications: React.FC<
             )}
             onToggle={() => handleSourceToggle("atmoRef")}
           />
+        </div>
 
-          {/* AtmoMicro */}
+        <DropdownMenuSeparator />
+
+        {/* NebuleAir */}
+        <div className="p-1">
           <SourceItem
-            code="atmoMicro"
-            name="Microcapteurs qualifiés"
-            isSelected={selectedSources.includes("atmoMicro")}
-            isCompatible={isSourceCompatibleWithTimeStep(
-              "atmoMicro",
-              selectedTimeStep
-            )}
-            onToggle={() => handleSourceToggle("atmoMicro")}
+            code="microcapteursQualifies"
+            name="NebuleAir"
+            isSelected={allMicrocapteursQualifiesSelected}
+            isCompatible={true}
+            onToggle={() =>
+              handleGroupToggle(
+                "microcapteursQualifies",
+                microcapteursQualifiesSources
+              )
+            }
           />
         </div>
 
         <DropdownMenuSeparator />
 
-        {/* Groupe communautaire */}
+        {/* Autre capteur communautaire */}
         <div className="p-1">
-          <CommunautaireGroupCheckbox
-            allSelected={allCommunautaireSelected}
-            someSelected={someCommunautaireSelected}
-            onToggle={() => handleGroupToggle("communautaire")}
+          <SourceItem
+            code="autreCapteurCommunautaire"
+            name="Autre capteur communautaire"
+            isSelected={allAutreCapteurCommunautaireSelected}
+            isCompatible={true}
+            onToggle={() =>
+              handleGroupToggle(
+                "autreCapteurCommunautaire",
+                autreCapteurCommunautaireSources
+              )
+            }
+          />
+        </div>
+
+        <DropdownMenuSeparator />
+
+        {/* Capteur en mobilité */}
+        <div className="p-1">
+          <GroupCheckbox
+            allSelected={allCapteurEnMobiliteSelected}
+            someSelected={someCapteurEnMobiliteSelected}
+            onToggle={() =>
+              handleGroupToggle("capteurEnMobilite", capteurEnMobiliteSources)
+            }
+            label="Capteur en mobilité"
           />
 
-          {/* Sous-menu communautaire */}
+          {/* Sous-menu capteur en mobilité */}
           <div className="ml-6 mt-1 space-y-1">
-            {[
-              { code: "communautaire.nebuleair", name: "NebuleAir" },
-              {
-                code: "communautaire.sensorCommunity",
-                name: "Sensor.Community",
-              },
-              { code: "communautaire.purpleair", name: "PurpleAir" },
-              { code: "communautaire.mobileair", name: "MobileAir" },
-            ].map(({ code, name }) => (
-              <SourceItem
-                key={code}
-                code={code}
-                name={name}
-                isSelected={selectedSources.includes(code)}
-                isCompatible={isSourceCompatibleWithTimeStep(
-                  code,
-                  selectedTimeStep
-                )}
-                supportedTimeSteps={getSupportedTimeStepNames(code)}
-                onToggle={() => handleSourceToggle(code)}
-              />
-            ))}
+            <SourceItem
+              code="capteurEnMobilite.mobileair"
+              name="MobileAir"
+              isSelected={selectedSources.includes("capteurEnMobilite.mobileair")}
+              isCompatible={isSourceCompatibleWithTimeStep(
+                "capteurEnMobilite.mobileair",
+                selectedTimeStep
+              )}
+              supportedTimeSteps={getSupportedTimeStepNames("capteurEnMobilite.mobileair")}
+              onToggle={() => handleSourceToggle("capteurEnMobilite.mobileair")}
+            />
           </div>
         </div>
 
         <DropdownMenuSeparator />
 
-        {/* SignalAir */}
+        {/* Signalement communautaire */}
         <div className="p-1">
-          <SourceItem
-            code="signalair"
-            name="SignalAir"
-            isSelected={selectedSources.includes("signalair")}
-            isCompatible={isSourceCompatibleWithTimeStep(
-              "signalair",
-              selectedTimeStep
-            )}
-            onToggle={() => handleSourceToggle("signalair")}
+          <GroupCheckbox
+            allSelected={allSignalementCommunautaireSelected}
+            someSelected={someSignalementCommunautaireSelected}
+            onToggle={() =>
+              handleGroupToggle(
+                "signalementCommunautaire",
+                signalementCommunautaireSources
+              )
+            }
+            label="Signalement communautaire"
           />
+
+          {/* Sous-menu signalement communautaire */}
+          <div className="ml-6 mt-1 space-y-1">
+            <SourceItem
+              code="signalementCommunautaire.signalair"
+              name="SignalAir"
+              isSelected={selectedSources.includes(
+                "signalementCommunautaire.signalair"
+              )}
+              isCompatible={isSourceCompatibleWithTimeStep(
+                "signalementCommunautaire.signalair",
+                selectedTimeStep
+              )}
+              supportedTimeSteps={getSupportedTimeStepNames("signalementCommunautaire.signalair")}
+              onToggle={() =>
+                handleSourceToggle("signalementCommunautaire.signalair")
+              }
+            />
+          </div>
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -401,12 +527,13 @@ const SourceItem: React.FC<SourceItemProps> = ({
   );
 };
 
-// Composant séparé pour gérer l'état indéterminé du checkbox du groupe communautaire
-const CommunautaireGroupCheckbox: React.FC<{
+// Composant réutilisable pour gérer l'état indéterminé du checkbox d'un groupe
+const GroupCheckbox: React.FC<{
   allSelected: boolean;
   someSelected: boolean;
   onToggle: () => void;
-}> = ({ allSelected, someSelected, onToggle }) => {
+  label: string;
+}> = ({ allSelected, someSelected, onToggle, label }) => {
   const checkboxRef = useRef<HTMLButtonElement>(null);
   const isIndeterminate = someSelected && !allSelected;
 
@@ -441,11 +568,10 @@ const CommunautaireGroupCheckbox: React.FC<{
             </div>
           )}
         </div>
-        <span className="font-medium">Autres capteurs communautaires</span>
+        <span className="font-medium">{label}</span>
       </div>
     </button>
   );
 };
 
 export default SourceDropdownWithNotifications;
-

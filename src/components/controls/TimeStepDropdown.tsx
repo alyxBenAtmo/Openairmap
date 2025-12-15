@@ -40,7 +40,7 @@ const TimeStepDropdown: React.FC<TimeStepDropdownProps> = ({
     const allSupportedTimeSteps = new Set<string>();
 
     selectedSources.forEach((sourceCode) => {
-      // Gérer les sources communautaires (communautaire.nebuleair -> nebuleair)
+      // Gérer les sources dans les groupes (groupe.sousSource -> sousSource)
       let actualSourceCode = sourceCode;
       if (sourceCode.startsWith("communautaire.")) {
         actualSourceCode = sourceCode.split(".")[1];

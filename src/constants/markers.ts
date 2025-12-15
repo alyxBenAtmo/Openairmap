@@ -8,6 +8,7 @@ export interface MarkerConfig {
   basePath: string;
   levels: string[];
   defaultLevel: string;
+  hasVisualIndicator?: boolean; // Indicateur visuel pour différencier certaines sources
 }
 
 export const MARKER_CONFIGS: Record<string, MarkerConfig> = {
@@ -38,10 +39,11 @@ export const MARKER_CONFIGS: Record<string, MarkerConfig> = {
       "default",
     ],
     defaultLevel: "default",
+    hasVisualIndicator: true, // Indicateur visuel pour différencier d'NebuleAir
   },
   nebuleair: {
     source: "nebuleair",
-    basePath: "nebuleAirMarkers/nebuleAir",
+    basePath: "atmoMicroMarkers/microStationAtmoSud", // Utilise le même marqueur qu'AtmoMicro
     levels: [
       "bon",
       "moyen",
@@ -52,10 +54,11 @@ export const MARKER_CONFIGS: Record<string, MarkerConfig> = {
       "default",
     ],
     defaultLevel: "default",
+    hasVisualIndicator: false, // Pas d'indicateur visuel pour NebuleAir
   },
   purpleair: {
     source: "purpleair",
-    basePath: "purpleAirMarkers/purpleAir",
+    basePath: "sensorCommunityMarkers/SensorCommunity", // Utilise les marqueurs ronds
     levels: [
       "bon",
       "moyen",
@@ -69,7 +72,7 @@ export const MARKER_CONFIGS: Record<string, MarkerConfig> = {
   },
   sensorCommunity: {
     source: "sensorCommunity",
-    basePath: "sensorCommunityMarkers/SensorCommunity",
+    basePath: "sensorCommunityMarkers/SensorCommunity", // Utilise les marqueurs ronds
     levels: [
       "bon",
       "moyen",

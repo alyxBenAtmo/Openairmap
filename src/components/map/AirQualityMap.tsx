@@ -26,6 +26,7 @@ import ClusterControl from "../controls/ClusterControl";
 import CustomSearchControl from "../controls/CustomSearchControl";
 import ScaleControl from "../controls/ScaleControl";
 import NorthArrow from "../controls/NorthArrow";
+import SourceSettingsControl from "../controls/SourceSettingsControl";
 import Legend from "./Legend";
 import StationSidePanel from "../panels/StationSidePanel";
 import MicroSidePanel from "../panels/MicroSidePanel";
@@ -108,6 +109,7 @@ interface AirQualityMapProps {
   ) => void;
   onMobileAirSourceDeselected?: () => void;
   isHistoricalModeActive?: boolean;
+  onSourceChange?: (sources: string[]) => void;
 }
 
 const defaultClusterConfig = {
@@ -158,6 +160,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   onMobileAirSensorSelected,
   onMobileAirSourceDeselected,
   isHistoricalModeActive = false,
+  onSourceChange,
 }) => {
   // Configuration des clusters et spiderfier
   const [clusterConfig, setClusterConfig] = useState(defaultClusterConfig);
@@ -1071,6 +1074,14 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
             currentBaseLayer={currentBaseLayer}
             onBaseLayerChange={setCurrentBaseLayer}
           />
+
+          {/* Réglage source capteurs */}
+          {onSourceChange && (
+            <SourceSettingsControl
+              selectedSources={selectedSources}
+              onSourceChange={onSourceChange}
+            />
+          )}
         </div>
 
         {/* Légende */}
@@ -1268,7 +1279,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
 
         // Bouton pour rouvrir le panel MobileAir Selection masqué
         // Afficher si la source est sélectionnée ET que le panel n'est pas visible
-        if (selectedSources.includes("communautaire.mobileair") &&
+        if (selectedSources.some(s => s.includes("mobileair")) &&
             (!mobileAir.isMobileAirSelectionPanelOpen || 
              mobileAir.mobileAirSelectionPanelSize === "hidden")) {
           buttons.push({
@@ -1322,7 +1333,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
 
         // Bouton pour rouvrir le panel SignalAir Selection masqué
         // Afficher si la source est sélectionnée ET que le panel n'est pas visible
-        if (selectedSources.includes("signalair") &&
+        if (selectedSources.some(s => s.includes("signalair")) &&
             (!signalAir.isSignalAirPanelOpen || 
              signalAir.signalAirPanelSize === "hidden")) {
           buttons.push({

@@ -7,15 +7,9 @@ export const sources: Sources = {
     activated: true,
     supportedTimeSteps: ["instantane", "quartHeure", "heure", "jour"],
   }, // Stations de référence AtmoSud
-  atmoMicro: {
-    name: "Microcapteurs qualifiés AtmoSud",
-    code: "atmoMicro",
-    activated: true,
-    supportedTimeSteps: ["instantane", "deuxMin", "quartHeure", "heure"],
-  }, // Micro-stations AtmoSud
-  communautaire: {
-    name: "Autres capteurs communautaires",
-    code: "communautaire",
+  microcapteursQualifies: {
+    name: "NebuleAir",
+    code: "microcapteursQualifies",
     activated: true,
     isGroup: true,
     supportedTimeSteps: [
@@ -26,6 +20,13 @@ export const sources: Sources = {
       "jour",
     ],
     subSources: {
+      atmoMicro: {
+        name: "Microcapteurs qualifiés AtmoSud",
+        code: "atmoMicro",
+        activated: true,
+        supportedTimeSteps: ["instantane", "deuxMin", "quartHeure", "heure"],
+        hasVisualIndicator: true, // Indicateur visuel pour différencier d'NebuleAir
+      },
       nebuleair: {
         name: "NebuleAir",
         code: "nebuleair",
@@ -38,18 +39,48 @@ export const sources: Sources = {
           "jour",
         ],
       },
-      sensorCommunity: {
-        name: "Sensor.Community",
-        code: "sensorCommunity",
-        activated: false,
-        supportedTimeSteps: ["instantane", "deuxMin"],
-      },
+    },
+  },
+  autreCapteurCommunautaire: {
+    name: "Autre capteur communautaire",
+    code: "autreCapteurCommunautaire",
+    activated: true,
+    isGroup: true,
+    supportedTimeSteps: [
+      "instantane",
+      "deuxMin",
+      "quartHeure",
+      "heure",
+      "jour",
+    ],
+    subSources: {
       purpleair: {
         name: "PurpleAir",
         code: "purpleair",
         activated: false,
         supportedTimeSteps: ["instantane", "deuxMin"],
       },
+      sensorCommunity: {
+        name: "Sensor.Community",
+        code: "sensorCommunity",
+        activated: false,
+        supportedTimeSteps: ["instantane", "deuxMin"],
+      },
+    },
+  },
+  capteurEnMobilite: {
+    name: "Capteur en mobilité",
+    code: "capteurEnMobilite",
+    activated: true,
+    isGroup: true,
+    supportedTimeSteps: [
+      "instantane",
+      "deuxMin",
+      "quartHeure",
+      "heure",
+      "jour",
+    ],
+    subSources: {
       mobileair: {
         name: "MobileAir",
         code: "mobileair",
@@ -64,10 +95,11 @@ export const sources: Sources = {
       },
     },
   },
-  signalair: {
-    name: "SignalAir",
-    code: "signalair",
-    activated: false,
+  signalementCommunautaire: {
+    name: "Signalement communautaire",
+    code: "signalementCommunautaire",
+    activated: true,
+    isGroup: true,
     supportedTimeSteps: [
       "instantane",
       "deuxMin",
@@ -75,7 +107,21 @@ export const sources: Sources = {
       "heure",
       "jour",
     ],
-  }, // Capteurs SignalAir
+    subSources: {
+      signalair: {
+        name: "SignalAir",
+        code: "signalair",
+        activated: false,
+        supportedTimeSteps: [
+          "instantane",
+          "deuxMin",
+          "quartHeure",
+          "heure",
+          "jour",
+        ],
+      },
+    },
+  },
 };
 
 // Fonction pour obtenir les sources activées par défaut

@@ -146,6 +146,9 @@ export const createCustomIcon = (
     return undefined;
   };
 
+  // Vérifier si c'est un marqueur rond (PurpleAir ou Sensor.Community)
+  const isRoundMarker = device.source === "purpleair" || device.source === "sensorCommunity";
+
   // Gestion normale pour les appareils de mesure
   // Forcer les valeurs négatives à 0 avant l'affichage
   if (device.status === "active") {
@@ -154,16 +157,18 @@ export const createCustomIcon = (
       const displayValue = Math.round(correctedValue);
       valueText.textContent = displayValue.toString();
 
-      // Ajuster la taille du texte selon la longueur de la valeur
+      // Ajuster la taille du texte selon la longueur de la valeur (identique pour tous les marqueurs)
+      let fontSize: string;
       if (displayValue >= 1000) {
-        valueText.style.fontSize = "10px";
+        fontSize = "10px";
       } else if (displayValue >= 100) {
-        valueText.style.fontSize = "12px"; // Police plus petite pour les valeurs à 3 chiffres
+        fontSize = "12px"; // Police plus petite pour les valeurs à 3 chiffres
       } else if (displayValue >= 10) {
-        valueText.style.fontSize = "16px"; // Police moyenne pour les valeurs à 2 chiffres
+        fontSize = "16px"; // Police moyenne pour les valeurs à 2 chiffres
       } else {
-        valueText.style.fontSize = "18px"; // Police normale pour les valeurs à 1 chiffre
+        fontSize = "18px"; // Police normale pour les valeurs à 1 chiffre
       }
+      valueText.style.fontSize = fontSize;
 
       // Couleur du texte selon le niveau de qualité
       const textColors: Record<string, string> = {
@@ -185,34 +190,61 @@ export const createCustomIcon = (
           "1px 1px 2px rgba(0, 0, 0, 0.8), -1px -1px 2px rgba(0, 0, 0, 0.8)";
       }
 
+      // Positionnement spécifique pour les marqueurs ronds (PurpleAir et Sensor.Community)
+      // Le fontSize est déjà défini ci-dessus et sera préservé
+      if (isRoundMarker) {
+        // Appliquer les styles de positionnement sans écraser les styles existants (fontSize, color, textShadow)
+        valueText.style.position = "absolute";
+        valueText.style.top = "50%";
+        valueText.style.left = "50%";
+        // Décalage légèrement vers la gauche et vers le bas pour centrer correctement
+        valueText.style.transform = "translate(calc(-50% - 1px), calc(-50% + 1px))";
+        valueText.style.margin = "0";
+        valueText.style.padding = "0";
+        valueText.style.width = "auto";
+        valueText.style.height = "auto";
+        valueText.style.display = "flex";
+        valueText.style.alignItems = "center";
+        valueText.style.justifyContent = "center";
+        valueText.style.textAlign = "center";
+        valueText.style.lineHeight = "1";
+        valueText.style.fontWeight = "bold";
+        valueText.style.fontFamily = "Arial, sans-serif";
+        valueText.style.pointerEvents = "none";
+        valueText.style.userSelect = "none";
+        valueText.style.zIndex = "10";
+        // Réappliquer le fontSize pour s'assurer qu'il n'est pas écrasé
+        valueText.style.fontSize = fontSize;
+      }
+
       // Indicateur de valeur corrigée pour AtmoMicro
       if (device.source === "atmoMicro" && device.has_correction) {
-      // Ajouter un indicateur visuel pour les données consolidées
-      const correctionIndicator = document.createElement("div");
-      correctionIndicator.style.cssText = `
-        position: absolute;
-        top: -4px;
-        right: -4px;
-        width: 16px;
-        height: 16px;
-        background-color: rgba(59, 130, 246, 0.7);
-        border-radius: 50%;
-        z-index: 10;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-      `;
+        // Ajouter un indicateur visuel pour les données consolidées
+        const correctionIndicator = document.createElement("div");
+        correctionIndicator.style.cssText = `
+          position: absolute;
+          top: -4px;
+          right: -4px;
+          width: 16px;
+          height: 16px;
+          background-color: rgba(59, 130, 246, 0.7);
+          border-radius: 50%;
+          z-index: 10;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        `;
 
-      // Ajouter l'icône Bootstrap Icons
-      correctionIndicator.innerHTML = `
-        <svg width="14" height="14" fill="white" viewBox="0 0 16 16">
-          <path d="M5.338 1.59a61.44 61.44 0 0 0-2.837.856.481.481 0 0 0-.328.39c-.554 4.157.726 7.19 2.253 9.188a10.725 10.725 0 0 0 2.287 2.233c.346.244.652.42.893.533.12.057.218.095.293.118a.55.55 0 0 0 .101.025.615.615 0 0 0 .1-.025c.076-.023.174-.061.294-.118.24-.113.547-.29.893-.533a10.726 10.726 0 0 0 2.287-2.233c1.527-1.997 2.807-5.031 2.253-9.188a.48.48 0 0 0-.328-.39c-.651-.213-1.75-.56-2.837-.855C9.552 1.29 8.531 1.067 8 1.067c-.53 0-1.552.223-2.662.524zM5.072.56C6.157.265 7.31 0 8 0s1.843.265 2.928.56c1.11.3 2.229.655 2.887.87a1.54 1.54 0 0 1 1.044 1.262c.596 4.477-.787 7.795-2.465 9.99a11.775 11.775 0 0 1-2.517 2.453 7.159 7.159 0 0 1-1.048.625c-.28.132-.581.24-.829.24s-.548-.108-.829-.24a7.158 7.158 0 0 1-1.048-.625 11.777 11.777 0 0 1-2.517-2.453C1.928 10.487.545 7.169 1.141 2.692A1.54 1.54 0 0 1 2.185 1.43 62.456 62.456 0 0 1 5.072.56z"/>
-          <path d="M10.854 5.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 1 1 .708-.708L7.5 7.793l2.646-2.647a.5.5 0 0 1 .708 0z"/>
-        </svg>
-      `;
+        // Ajouter l'icône Bootstrap Icons
+        correctionIndicator.innerHTML = `
+          <svg width="14" height="14" fill="white" viewBox="0 0 16 16">
+            <path d="M5.338 1.59a61.44 61.44 0 0 0-2.837.856.481.481 0 0 0-.328.39c-.554 4.157.726 7.19 2.253 9.188a10.725 10.725 0 0 0 2.287 2.233c.346.244.652.42.893.533.12.057.218.095.293.118a.55.55 0 0 0 .101.025.615.615 0 0 0 .1-.025c.076-.023.174-.061.294-.118.24-.113.547-.29.893-.533a10.726 10.726 0 0 0 2.287-2.233c1.527-1.997 2.807-5.031 2.253-9.188a.48.48 0 0 0-.328-.39c-.651-.213-1.75-.56-2.837-.855C9.552 1.29 8.531 1.067 8 1.067c-.53 0-1.552.223-2.662.524zM5.072.56C6.157.265 7.31 0 8 0s1.843.265 2.928.56c1.11.3 2.229.655 2.887.87a1.54 1.54 0 0 1 1.044 1.262c.596 4.477-.787 7.795-2.465 9.99a11.775 11.775 0 0 1-2.517 2.453 7.159 7.159 0 0 1-1.048.625c-.28.132-.581.24-.829.24s-.548-.108-.829-.24a7.158 7.158 0 0 1-1.048-.625 11.777 11.777 0 0 1-2.517-2.453C1.928 10.487.545 7.169 1.141 2.692A1.54 1.54 0 0 1 2.185 1.43 62.456 62.456 0 0 1 5.072.56z"/>
+            <path d="M10.854 5.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 1 1 .708-.708L7.5 7.793l2.646-2.647a.5.5 0 0 1 .708 0z"/>
+          </svg>
+        `;
 
-      div.appendChild(correctionIndicator);
+        div.appendChild(correctionIndicator);
       }
     }
   }

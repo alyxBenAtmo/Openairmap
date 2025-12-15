@@ -40,10 +40,8 @@ export class MobileAirService extends BaseDataService {
   }): Promise<MeasurementDevice[]> {
     try {
       // Vérifier si MobileAir est dans les sources sélectionnées
-      // Vérifier à la fois "mobileair" et "communautaire.mobileair"
-      const isMobileAirSelected =
-        params.sources.includes("mobileair") ||
-        params.sources.includes("communautaire.mobileair");
+      // Vérifier si mobileair est sélectionné (peut être dans différents groupes)
+      const isMobileAirSelected = params.sources.some(s => s.includes("mobileair"));
       if (!isMobileAirSelected) {
         return [];
       }

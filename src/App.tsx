@@ -132,16 +132,16 @@ const App: React.FC = () => {
     setSelectedMobileAirSensor(sensorId);
     setMobileAirPeriod(period);
     
-    // Ajouter communautaire.mobileair aux sources sélectionnées si pas déjà présent
-    if (!selectedSources.includes("communautaire.mobileair")) {
-      setSelectedSources([...selectedSources, "communautaire.mobileair"]);
+    // Ajouter mobileair aux sources sélectionnées si pas déjà présent
+    if (!selectedSources.some(s => s.includes("mobileair"))) {
+      setSelectedSources([...selectedSources, "capteurEnMobilite.mobileair"]);
     }
   };
 
   // Fonction pour désélectionner la source MobileAir
   const handleMobileAirSourceDeselected = () => {
-    // Retirer communautaire.mobileair des sources sélectionnées
-    setSelectedSources(selectedSources.filter(source => source !== "communautaire.mobileair"));
+    // Retirer mobileair des sources sélectionnées
+    setSelectedSources(selectedSources.filter(source => !source.includes("mobileair")));
     // Réinitialiser les états MobileAir
     setSelectedMobileAirSensor(null);
     setMobileAirPeriod(defaultSignalAirPeriod);
@@ -149,7 +149,7 @@ const App: React.FC = () => {
 
   const handleSignalAirSourceDeselected = () => {
     setSelectedSources((sources) =>
-      sources.filter((source) => source !== "signalair")
+      sources.filter((source) => !source.includes("signalair"))
     );
     resetSignalAirSettings();
   };
@@ -157,7 +157,7 @@ const App: React.FC = () => {
   // Effet pour ouvrir automatiquement le side panel MobileAir quand la source est sélectionnée
   useEffect(() => {
     if (
-      selectedSources.includes("communautaire.mobileair") &&
+      selectedSources.some(s => s.includes("mobileair")) &&
       !selectedMobileAirSensor
     ) {
       // MobileAir est sélectionné mais aucun capteur n'est encore choisi
@@ -166,7 +166,7 @@ const App: React.FC = () => {
   }, [selectedSources, selectedMobileAirSensor]);
 
   useEffect(() => {
-    if (!selectedSources.includes("signalair")) {
+    if (!selectedSources.some(s => s.includes("signalair"))) {
       resetSignalAirSettings();
     }
   }, [selectedSources, resetSignalAirSettings]);
@@ -174,7 +174,7 @@ const App: React.FC = () => {
   // État pour l'auto-refresh - désactivé par défaut
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
 
-  const isSignalAirSelected = selectedSources.includes("signalair");
+  const isSignalAirSelected = selectedSources.some(s => s.includes("signalair"));
 
   const signalAirOptions = useMemo(
     () => ({
@@ -462,6 +462,7 @@ const App: React.FC = () => {
           onMobileAirSensorSelected={handleMobileAirSensorSelected}
           onMobileAirSourceDeselected={handleMobileAirSourceDeselected}
           isHistoricalModeActive={isHistoricalModeActive}
+          onSourceChange={setSelectedSources}
         />
 
         {/* Panel de contrôle historique (sélection de date) */}

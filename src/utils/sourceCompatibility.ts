@@ -8,22 +8,31 @@ export const isSourceCompatibleWithTimeStep = (
   sourceCode: string,
   timeStep: string
 ): boolean => {
-  // Gérer les sources communautaires (communautaire.nebuleair -> nebuleair)
+  // Gérer les nouveaux groupes (microcapteursQualifies.atmoMicro -> atmoMicro)
   let actualSourceCode = sourceCode;
-  if (sourceCode.startsWith("communautaire.")) {
-    actualSourceCode = sourceCode.split(".")[1];
+  let groupCode: string | null = null;
+  
+  if (sourceCode.includes(".")) {
+    const parts = sourceCode.split(".");
+    groupCode = parts[0];
+    actualSourceCode = parts[1];
   }
 
-  const source = sources[actualSourceCode];
-  if (!source) {
-    // Si c'est une source communautaire, chercher dans le groupe communautaire
-    const communautaireSource = sources["communautaire"];
-    if (communautaireSource && communautaireSource.subSources) {
-      const subSource = communautaireSource.subSources[actualSourceCode];
+  // Si c'est une source dans un groupe, chercher dans le groupe
+  if (groupCode) {
+    const group = sources[groupCode];
+    if (group && group.isGroup && group.subSources) {
+      const subSource = group.subSources[actualSourceCode];
       if (subSource && subSource.supportedTimeSteps) {
         return subSource.supportedTimeSteps.includes(timeStep);
       }
     }
+    return false;
+  }
+
+  // Source principale (atmoRef)
+  const source = sources[actualSourceCode];
+  if (!source) {
     return false;
   }
 
@@ -50,15 +59,38 @@ export const isSourceCompatibleWithTimeStep = (
  */
 export const getSourceDisplayName = (sourceCode: string): string => {
   if (sourceCode === "atmoRef") return "Station de référence atmosud";
-  if (sourceCode === "atmoMicro") return "Microcapteurs qualifiés";
-  if (sourceCode === "signalair") return "SignalAir";
-  if (sourceCode.startsWith("communautaire.")) {
-    const subSource = sourceCode.split(".")[1];
-    if (subSource === "nebuleair") return "NebuleAir";
-    if (subSource === "sensorCommunity") return "Sensor.Community";
-    if (subSource === "purpleair") return "PurpleAir";
-    if (subSource === "mobileair") return "MobileAir";
+  
+  // Si c'est le groupe microcapteursQualifies, retourner "NebuleAir"
+  if (sourceCode === "microcapteursQualifies") {
+    return "NebuleAir";
   }
+  
+  // Gérer les nouveaux groupes
+  if (sourceCode.includes(".")) {
+    const parts = sourceCode.split(".");
+    const groupCode = parts[0];
+    const subSourceCode = parts[1];
+    
+    // Si c'est une source du groupe microcapteursQualifies, retourner "NebuleAir"
+    if (groupCode === "microcapteursQualifies") {
+      return "NebuleAir";
+    }
+    
+    const group = sources[groupCode];
+    if (group && group.isGroup && group.subSources) {
+      const subSource = group.subSources[subSourceCode];
+      if (subSource) {
+        return subSource.name;
+      }
+    }
+  }
+  
+  // Sources principales (anciennes ou sans groupe)
+  const source = sources[sourceCode];
+  if (source && !source.isGroup) {
+    return source.name;
+  }
+  
   return sourceCode;
 };
 
@@ -69,19 +101,29 @@ export const getSupportedTimeStepsForSource = (
   sourceCode: string
 ): string[] => {
   let actualSourceCode = sourceCode;
-  if (sourceCode.startsWith("communautaire.")) {
-    actualSourceCode = sourceCode.split(".")[1];
+  let groupCode: string | null = null;
+  
+  if (sourceCode.includes(".")) {
+    const parts = sourceCode.split(".");
+    groupCode = parts[0];
+    actualSourceCode = parts[1];
   }
 
-  const source = sources[actualSourceCode];
-  if (!source) {
-    const communautaireSource = sources["communautaire"];
-    if (communautaireSource && communautaireSource.subSources) {
-      const subSource = communautaireSource.subSources[actualSourceCode];
+  // Si c'est une source dans un groupe, chercher dans le groupe
+  if (groupCode) {
+    const group = sources[groupCode];
+    if (group && group.isGroup && group.subSources) {
+      const subSource = group.subSources[actualSourceCode];
       if (subSource && subSource.supportedTimeSteps) {
         return subSource.supportedTimeSteps;
       }
     }
+    return [];
+  }
+
+  // Source principale
+  const source = sources[actualSourceCode];
+  if (!source) {
     return [];
   }
 

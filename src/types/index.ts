@@ -4,6 +4,7 @@ export interface SubSource {
   code: string;
   activated: boolean;
   supportedTimeSteps?: string[];
+  hasVisualIndicator?: boolean; // Indicateur visuel pour différencier certaines sources
 }
 
 export interface Source {

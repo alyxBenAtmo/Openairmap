@@ -41,7 +41,7 @@ export const useSignalAir = ({
 
   // Effet pour gérer l'ouverture/fermeture automatique du panel SignalAir
   useEffect(() => {
-    const isSignalAirSourceSelected = selectedSources.includes("signalair");
+    const isSignalAirSourceSelected = selectedSources.some(s => s.includes("signalair"));
 
     if (!isSignalAirSourceSelected) {
       signalAirLoadPendingRef.current = false;

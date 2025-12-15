@@ -89,7 +89,7 @@ export const useTemporalVisualization = ({
     const supportedSources = [
       "atmoMicro",
       "atmoRef",
-      "communautaire.nebuleair",
+      "microcapteursQualifies.nebuleair",
     ];
     const hasSupportedSource = selectedSources.some((source) =>
       supportedSources.includes(source)
@@ -133,7 +133,7 @@ export const useTemporalVisualization = ({
         );
       }
 
-      if (selectedSources.includes("communautaire.nebuleair")) {
+      if (selectedSources.some(s => s.includes("nebuleair"))) {
         promises.push(
           nebuleAirService.current.fetchTemporalData({
             pollutant: selectedPollutant,

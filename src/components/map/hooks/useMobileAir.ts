@@ -50,7 +50,7 @@ export const useMobileAir = ({
   // Effet pour extraire les routes MobileAir des devices
   useEffect(() => {
     const isMobileAirSelected = selectedSources.includes(
-      "communautaire.mobileair"
+      "capteurEnMobilite.mobileair"
     );
 
     if (!isMobileAirSelected) {
@@ -117,7 +117,7 @@ export const useMobileAir = ({
   // Effet pour ouvrir automatiquement le side panel de sélection MobileAir
   useEffect(() => {
     const isMobileAirSelected = selectedSources.includes(
-      "communautaire.mobileair"
+      "capteurEnMobilite.mobileair"
     );
     const hasMobileAirRoutes = mobileAirRoutes.length > 0;
 
@@ -152,7 +152,7 @@ export const useMobileAir = ({
   // Effet pour fermer automatiquement le side panel de sélection quand les routes sont chargées
   useEffect(() => {
     const isMobileAirSelected = selectedSources.includes(
-      "communautaire.mobileair"
+      "capteurEnMobilite.mobileair"
     );
 
     if (
@@ -176,7 +176,7 @@ export const useMobileAir = ({
   // Effet pour ouvrir automatiquement le side panel de détail quand les routes sont chargées
   useEffect(() => {
     const isMobileAirSelected = selectedSources.includes(
-      "communautaire.mobileair"
+      "capteurEnMobilite.mobileair"
     );
 
     if (
@@ -219,7 +219,7 @@ export const useMobileAir = ({
   // Effet pour réinitialiser les états de fermeture manuelle quand les sources changent
   useEffect(() => {
     const isMobileAirSelected = selectedSources.includes(
-      "communautaire.mobileair"
+      "capteurEnMobilite.mobileair"
     );
 
     if (!isMobileAirSelected) {

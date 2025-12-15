@@ -62,11 +62,15 @@ export const useAirQualityData = ({
     setLastRefresh(now);
 
     try {
-      // Mapper les sources communautaires vers leurs codes de service réels
+      // Mapper les sources des groupes vers leurs codes de service réels
       const mappedSources = selectedSources.map((source) => {
-        if (source.startsWith("communautaire.")) {
-          return source.split(".")[1]; // Extraire 'nebuleair' de 'communautaire.nebuleair'
+        // Si la source est dans un groupe (format: groupe.sousSource)
+        if (source.includes(".")) {
+          const parts = source.split(".");
+          // Retourner le code de la sous-source (ex: 'atmoMicro' depuis 'microcapteursQualifies.atmoMicro')
+          return parts[1];
         }
+        // Source principale (ex: 'atmoRef')
         return source;
       });
 
@@ -78,8 +82,11 @@ export const useAirQualityData = ({
         return;
       }
 
+      // Vérifier si SignalAir est sélectionné (peut être dans le groupe signalementCommunautaire)
       const isSignalAirSourceSelected =
-        signalAirOptions?.isSourceSelected ?? mappedSources.includes("signalair");
+        signalAirOptions?.isSourceSelected ?? 
+        (mappedSources.includes("signalair") ||
+        selectedSources.some(s => s.includes("signalair")));
       let shouldFetchSignalAir =
         isSignalAirSourceSelected &&
         signalAirOptions &&
@@ -120,7 +127,7 @@ export const useAirQualityData = ({
 
       // NETTOYER LES ROUTES ET DEVICES MOBILEAIR EN PREMIER, AVANT TOUTE AUTRE OPÉRATION
       // Cela garantit que le nettoyage se fait au bon moment, même lors d'un rechargement
-      if (selectedSources.includes("communautaire.mobileair") && selectedMobileAirSensor) {
+      if (selectedSources.some(s => s.includes("mobileair")) && selectedMobileAirSensor) {
         // Nettoyer les routes dans le service MobileAir en PREMIER
         try {
           const mobileAirService = DataServiceFactory.getService("mobileair") as any;
@@ -149,7 +156,7 @@ export const useAirQualityData = ({
 
       // Réinitialiser les devices avant de recharger de nouvelles données
       // MAIS seulement si on ne recharge pas juste MobileAir (pour garder les autres sources)
-      if (!(selectedSources.includes("communautaire.mobileair") && selectedMobileAirSensor)) {
+      if (!(selectedSources.some(s => s.includes("mobileair")) && selectedMobileAirSensor)) {
         setDevices([]);
       }
 
@@ -196,7 +203,7 @@ export const useAirQualityData = ({
       });
 
       // Supprimer explicitement les devices MobileAir si MobileAir n'est pas sélectionné
-      if (!selectedSources.includes("communautaire.mobileair")) {
+      if (!selectedSources.some(s => s.includes("mobileair"))) {
         setDevices((prevDevices) => {
           const filteredDevices = prevDevices.filter((device) => {
             return device.source !== "mobileair";
