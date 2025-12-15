@@ -11,7 +11,7 @@ export function generateTestDevices(
   count: number = 1000,
   center: [number, number] = [43.6, 5.4], // Centre de la France (Marseille)
   radius: number = 2.0, // ~200km
-  sources: string[] = ['atmoref', 'atmomicro', 'nebuleair', 'purpleair', 'sensorcommunity']
+  sources: string[] = ['atmoRef', 'atmoMicro', 'nebuleair', 'purpleair', 'sensorCommunity']
 ): MeasurementDevice[] {
   const devices: MeasurementDevice[] = [];
   const qualityLevels = ['bon', 'moyen', 'degrade', 'mauvais', 'tresMauvais', 'extrMauvais'];

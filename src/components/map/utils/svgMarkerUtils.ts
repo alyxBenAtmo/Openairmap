@@ -2,6 +2,7 @@ import L from "leaflet";
 import { QUALITY_COLORS } from "../../../constants/qualityColors";
 import { getMarkerZIndex } from "../../../utils/markerPriority";
 import { MeasurementDevice } from "../../../types";
+import { featureFlags } from "../../../config/featureFlags";
 
 /**
  * Types de formes de marqueurs
@@ -90,12 +91,24 @@ function generatePinSVG(size: number = 32): string {
 }
 
 /**
+ * Cache pour l'icône d'épingle (créée une seule fois et réutilisée)
+ */
+let cachedPinIcon: L.DivIcon | null = null;
+
+/**
  * Crée une icône Leaflet séparée pour l'épingle d'ancrage
  * Cette épingle sera rendue comme un marqueur séparé avec un zIndexOffset très bas
  * pour qu'elle passe en dessous de tous les autres marqueurs
  * L'épingle est positionnée exactement à la position lat/long (ancrage sur la pointe de l'aiguille)
+ * 
+ * L'icône est mise en cache pour éviter de créer des milliers d'instances identiques
  */
 export function createPinIcon(): L.DivIcon {
+  // Retourner l'icône mise en cache si elle existe déjà
+  if (cachedPinIcon) {
+    return cachedPinIcon;
+  }
+  
   const anchorPinRadius = 2.5;
   const anchorPinHeight = 4;
   const size = 32;
@@ -119,12 +132,15 @@ export function createPinIcon(): L.DivIcon {
   const pinPointX = anchorPinRadius;
   const pinPointY = size;
   
-  return L.divIcon({
+  // Créer et mettre en cache l'icône
+  cachedPinIcon = L.divIcon({
     html: div.outerHTML,
     className: "marker-pin-div",
     iconSize: [size, size],
     iconAnchor: [pinPointX, pinPointY], // Ancrage exact sur la pointe de l'aiguille
   });
+  
+  return cachedPinIcon;
 }
 
 /**
@@ -141,8 +157,9 @@ function generateMarkerSVG(
   // Ajuster l'épaisseur du contour selon la forme
   const strokeWidth = shape === "square" ? "2.5" : "1.5";
   
-  // Contour bleu pour les données corrigées
-  const correctionStrokeWidth = hasCorrection ? "6" : "0";
+  // Contour bleu pour les données corrigées (uniquement si le feature flag est false)
+  const useCorrectionBorder = hasCorrection && !featureFlags.correctedCheck;
+  const correctionStrokeWidth = useCorrectionBorder ? "6" : "0";
 
   // Pour les carrés, on ne décalera PAS le carré dans le SVG
   // Le décalage sera fait via le positionnement du conteneur
@@ -157,7 +174,7 @@ function generateMarkerSVG(
   const viewBoxHeight = size;
 
   // Définir l'effet de brillance bleu si nécessaire
-  const correctionFilter = hasCorrection ? `
+  const correctionFilter = useCorrectionBorder ? `
     <defs>
       <filter id="correctionGlow-${shape}-${size}">
         <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
@@ -174,7 +191,7 @@ function generateMarkerSVG(
       ${correctionFilter}
       <!-- Forme principale du marqueur (sans épingle, l'épingle sera un marqueur séparé) -->
       <g transform="translate(${squareOffsetX}, ${squareOffsetY})">
-        ${hasCorrection ? `
+        ${useCorrectionBorder ? `
         <!-- Contour bleu extérieur pour les données corrigées -->
         <path 
           d="${path}" 
@@ -191,7 +208,7 @@ function generateMarkerSVG(
         <path 
           d="${path}" 
           fill="${color}" 
-          ${hasCorrection ? '' : `stroke="#000000" stroke-width="${strokeWidth}"`}
+          ${useCorrectionBorder ? '' : `stroke="#000000" stroke-width="${strokeWidth}"`}
           stroke-linejoin="round"
           stroke-linecap="round"
         />
@@ -410,8 +427,39 @@ export function createSVGMarkerIcon(
     div.appendChild(valueText);
   }
 
-  // Le contour bleu est maintenant intégré directement dans le SVG du marqueur
-  // Plus besoin d'indicateur séparé
+  // Ajouter l'indicateur de correction selon le feature flag
+  if (options?.hasCorrection) {
+    if (featureFlags.correctedCheck) {
+      // Mode check : afficher l'icône de check bleu
+      const indicatorSize = Math.round(markerSize * 0.5);
+      const correctionIndicator = document.createElement("div");
+      correctionIndicator.style.cssText = `
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        width: ${indicatorSize}px;
+        height: ${indicatorSize}px;
+        background-color: rgba(59, 130, 246, 0.7);
+        border-radius: 50%;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      `;
+
+      const iconSize = Math.round(indicatorSize * 0.875);
+      correctionIndicator.innerHTML = `
+        <svg width="${iconSize}" height="${iconSize}" fill="white" viewBox="0 0 16 16">
+          <path d="M5.338 1.59a61.44 61.44 0 0 0-2.837.856.481.481 0 0 0-.328.39c-.554 4.157.726 7.19 2.253 9.188a10.725 10.725 0 0 0 2.287 2.233c.346.244.652.42.893.533.12.057.218.095.293.118a.55.55 0 0 0 .101.025.615.615 0 0 0 .1-.025c.076-.023.174-.061.294-.118.24-.113.547-.29.893-.533a10.726 10.726 0 0 0 2.287-2.233c1.527-1.997 2.807-5.031 2.253-9.188a.48.48 0 0 0-.328-.39c-.651-.213-1.75-.56-2.837-.855C9.552 1.29 8.531 1.067 8 1.067c-.53 0-1.552.223-2.662.524zM5.072.56C6.157.265 7.31 0 8 0s1.843.265 2.928.56c1.11.3 2.229.655 2.887.87a1.54 1.54 0 0 1 1.044 1.262c.596 4.477-.787 7.795-2.465 9.99a11.775 11.775 0 0 1-2.517 2.453 7.159 7.159 0 0 1-1.048.625c-.28.132-.581.24-.829.24s-.548-.108-.829-.24a7.158 7.158 0 0 1-1.048-.625 11.777 11.777 0 0 1-2.517-2.453C1.928 10.487.545 7.169 1.141 2.692A1.54 1.54 0 0 1 2.185 1.43 62.456 62.456 0 0 1 5.072.56z"/>
+          <path d="M10.854 5.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 1 1 .708-.708L7.5 7.793l2.646-2.647a.5.5 0 0 1 .708 0z"/>
+        </svg>
+      `;
+
+      div.appendChild(correctionIndicator);
+    }
+    // Si featureFlags.correctedCheck est false, le contour bleu est déjà intégré dans le SVG
+  }
 
   // Ajouter l'effet de sélection si nécessaire
   if (options?.isSelected) {

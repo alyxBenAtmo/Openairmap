@@ -31,6 +31,10 @@ export const featureFlags = {
       undefined,
     false
   ),
+  correctedCheck: parseBooleanFlag(
+    import.meta.env.VITE_CORRECTED_CHECK as string | undefined,
+    false
+  ),
 };
 
 
