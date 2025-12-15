@@ -26,7 +26,7 @@ const getPositionKey = (lat: number, lng: number): string => {
 export const useSignalAirSpiderfier = ({
   reports,
   enabled,
-  zoomThreshold = 6,
+  zoomThreshold = 12,
 }: UseSignalAirSpiderfierProps) => {
   const map = useMap();
   const [spiderfiedMarkers, setSpiderfiedMarkers] = useState<Map<string, any>>(

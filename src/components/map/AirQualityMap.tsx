@@ -221,7 +221,10 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   });
 
   // Hook pour gérer le tooltip au hover sur les marqueurs
-  const { tooltip, showTooltip, hideTooltip } = useMarkerTooltip();
+  const { tooltip, showTooltip, hideTooltip } = useMarkerTooltip({
+    minZoom: 11,
+    mapRef: mapView.mapRef,
+  });
   const [tooltipMetadata, setTooltipMetadata] = useState<{
     sensorModel?: string;
     sensorBrand?: string;

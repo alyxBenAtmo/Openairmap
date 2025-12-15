@@ -191,73 +191,94 @@ const MarkerTooltip: React.FC<MarkerTooltipProps> = ({
 
   return (
     <div
-      className="fixed z-[2999] bg-gray-800/70 backdrop-blur-sm text-white text-xs rounded-md shadow-xl p-2 pointer-events-none max-w-xs border border-gray-600/50"
+      className="fixed z-[2999] rounded-lg shadow-lg p-1.5 pointer-events-none max-w-[200px] border border-white/30 overflow-hidden"
       style={{
         left: `${position.x}px`,
         top: `${position.y - 10}px`,
         transform: 'translate(-50%, -100%)',
       }}
     >
-      {/* Nom du capteur */}
-      <div className="font-semibold mb-1.5 text-sm border-b border-gray-600/50 pb-1">
-        {device.name}
-      </div>
-
-      {/* Modèle du capteur */}
-      {sensorModel && (
-        <div className="mb-1.5 text-gray-200 text-xs">
-          <span className="font-medium">Modèle :</span> {sensorModel}
+      {/* Couche de flou d'arrière-plan */}
+      <div
+        className="absolute inset-0 rounded-lg"
+        style={{
+          background: 'rgba(255, 255, 255, 0.15)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          zIndex: -1,
+        }}
+      />
+      
+      {/* Contenu net */}
+      <div
+        className="relative text-gray-900 text-[10px]"
+        style={{
+          WebkitFontSmoothing: 'antialiased',
+          MozOsxFontSmoothing: 'grayscale',
+          textRendering: 'optimizeLegibility',
+        }}
+      >
+        {/* Nom du capteur */}
+        <div className="font-semibold mb-1 text-[11px] border-b border-gray-300/30 pb-0.5 text-gray-900">
+          {device.name}
         </div>
-      )}
 
-      {/* Dernière mise à jour */}
-      <div className="mb-1.5 text-gray-200 text-xs">
-        <span className="font-medium">Dernière mise à jour :</span>{' '}
-        <span className="text-gray-300">{formattedDate}</span>
-      </div>
+        {/* Modèle du capteur */}
+        {sensorModel && (
+          <div className="mb-1 text-[10px] text-gray-800">
+            <span className="font-medium">Modèle :</span> {sensorModel}
+          </div>
+        )}
 
-      {/* Polluants mesurés */}
-      {(availableOnOpenAirMap.length > 0 || others.length > 0) && (
-        <div className="mt-1.5 pt-1.5 border-t border-gray-600/50">
-          {/* Polluants disponibles sur OpenAirMap */}
-          {availableOnOpenAirMap.length > 0 && (
-            <div className="mb-1.5">
-              <div className="font-medium mb-1 text-xs text-gray-200">
-                Polluants OpenAirMap :
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {availableOnOpenAirMap.map((pollutant, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center rounded bg-blue-600/60 px-1.5 py-0.5 text-xs"
-                  >
-                    {pollutant}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Autres polluants */}
-          {others.length > 0 && (
-            <div>
-              <div className="font-medium mb-1 text-xs text-gray-200">
-                Autres polluants :
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {others.map((pollutant, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center rounded bg-gray-700/70 px-1.5 py-0.5 text-xs"
-                  >
-                    {pollutant}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
+        {/* Dernière mise à jour */}
+        <div className="mb-1 text-[10px] text-gray-800">
+          <span className="font-medium">Dernière mise à jour :</span>{' '}
+          <span className="text-gray-700">{formattedDate}</span>
         </div>
-      )}
+
+        {/* Polluants mesurés */}
+        {(availableOnOpenAirMap.length > 0 || others.length > 0) && (
+          <div className="mt-1 pt-1 border-t border-gray-300/30">
+            {/* Polluants disponibles sur OpenAirMap */}
+            {availableOnOpenAirMap.length > 0 && (
+              <div className="mb-1">
+                <div className="font-medium mb-0.5 text-[10px] text-gray-800">
+                  Polluants OpenAirMap :
+                </div>
+                <div className="flex flex-wrap gap-0.5">
+                  {availableOnOpenAirMap.map((pollutant, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center rounded bg-gray-800/40 px-1 py-0.5 text-[10px] text-gray-900 border border-gray-400/30"
+                    >
+                      {pollutant}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Autres polluants */}
+            {others.length > 0 && (
+              <div>
+                <div className="font-medium mb-0.5 text-[10px] text-gray-800">
+                  Autres polluants :
+                </div>
+                <div className="flex flex-wrap gap-0.5">
+                  {others.map((pollutant, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center rounded bg-gray-800/40 px-1 py-0.5 text-[10px] text-gray-900 border border-gray-400/30"
+                    >
+                      {pollutant}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

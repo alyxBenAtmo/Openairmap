@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import L from 'leaflet';
 import { MeasurementDevice } from '../../../types';
 import { useIsMobile } from '../../../hooks/useIsMobile';
@@ -8,23 +8,83 @@ interface TooltipState {
   position: { x: number; y: number };
 }
 
+interface UseMarkerTooltipOptions {
+  minZoom?: number;
+  mapRef?: React.RefObject<L.Map | null>;
+}
+
 /**
  * Hook pour gérer l'affichage du tooltip au hover sur les marqueurs
  * Désactive automatiquement le tooltip sur les appareils mobiles
+ * N'affiche le tooltip qu'à partir du niveau de zoom 11 (par défaut)
  */
-export const useMarkerTooltip = () => {
+export const useMarkerTooltip = (options: UseMarkerTooltipOptions = {}) => {
+  const { minZoom = 11, mapRef } = options;
   const [tooltip, setTooltip] = useState<TooltipState>({
     device: null,
     position: { x: 0, y: 0 },
   });
+  const [currentZoom, setCurrentZoom] = useState<number>(0);
   const isMobile = useIsMobile();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Écouter les changements de zoom
+  useEffect(() => {
+    const map = mapRef?.current;
+    if (!map) {
+      // Si pas de mapRef, initialiser à 0
+      setCurrentZoom(0);
+      return;
+    }
+
+    const handleZoom = () => {
+      const zoom = map.getZoom();
+      setCurrentZoom(zoom);
+    };
+
+    const handleZoomEnd = () => {
+      const zoom = map.getZoom();
+      setCurrentZoom(zoom);
+    };
+
+    // Écouter les événements de zoom
+    map.on('zoom', handleZoom);
+    map.on('zoomend', handleZoomEnd);
+
+    // Initialiser le zoom actuel
+    const initialZoom = map.getZoom();
+    if (initialZoom !== undefined) {
+      setCurrentZoom(initialZoom);
+    }
+
+    return () => {
+      map.off('zoom', handleZoom);
+      map.off('zoomend', handleZoomEnd);
+    };
+  }, [mapRef]);
+
+  // Masquer le tooltip si le zoom est inférieur au minimum
+  useEffect(() => {
+    if (currentZoom < minZoom && tooltip.device) {
+      setTooltip({
+        device: null,
+        position: { x: 0, y: 0 },
+      });
+    }
+  }, [currentZoom, minZoom, tooltip.device]);
 
   // Fonction pour afficher le tooltip
   const showTooltip = useCallback(
     (device: MeasurementDevice, event: L.LeafletMouseEvent) => {
       // Ne pas afficher sur mobile
       if (isMobile) {
+        return;
+      }
+
+      // Ne pas afficher si le zoom est inférieur au minimum
+      const map = mapRef?.current;
+      const zoom = map?.getZoom() || 0;
+      if (zoom < minZoom) {
         return;
       }
 
@@ -44,7 +104,7 @@ export const useMarkerTooltip = () => {
         position: { x, y },
       });
     },
-    [isMobile]
+    [isMobile, mapRef, minZoom]
   );
 
   // Fonction pour masquer le tooltip
