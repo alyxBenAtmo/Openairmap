@@ -39,6 +39,7 @@ import SignalAirSelectionPanel from "../panels/SignalAirSelectionPanel";
 import SignalAirDetailPanel from "../panels/SignalAirDetailPanel";
 import MobileAirRoutes from "./MobileAirRoutes";
 import CustomSpiderfiedMarkers from "./CustomSpiderfiedMarkers";
+import CustomSpiderfiedSignalAirMarkers from "./CustomSpiderfiedSignalAirMarkers";
 import MarkerTooltip from "./MarkerTooltip";
 
 import { AtmoRefService } from "../../services/AtmoRefService";
@@ -122,7 +123,7 @@ const defaultClusterConfig = {
 const defaultSpiderfyConfig = {
   enabled: true, // active/desactive le spiderfier par defaut
   autoSpiderfy: true, // activation automatique du spiderfier au zoom
-  autoSpiderfyZoomThreshold: 10, // seuil de zoom plus bas pour activation plus précoce
+  autoSpiderfyZoomThreshold: 6, // seuil de zoom pour activer/désactiver le spiderfier
 };
 
 // Composant interne pour gérer les événements de la carte
@@ -891,7 +892,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
               handleMarkerClick={handleMarkerClick}
               enabled={spiderfyConfig.enabled}
               nearbyDistance={10} // Distance en pixels pour considérer les marqueurs comme se chevauchant
-              zoomThreshold={spiderfyConfig.autoSpiderfyZoomThreshold} // Seuil de zoom pour activer le spiderfier
+              zoomThreshold={spiderfyConfig.autoSpiderfyZoomThreshold} // Seuil de zoom pour activer/désactiver le spiderfier
               getMarkerKey={getMarkerKeyWrapper}
               onMarkerHover={showTooltip}
               onMarkerHoverOut={hideTooltip}
@@ -984,17 +985,14 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
               </Marker>
             ))}
 
-          {/* Marqueurs pour les signalements SignalAir */}
-          {reports.map((report) => (
-            <Marker
-              key={report.id}
-              position={[report.latitude, report.longitude]}
-              icon={createSignalIconWrapper(report)}
-              eventHandlers={{
-                click: () => handleSignalAirMarkerClickWrapper(report),
-              }}
-            />
-          ))}
+          {/* Marqueurs pour les signalements SignalAir avec spiderfier */}
+          <CustomSpiderfiedSignalAirMarkers
+            reports={reports}
+            createSignalIcon={createSignalIconWrapper}
+            handleMarkerClick={handleSignalAirMarkerClickWrapper}
+            enabled={spiderfyConfig.enabled}
+            zoomThreshold={spiderfyConfig.autoSpiderfyZoomThreshold}
+          />
         </MapContainer>
 
         {/* Tooltip au hover sur les marqueurs */}
