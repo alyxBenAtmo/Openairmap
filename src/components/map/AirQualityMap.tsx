@@ -255,6 +255,65 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     }
   }, [tooltip.device]);
 
+  // Analyser et afficher les modèles de capteurs dans la console
+  useEffect(() => {
+    const analyzeModels = async () => {
+      if (devices.length === 0) return;
+
+      const { getSensorMetadata } = await import(
+        '../../utils/sensorMetadataUtils'
+      );
+
+      // Récupérer les métadonnées pour tous les devices
+      const metadataPromises = devices.map((device) =>
+        getSensorMetadata(device).catch((error) => {
+          console.warn(`Erreur pour ${device.source}-${device.id}:`, error);
+          return { sensorModel: undefined, sensorBrand: undefined };
+        })
+      );
+
+      const allMetadata = await Promise.all(metadataPromises);
+
+      // Compter les modèles
+      const modelCounts: Record<string, number> = {};
+      const brandModelCounts: Record<string, number> = {};
+
+      devices.forEach((device, index) => {
+        const metadata = allMetadata[index];
+        const model = metadata.sensorModel || 'Non spécifié';
+        const brand = metadata.sensorBrand || 'Non spécifié';
+        const brandModel = brand !== 'Non spécifié' && model !== 'Non spécifié'
+          ? `${brand} ${model}`
+          : model;
+
+        // Compter par modèle seul
+        modelCounts[model] = (modelCounts[model] || 0) + 1;
+
+        // Compter par marque + modèle
+        brandModelCounts[brandModel] = (brandModelCounts[brandModel] || 0) + 1;
+      });
+
+      // Afficher dans la console
+      console.log('=== Analyse des modèles de capteurs ===');
+      console.log(`Total de devices: ${devices.length}`);
+      console.log('\n📊 Modèles (détail):');
+      Object.entries(brandModelCounts)
+        .sort(([, a], [, b]) => b - a)
+        .forEach(([model, count]) => {
+          console.log(`  ${model}: ${count}`);
+        });
+      console.log('\n📊 Modèles (résumé):');
+      Object.entries(modelCounts)
+        .sort(([, a], [, b]) => b - a)
+        .forEach(([model, count]) => {
+          console.log(`  ${model}: ${count}`);
+        });
+      console.log('========================================');
+    };
+
+    analyzeModels();
+  }, [devices]);
+
   const shouldShowStandardLegend =
     selectedSources.length > 0 || mapLayers.currentModelingWMTSLayer === null;
 
@@ -1176,7 +1235,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
         };
 
         // Calculer quels boutons doivent être affichés
-        const buttons: Array<{ key: string; element: JSX.Element }> = [];
+        const buttons: Array<{ key: string; element: React.ReactElement }> = [];
         const spacing = 60; // Espacement entre les boutons
 
         // Bouton pour rouvrir le panel de station masqué
