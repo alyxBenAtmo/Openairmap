@@ -499,6 +499,7 @@ const App: React.FC = () => {
             onGoToNext={goToNext}
           />
         )}
+
       </main>
 
       <InformationModal

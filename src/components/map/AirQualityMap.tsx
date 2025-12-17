@@ -41,6 +41,7 @@ import MobileAirRoutes from "./MobileAirRoutes";
 import CustomSpiderfiedMarkers from "./CustomSpiderfiedMarkers";
 import CustomSpiderfiedSignalAirMarkers from "./CustomSpiderfiedSignalAirMarkers";
 import MarkerTooltip from "./MarkerTooltip";
+import { DeviceAnalysisPanel } from "../analysis";
 
 import { AtmoRefService } from "../../services/AtmoRefService";
 import { AtmoMicroService } from "../../services/AtmoMicroService";
@@ -164,6 +165,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   const [spiderfyConfig, setSpiderfyConfig] = useState(defaultSpiderfyConfig);
   const [currentBaseLayer, setCurrentBaseLayer] =
     useState<BaseLayerKey>("Carte standard");
+  const [isAnalysisPanelOpen, setIsAnalysisPanelOpen] = useState(false);
 
   // État pour les données PurpleAir (stockées par ID de station)
   const [purpleAirDeviceData, setPurpleAirDeviceData] = useState<
@@ -1124,24 +1126,40 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
         <div
           className={`absolute ${
             sidePanels.isSidePanelOpen && sidePanels.panelSize !== "hidden"
-              ? "bottom-8 right-4 hidden lg:block"
-              : "bottom-6 right-0 hidden lg:block"
-          } bg-white px-3 py-1 rounded-md shadow-lg z-[1000] transition-all duration-300`}
+              ? "bottom-8 right-4"
+              : "bottom-6 right-4"
+          } z-[1000] transition-all duration-300`}
         >
-          <p className="text-xs text-gray-600">
-            {devices.length} appareil{devices.length > 1 ? "s" : ""}
-            {reports.length > 0 && (
-              <span className="ml-2">
-                • {reports.length} signalement{reports.length > 1 ? "s" : ""}
-              </span>
-            )}
-            {wildfire.isWildfireLayerEnabled && wildfire.wildfireReports.length > 0 && (
-              <span className="ml-2">
-                • {wildfire.wildfireReports.length} incendie
-                {wildfire.wildfireReports.length > 1 ? "s" : ""} en cours
-              </span>
-            )}
-          </p>
+          {/* Encart de décompte */}
+          <button
+            onClick={() => setIsAnalysisPanelOpen(!isAnalysisPanelOpen)}
+            className="bg-white border border-gray-200 rounded-md shadow-lg px-3 py-2 hover:bg-gray-50 transition-colors cursor-pointer"
+          >
+            <p className="text-xs text-gray-600">
+              {devices.length} appareil{devices.length > 1 ? "s" : ""}
+              {reports.length > 0 && (
+                <span className="ml-2">
+                  • {reports.length} signalement{reports.length > 1 ? "s" : ""}
+                </span>
+              )}
+              {wildfire.isWildfireLayerEnabled && wildfire.wildfireReports.length > 0 && (
+                <span className="ml-2">
+                  • {wildfire.wildfireReports.length} incendie
+                  {wildfire.wildfireReports.length > 1 ? "s" : ""} en cours
+                </span>
+              )}
+            </p>
+          </button>
+
+          {/* Panneau d'analyse */}
+          {isAnalysisPanelOpen && (
+            <div className="mt-3 w-[90vw] sm:w-[500px] md:w-[600px] lg:w-[700px] max-h-[70vh]">
+              <DeviceAnalysisPanel
+                devices={devices}
+                selectedPollutant={selectedPollutant}
+              />
+            </div>
+          )}
         </div>
 
         {/* Indicateur de spiderfier actif supprimé */}
@@ -1165,7 +1183,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
         };
 
         // Calculer quels boutons doivent être affichés
-        const buttons: Array<{ key: string; element: JSX.Element }> = [];
+        const buttons: Array<{ key: string; element: React.ReactElement }> = [];
         const spacing = 60; // Espacement entre les boutons
 
         // Bouton pour rouvrir le panel de station masqué
