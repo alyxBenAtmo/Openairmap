@@ -123,7 +123,7 @@ const DeviceStatistics: React.FC<DeviceStatisticsProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-1">
             <span className="font-medium">
-              {visibleDevices.length} appareil{visibleDevices.length > 1 ? "s" : ""} visible
+              {visibleDevices.length} appareil{visibleDevices.length > 1 ? "s" : ""} visibles
               {visibleDevices.length !== totalDevices && totalDevices > 0 && (
                 <span className="text-gray-500 font-normal">
                   {" "}
