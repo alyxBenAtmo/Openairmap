@@ -41,6 +41,7 @@ import MobileAirRoutes from "./MobileAirRoutes";
 import CustomSpiderfiedMarkers from "./CustomSpiderfiedMarkers";
 import CustomSpiderfiedSignalAirMarkers from "./CustomSpiderfiedSignalAirMarkers";
 import MarkerTooltip from "./MarkerTooltip";
+import DeviceStatistics from "./DeviceStatistics";
 
 import { AtmoRefService } from "../../services/AtmoRefService";
 import { AtmoMicroService } from "../../services/AtmoMicroService";
@@ -56,6 +57,7 @@ import { useSidePanels } from "./hooks/useSidePanels";
 import { useSignalAir } from "./hooks/useSignalAir";
 import { useMobileAir } from "./hooks/useMobileAir";
 import { useMarkerTooltip } from "./hooks/useMarkerTooltip";
+import { useVisibleDevices } from "./hooks/useVisibleDevices";
 
 // Utilitaires
 import {
@@ -224,6 +226,14 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   const { tooltip, showTooltip, hideTooltip } = useMarkerTooltip({
     minZoom: 11,
     mapRef: mapView.mapRef,
+  });
+
+  // Hook pour filtrer les appareils visibles dans le viewport
+  const { visibleDevices, visibleReports } = useVisibleDevices({
+    mapRef: mapView.mapRef,
+    devices,
+    reports,
+    debounceMs: 100,
   });
   const [tooltipMetadata, setTooltipMetadata] = useState<{
     sensorModel?: string;
@@ -1153,22 +1163,22 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
             sidePanels.isSidePanelOpen && sidePanels.panelSize !== "hidden"
               ? "bottom-8 right-4 hidden lg:block"
               : "bottom-6 right-0 hidden lg:block"
-          } bg-white px-3 py-1 rounded-md shadow-lg z-[1000] transition-all duration-300`}
+          } bg-white px-3 py-2 rounded-md shadow-lg z-[1000] transition-all duration-300`}
         >
-          <p className="text-xs text-gray-600">
-            {devices.length} appareil{devices.length > 1 ? "s" : ""}
-            {reports.length > 0 && (
-              <span className="ml-2">
-                • {reports.length} signalement{reports.length > 1 ? "s" : ""}
-              </span>
-            )}
-            {wildfire.isWildfireLayerEnabled && wildfire.wildfireReports.length > 0 && (
-              <span className="ml-2">
-                • {wildfire.wildfireReports.length} incendie
-                {wildfire.wildfireReports.length > 1 ? "s" : ""} en cours
-              </span>
-            )}
-          </p>
+          <DeviceStatistics
+            visibleDevices={visibleDevices}
+            visibleReports={visibleReports}
+            totalDevices={devices.length}
+            totalReports={reports.length}
+            selectedPollutant={selectedPollutant}
+            showDetails={false}
+          />
+          {wildfire.isWildfireLayerEnabled && wildfire.wildfireReports.length > 0 && (
+            <div className="mt-1 text-xs text-gray-600">
+              • {wildfire.wildfireReports.length} incendie
+              {wildfire.wildfireReports.length > 1 ? "s" : ""} en cours
+            </div>
+          )}
         </div>
 
         {/* Indicateur de spiderfier actif supprimé */}
