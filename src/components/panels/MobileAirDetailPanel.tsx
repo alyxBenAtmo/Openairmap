@@ -680,46 +680,67 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
             </div>
           </div>
 
-          {/* Autres sessions disponibles */}
-          {allRoutes.length > 1 && (
+          {/* Sessions disponibles */}
+          {allRoutes.length > 0 && (
             <div className="border border-gray-200 rounded-lg p-3 sm:p-4">
               <h3 className="text-sm font-medium text-gray-700 mb-3 text-center">
-                Autres sessions disponibles ({allRoutes.length - 1})
+                Sessions disponibles ({allRoutes.length})
               </h3>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {allRoutes
-                  .filter((route) => route.sessionId !== routeToUse.sessionId)
                   .sort(
                     (a, b) =>
                       new Date(b.startTime).getTime() -
                       new Date(a.startTime).getTime()
                   )
-                  .map((route) => (
-                    <button
-                      key={route.sessionId}
-                      onClick={() => onRouteSelect && onRouteSelect(route)}
-                      className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="text-left">
-                        <div className="text-sm font-medium text-gray-900">
-                          Session {route.sessionId}
+                  .map((route) => {
+                    const isCurrentSession = route.sessionId === routeToUse.sessionId;
+                    return (
+                      <button
+                        key={route.sessionId}
+                        onClick={() => onRouteSelect && onRouteSelect(route)}
+                        className={`w-full flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                          isCurrentSession
+                            ? "border-blue-500 bg-blue-50 hover:bg-blue-100"
+                            : "border-gray-200 hover:bg-gray-50"
+                        }`}
+                      >
+                        <div className="text-left">
+                          <div className="flex items-center gap-2">
+                            <div className={`text-sm font-medium ${
+                              isCurrentSession ? "text-blue-900" : "text-gray-900"
+                            }`}>
+                              Session {route.sessionId}
+                            </div>
+                            {isCurrentSession && (
+                              <span className="px-2 py-0.5 text-xs font-medium bg-blue-500 text-white rounded-full">
+                                Actuelle
+                              </span>
+                            )}
+                          </div>
+                          <div className={`text-xs ${
+                            isCurrentSession ? "text-blue-700" : "text-gray-600"
+                          }`}>
+                            {formatDate(route.startTime)} •{" "}
+                            {formatDuration(route.duration)}
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-600">
-                          {formatDate(route.startTime)} •{" "}
-                          {formatDuration(route.duration)}
+                        <div className="text-right">
+                          <div className={`text-sm font-medium ${
+                            isCurrentSession ? "text-blue-900" : "text-gray-900"
+                          }`}>
+                            {route.averageValue.toFixed(1)}{" "}
+                            {pollutants[localSelectedPollutants[0]]?.unit || "µg/m³"}
+                          </div>
+                          <div className={`text-xs ${
+                            isCurrentSession ? "text-blue-700" : "text-gray-600"
+                          }`}>
+                            {route.points.length} points
+                          </div>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-medium text-gray-900">
-                          {route.averageValue.toFixed(1)}{" "}
-                          {pollutants[localSelectedPollutants[0]]?.unit || "µg/m³"}
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          {route.points.length} points
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    );
+                  })}
               </div>
             </div>
           )}
