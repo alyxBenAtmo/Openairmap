@@ -536,7 +536,13 @@ export class AtmoRefService extends BaseDataService {
             return;
           }
 
-          if (measure.valeur !== null && measure.valeur !== undefined) {
+          // Ne créer le device que si la valeur est valide
+          if (
+            measure.valeur !== null &&
+            measure.valeur !== undefined &&
+            !isNaN(measure.valeur) &&
+            typeof measure.valeur === "number"
+          ) {
             const pollutantConfig = pollutants[pollutant];
             if (pollutantConfig) {
               const qualityLevel = getAirQualityLevel(
@@ -547,25 +553,23 @@ export class AtmoRefService extends BaseDataService {
                 (qualityLevels[qualityLevel] || 0) + 1;
               totalValue += measure.valeur;
               validMeasureCount++;
-            }
 
-            devices.push({
-              id: measure.id_station,
-              name: measure.nom_station || station.nom_station,
-              latitude: station.latitude,
-              longitude: station.longitude,
-              source: this.sourceCode,
-              pollutant: pollutant,
-              value: measure.valeur,
-              unit: measure.unite,
-              timestamp: measure.date_debut,
-              status: measure.validation === "validée" ? "active" : "inactive",
-              qualityLevel: pollutantConfig
-                ? getAirQualityLevel(measure.valeur, pollutantConfig.thresholds)
-                : "default",
-              address: station.adresse,
-              departmentId: station.departement_id,
-            } as MeasurementDevice & { qualityLevel: string; address: string; departmentId: string });
+              devices.push({
+                id: measure.id_station,
+                name: measure.nom_station || station.nom_station,
+                latitude: station.latitude,
+                longitude: station.longitude,
+                source: this.sourceCode,
+                pollutant: pollutant,
+                value: measure.valeur,
+                unit: measure.unite,
+                timestamp: measure.date_debut,
+                status: measure.validation === "validée" ? "active" : "inactive",
+                qualityLevel,
+                address: station.adresse,
+                departmentId: station.departement_id,
+              } as MeasurementDevice & { qualityLevel: string; address: string; departmentId: string });
+            }
           }
         });
 

@@ -2,6 +2,11 @@ import React, { useState } from "react";
 import { MeasurementDevice, SignalAirReport } from "../../types";
 import StatisticsPanel from "./StatisticsPanel";
 import { cn } from "../../lib/utils";
+import { sources } from "../../constants/sources";
+import {
+  DeviceStatistics as DeviceStatisticsType,
+  SourceStatistics,
+} from "../../utils/deviceStatisticsUtils";
 
 interface DeviceStatisticsProps {
   visibleDevices: MeasurementDevice[];
@@ -9,6 +14,9 @@ interface DeviceStatisticsProps {
   totalDevices: number;
   totalReports: number;
   selectedPollutant: string;
+  selectedSources?: string[];
+  statistics?: DeviceStatisticsType; // OPTIMISATION : Statistiques pré-calculées
+  sourceStatistics?: SourceStatistics[]; // OPTIMISATION : Stats par source pré-calculées
   showDetails?: boolean;
 }
 
@@ -21,53 +29,79 @@ const DeviceStatistics: React.FC<DeviceStatisticsProps> = ({
   totalDevices,
   totalReports,
   selectedPollutant,
+  selectedSources = [],
+  statistics, // OPTIMISATION : Utiliser les statistiques pré-calculées
+  sourceStatistics, // OPTIMISATION : Stats par source pré-calculées
   showDetails = false,
 }) => {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-  // Calculer les statistiques par source
-  const devicesBySource = visibleDevices.reduce((acc, device) => {
+
+  // OPTIMISATION : Utiliser les statistiques pré-calculées si disponibles
+  // Sinon, calculer localement (fallback pour compatibilité)
+  const devicesBySource = statistics?.devicesBySource || visibleDevices.reduce((acc, device) => {
     acc[device.source] = (acc[device.source] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  // Calculer les statistiques de qualité
-  const qualityLevels = visibleDevices.reduce((acc, device) => {
+  const qualityLevels = statistics?.qualityLevels || visibleDevices.reduce((acc, device) => {
     const level = device.qualityLevel || "default";
     acc[level] = (acc[level] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  // Calculer la valeur moyenne, min et max
-  const values = visibleDevices.map((device) => device.value).filter((v) => v > 0);
-  const averageValue =
-    values.length > 0
-      ? values.reduce((sum, val) => sum + val, 0) / values.length
-      : 0;
-  const minValue = values.length > 0 ? Math.min(...values) : 0;
-  const maxValue = values.length > 0 ? Math.max(...values) : 0;
-
-  // Nombre d'appareils actifs
-  const activeDevices = visibleDevices.filter(
-    (device) => device.status === "active"
-  ).length;
+  const averageValue = statistics?.averageValue ?? 0;
+  const minValue = statistics?.minValue ?? 0;
+  const maxValue = statistics?.maxValue ?? 0;
+  const activeDevices = statistics?.activeDevices ?? 0;
 
   // Formatage des nombres
   const formatNumber = (num: number, decimals: number = 1): string => {
     return num.toFixed(decimals);
   };
 
-  // Obtenir le nom lisible de la source
+  // Obtenir le nom lisible de la source depuis les constantes
   const getSourceName = (source: string): string => {
-    const sourceNames: Record<string, string> = {
-      atmoref: "AtmoRef",
-      atmomicro: "AtmoMicro",
-      "communautaire.nebuleair": "NebuleAir",
-      "communautaire.sensorcommunity": "Sensor.Community",
-      "communautaire.purpleair": "PurpleAir",
-      "communautaire.mobileair": "MobileAir",
-      signalair: "SignalAir",
-    };
-    return sourceNames[source] || source;
+    // Gérer les sous-sources (ex: "communautaire.nebuleair")
+    if (source.includes(".")) {
+      const [groupKey, subKey] = source.split(".");
+      const group = sources[groupKey as keyof typeof sources];
+      if (group?.isGroup && group.subSources) {
+        const subSource = group.subSources[subKey as keyof typeof group.subSources];
+        if (subSource) {
+          // Cas spécial pour NebuleAir
+          if (subKey === "nebuleair") {
+            return "NebuleAir AirCarto";
+          }
+          return subSource.name;
+        }
+      }
+    }
+    
+    // Vérifier si c'est une sous-source communautaire sans préfixe (ex: "nebuleair")
+    const communautaireGroup = sources.communautaire;
+    if (communautaireGroup?.isGroup && communautaireGroup.subSources) {
+      const subSource = communautaireGroup.subSources[source as keyof typeof communautaireGroup.subSources];
+      if (subSource) {
+        // Cas spécial pour NebuleAir
+        if (source === "nebuleair") {
+          return "NebuleAir AirCarto";
+        }
+        return subSource.name;
+      }
+    }
+    
+    // Source directe
+    const sourceConfig = sources[source as keyof typeof sources];
+    if (sourceConfig && !sourceConfig.isGroup) {
+      // Cas spécial pour atmoMicro (enlever "AtmoSud" à la fin)
+      if (source === "atmoMicro") {
+        return "Microcapteurs qualifiés";
+      }
+      return sourceConfig.name;
+    }
+    
+    // Fallback : retourner le code source tel quel
+    return source;
   };
 
   // Obtenir le nom lisible du niveau de qualité
@@ -79,7 +113,7 @@ const DeviceStatistics: React.FC<DeviceStatisticsProps> = ({
       mauvais: "Mauvais",
       tresMauvais: "Très mauvais",
       extrMauvais: "Extrêmement mauvais",
-      default: "Non défini",
+      default: "Pas de mesure récente",
     };
     return qualityNames[level] || level;
   };
@@ -106,13 +140,13 @@ const DeviceStatistics: React.FC<DeviceStatisticsProps> = ({
           "hover:bg-gray-50 rounded-md -mx-1 px-1 py-0.5",
           isPanelOpen && "bg-gray-50"
         )}
-        onClick={() => visibleDevices.length > 0 && setIsPanelOpen(!isPanelOpen)}
+        onClick={() => (visibleDevices.length > 0 || visibleReports.length > 0) && setIsPanelOpen(!isPanelOpen)}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            if (visibleDevices.length > 0) {
+            if (visibleDevices.length > 0 || visibleReports.length > 0) {
               setIsPanelOpen(!isPanelOpen);
             }
           }
@@ -132,7 +166,7 @@ const DeviceStatistics: React.FC<DeviceStatisticsProps> = ({
               )}
             </span>
           </div>
-          {visibleDevices.length > 0 && (
+          {(visibleDevices.length > 0 || visibleReports.length > 0) && (
             <svg
               className={cn(
                 "h-4 w-4 text-gray-400 transition-transform",
@@ -172,9 +206,13 @@ const DeviceStatistics: React.FC<DeviceStatisticsProps> = ({
       {/* Panel statistique */}
       <StatisticsPanel
         visibleDevices={visibleDevices}
+        visibleReports={visibleReports}
+        selectedSources={selectedSources}
         selectedPollutant={selectedPollutant}
         isOpen={isPanelOpen}
         onClose={() => setIsPanelOpen(false)}
+        statistics={statistics} // OPTIMISATION : Passer les statistiques pré-calculées
+        sourceStatistics={sourceStatistics} // OPTIMISATION : Passer les stats par source pré-calculées
       />
     </>
   );

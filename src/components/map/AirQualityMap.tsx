@@ -232,7 +232,8 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   });
 
   // Hook pour filtrer les appareils visibles dans le viewport
-  const { visibleDevices, visibleReports } = useVisibleDevices({
+  // OPTIMISATION : Récupère aussi les statistiques pré-calculées
+  const { visibleDevices, visibleReports, statistics, sourceStatistics } = useVisibleDevices({
     mapRef: mapView.mapRef,
     devices,
     reports,
@@ -1241,6 +1242,9 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
             totalDevices={devices.length}
             totalReports={reports.length}
             selectedPollutant={selectedPollutant}
+            selectedSources={selectedSources}
+            statistics={statistics} // OPTIMISATION : Passer les statistiques pré-calculées
+            sourceStatistics={sourceStatistics} // OPTIMISATION : Passer les stats par source pré-calculées
             showDetails={false}
           />
           {wildfire.isWildfireLayerEnabled && wildfire.wildfireReports.length > 0 && (

@@ -1,13 +1,23 @@
 import React, { useMemo } from "react";
-import { MeasurementDevice } from "../../types";
+import { MeasurementDevice, SignalAirReport } from "../../types";
 import { cn } from "../../lib/utils";
 import { QUALITY_COLORS } from "../../constants/qualityColors";
+import { sources } from "../../constants/sources";
+import {
+  DeviceStatistics as DeviceStatisticsType,
+  SourceStatistics,
+  calculateQualityDistribution,
+} from "../../utils/deviceStatisticsUtils";
 
 interface StatisticsPanelProps {
   visibleDevices: MeasurementDevice[];
+  visibleReports?: SignalAirReport[];
+  selectedSources?: string[];
   selectedPollutant: string;
   isOpen: boolean;
   onClose: () => void;
+  statistics?: DeviceStatisticsType; // OPTIMISATION : Statistiques pré-calculées
+  sourceStatistics?: SourceStatistics[]; // OPTIMISATION : Stats par source pré-calculées
 }
 
 /**
@@ -16,22 +26,35 @@ interface StatisticsPanelProps {
  */
 const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
   visibleDevices,
+  visibleReports = [],
+  selectedSources = [],
   selectedPollutant,
   isOpen,
   onClose,
+  statistics, // OPTIMISATION : Statistiques pré-calculées
+  sourceStatistics, // OPTIMISATION : Stats par source pré-calculées
 }) => {
-  // Calculer la médiane
-  const calculateMedian = (values: number[]): number => {
-    if (values.length === 0) return 0;
-    const sorted = [...values].sort((a, b) => a - b);
-    const mid = Math.floor(sorted.length / 2);
-    return sorted.length % 2 === 0
-      ? (sorted[mid - 1] + sorted[mid]) / 2
-      : sorted[mid];
-  };
-
-  // Statistiques globales
+  // Vérifier si SignalAir est actif
+  const isSignalAirActive = selectedSources.includes("signalair");
+  /**
+   * OPTIMISATION : Utiliser les statistiques pré-calculées si disponibles
+   * Sinon, calculer localement (fallback pour compatibilité)
+   * Cela évite les recalculs redondants
+   */
   const globalStats = useMemo(() => {
+    if (statistics) {
+      // Utiliser les statistiques pré-calculées
+      return {
+        average: statistics.averageValue,
+        median: statistics.medianValue,
+        min: statistics.minValue,
+        max: statistics.maxValue,
+        count: statistics.validValuesCount,
+        unit: statistics.unit,
+      };
+    }
+
+    // Fallback : calculer localement si les stats ne sont pas fournies
     const values = visibleDevices
       .map((device) => device.value)
       .filter((v) => v > 0 && !isNaN(v));
@@ -47,26 +70,47 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
       };
     }
 
+    // Calculer la médiane
+    const calculateMedian = (vals: number[]): number => {
+      if (vals.length === 0) return 0;
+      const sorted = [...vals].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      return sorted.length % 2 === 0
+        ? (sorted[mid - 1] + sorted[mid]) / 2
+        : sorted[mid];
+    };
+
     return {
-      average:
-        values.reduce((sum, val) => sum + val, 0) / values.length,
+      average: values.reduce((sum, val) => sum + val, 0) / values.length,
       median: calculateMedian(values),
       min: Math.min(...values),
       max: Math.max(...values),
       count: values.length,
       unit: visibleDevices[0]?.unit || "",
     };
-  }, [visibleDevices]);
+  }, [statistics, visibleDevices]);
 
-  // Distribution par seuil de qualité
+  /**
+   * OPTIMISATION : Utiliser la distribution pré-calculée si disponible
+   */
   const qualityDistribution = useMemo(() => {
+    if (statistics) {
+      // Utiliser la fonction utilitaire pour obtenir la distribution ordonnée
+      return calculateQualityDistribution(
+        statistics.qualityLevels,
+        statistics.totalDevices
+      );
+    }
+
+    // Fallback : calculer localement
     const distribution = visibleDevices.reduce((acc, device) => {
       const level = device.qualityLevel || "default";
       acc[level] = (acc[level] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    // Ordre des niveaux de qualité
+    // Ordre des niveaux de qualité (du meilleur au pire)
+    // "default" sera ajouté en dernier séparément
     const qualityOrder = [
       "bon",
       "moyen",
@@ -74,19 +118,39 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
       "mauvais",
       "tresMauvais",
       "extrMauvais",
-      "default",
     ];
 
-    return qualityOrder
+    // Récupérer les niveaux avec valeurs (sauf default)
+    const orderedLevels = qualityOrder
       .filter((level) => distribution[level] > 0)
       .map((level) => ({
         level,
         count: distribution[level],
+        percentage: (distribution[level] / visibleDevices.length) * 100,
       }));
-  }, [visibleDevices]);
 
-  // Statistiques par source
+    // Ajouter "default" en dernier s'il existe
+    if (distribution["default"] > 0) {
+      orderedLevels.push({
+        level: "default",
+        count: distribution["default"],
+        percentage: (distribution["default"] / visibleDevices.length) * 100,
+      });
+    }
+
+    return orderedLevels;
+  }, [statistics, visibleDevices]);
+
+  /**
+   * OPTIMISATION : Utiliser les statistiques par source pré-calculées si disponibles
+   */
   const statsBySource = useMemo(() => {
+    if (sourceStatistics) {
+      // Utiliser les stats pré-calculées
+      return sourceStatistics;
+    }
+
+    // Fallback : calculer localement
     const sourceMap = new Map<string, MeasurementDevice[]>();
 
     visibleDevices.forEach((device) => {
@@ -107,6 +171,16 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
         return acc;
       }, {} as Record<string, number>);
 
+      // Calculer la médiane
+      const calculateMedian = (vals: number[]): number => {
+        if (vals.length === 0) return 0;
+        const sorted = [...vals].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 === 0
+          ? (sorted[mid - 1] + sorted[mid]) / 2
+          : sorted[mid];
+      };
+
       return {
         source,
         devices,
@@ -121,20 +195,51 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
         unit: devices[0]?.unit || "",
       };
     });
-  }, [visibleDevices]);
+  }, [sourceStatistics, visibleDevices]);
 
-  // Obtenir le nom lisible de la source
+  // Obtenir le nom lisible de la source depuis les constantes
   const getSourceName = (source: string): string => {
-    const sourceNames: Record<string, string> = {
-      atmoref: "AtmoRef",
-      atmomicro: "AtmoMicro",
-      "communautaire.nebuleair": "NebuleAir",
-      "communautaire.sensorcommunity": "Sensor.Community",
-      "communautaire.purpleair": "PurpleAir",
-      "communautaire.mobileair": "MobileAir",
-      signalair: "SignalAir",
-    };
-    return sourceNames[source] || source;
+    // Gérer les sous-sources (ex: "communautaire.nebuleair")
+    if (source.includes(".")) {
+      const [groupKey, subKey] = source.split(".");
+      const group = sources[groupKey as keyof typeof sources];
+      if (group?.isGroup && group.subSources) {
+        const subSource = group.subSources[subKey as keyof typeof group.subSources];
+        if (subSource) {
+          // Cas spécial pour NebuleAir
+          if (subKey === "nebuleair") {
+            return "NebuleAir AirCarto";
+          }
+          return subSource.name;
+        }
+      }
+    }
+    
+    // Vérifier si c'est une sous-source communautaire sans préfixe (ex: "nebuleair")
+    const communautaireGroup = sources.communautaire;
+    if (communautaireGroup?.isGroup && communautaireGroup.subSources) {
+      const subSource = communautaireGroup.subSources[source as keyof typeof communautaireGroup.subSources];
+      if (subSource) {
+        // Cas spécial pour NebuleAir
+        if (source === "nebuleair") {
+          return "NebuleAir AirCarto";
+        }
+        return subSource.name;
+      }
+    }
+    
+    // Source directe
+    const sourceConfig = sources[source as keyof typeof sources];
+    if (sourceConfig && !sourceConfig.isGroup) {
+      // Cas spécial pour atmoMicro (enlever "AtmoSud" à la fin)
+      if (source === "atmoMicro") {
+        return "Microcapteurs qualifiés";
+      }
+      return sourceConfig.name;
+    }
+    
+    // Fallback : retourner le code source tel quel
+    return source;
   };
 
   // Obtenir le nom lisible du niveau de qualité
@@ -146,7 +251,7 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
       mauvais: "Mauvais",
       tresMauvais: "Très mauvais",
       extrMauvais: "Extrêmement mauvais",
-      default: "Non défini",
+      default: "Pas de mesure récente",
     };
     return qualityNames[level] || level;
   };
@@ -191,6 +296,66 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
     return num.toFixed(decimals);
   };
 
+  // Statistiques des signalements
+  const reportsStats = useMemo(() => {
+    if (!isSignalAirActive || visibleReports.length === 0) {
+      return null;
+    }
+
+    // Distribution par type de signalement
+    const distributionByType = visibleReports.reduce((acc, report) => {
+      const type = report.signalType || "autre";
+      acc[type] = (acc[type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Nombre de signalements avec symptômes
+    const withSymptoms = visibleReports.filter((report) => {
+      const hasSymptoms = report.signalHasSymptoms?.toLowerCase();
+      return (
+        hasSymptoms === "oui" ||
+        hasSymptoms === "yes" ||
+        hasSymptoms === "true" ||
+        (report.signalSymptoms && report.signalSymptoms.trim() !== "")
+      );
+    }).length;
+
+    // Distribution par niveau de gêne
+    const distributionByNuisanceLevel = visibleReports.reduce((acc, report) => {
+      const level = report.nuisanceLevel || "non spécifié";
+      acc[level] = (acc[level] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Distribution par origine de la nuisance
+    const distributionByOrigin = visibleReports.reduce((acc, report) => {
+      const origin = report.nuisanceOrigin || "non spécifiée";
+      acc[origin] = (acc[origin] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return {
+      total: visibleReports.length,
+      distributionByType,
+      withSymptoms,
+      withoutSymptoms: visibleReports.length - withSymptoms,
+      distributionByNuisanceLevel,
+      distributionByOrigin,
+    };
+  }, [visibleReports, isSignalAirActive]);
+
+  // Obtenir le nom lisible du type de signalement
+  const getSignalTypeName = (type: string): string => {
+    const typeNames: Record<string, string> = {
+      odeur: "Odeurs",
+      bruit: "Bruits",
+      brulage: "Brûlage",
+      visuel: "Visuel",
+      pollen: "Pollen",
+    };
+    return typeNames[type] || type;
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -219,11 +384,15 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">
-              Statistiques des appareils visibles
+              Statistiques
             </h3>
             <p className="text-sm text-gray-500 mt-0.5">
               {visibleDevices.length} appareil
-              {visibleDevices.length > 1 ? "s" : ""} • {selectedPollutant.toUpperCase()}
+              {visibleDevices.length > 1 ? "s" : ""}
+              {isSignalAirActive && reportsStats && reportsStats.total > 0 && (
+                <> • {reportsStats.total} signalement{reportsStats.total > 1 ? "s" : ""}</>
+              )}
+              {visibleDevices.length > 0 && <> • {selectedPollutant.toUpperCase()}</>}
             </p>
           </div>
           <button
@@ -311,9 +480,10 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
                 Distribution par seuil
               </h4>
               <div className="space-y-2">
-                {qualityDistribution.map(({ level, count }) => {
+                {qualityDistribution.map(({ level, count, percentage }) => {
                   const colors = getQualityColor(level);
-                  const percentage = (count / visibleDevices.length) * 100;
+                  // OPTIMISATION : Utiliser le pourcentage pré-calculé si disponible
+                  const displayPercentage = percentage ?? (count / visibleDevices.length) * 100;
                   return (
                     <div
                       key={level}
@@ -334,14 +504,14 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
                           className="text-sm font-semibold"
                           style={{ color: colors.text }}
                         >
-                          {count} ({formatNumber(percentage, 0)}%)
+                          {count} ({formatNumber(displayPercentage, 0)}%)
                         </span>
                       </div>
                       <div className="w-full bg-white/50 rounded-full h-2 overflow-hidden">
                         <div
                           className="h-full transition-all rounded-full"
                           style={{
-                            width: `${percentage}%`,
+                            width: `${displayPercentage}%`,
                             backgroundColor: colors.color,
                           }}
                         />
@@ -357,7 +527,7 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
           {statsBySource.length > 0 && (
             <div className="space-y-3">
               <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
-                Détail par source
+                Détail par type d'appareil de mesure
               </h4>
               <div className="space-y-4">
                 {statsBySource.map((sourceStats) => (
@@ -410,11 +580,31 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
                           Distribution par seuil
                         </p>
                         <div className="space-y-1">
-                          {Object.entries(sourceStats.qualityDistribution).map(
-                            ([level, count]) => {
+                          {(() => {
+                            // Ordre des niveaux de qualité (du meilleur au pire)
+                            // "default" sera ajouté en dernier
+                            const qualityOrder = [
+                              "bon",
+                              "moyen",
+                              "degrade",
+                              "mauvais",
+                              "tresMauvais",
+                              "extrMauvais",
+                            ];
+
+                            // Récupérer les niveaux avec valeurs dans l'ordre (sauf default)
+                            const orderedEntries = qualityOrder
+                              .filter((level) => sourceStats.qualityDistribution[level] > 0)
+                              .map((level) => [level, sourceStats.qualityDistribution[level]] as [string, number]);
+
+                            // Ajouter "default" en dernier s'il existe
+                            if (sourceStats.qualityDistribution["default"] > 0) {
+                              orderedEntries.push(["default", sourceStats.qualityDistribution["default"]]);
+                            }
+
+                            return orderedEntries.map(([level, count]) => {
                               const colors = getQualityColor(level);
-                              const percentage =
-                                (count / sourceStats.count) * 100;
+                              const percentage = (count / sourceStats.count) * 100;
                               return (
                                 <div
                                   key={level}
@@ -449,14 +639,183 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
                                   </div>
                                 </div>
                               );
-                            }
-                          )}
+                            });
+                          })()}
                         </div>
                       </div>
                     )}
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Statistiques des signalements */}
+          {reportsStats && reportsStats.total > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
+                Statistiques des signalements
+              </h4>
+
+              {/* Statistiques générales */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="text-xs text-gray-500 mb-1">Total</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {reportsStats.total}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="text-xs text-gray-500 mb-1">Avec symptômes</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {reportsStats.withSymptoms} (
+                    {formatNumber(
+                      (reportsStats.withSymptoms / reportsStats.total) * 100,
+                      0
+                    )}
+                    %)
+                  </p>
+                </div>
+              </div>
+
+              {/* Distribution avec/sans symptômes */}
+              <div className="space-y-3">
+                <h5 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                  Répartition avec/sans symptômes
+                </h5>
+                <div className="space-y-2">
+                  {/* Avec symptômes */}
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-900">
+                        Avec symptômes
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {reportsStats.withSymptoms} (
+                        {formatNumber(
+                          (reportsStats.withSymptoms / reportsStats.total) * 100,
+                          0
+                        )}
+                        %)
+                      </span>
+                    </div>
+                    <div className="w-full bg-white/50 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="h-full transition-all rounded-full bg-red-500"
+                        style={{
+                          width: `${(reportsStats.withSymptoms / reportsStats.total) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Sans symptômes */}
+                  <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-900">
+                        Sans symptômes
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {reportsStats.withoutSymptoms} (
+                        {formatNumber(
+                          (reportsStats.withoutSymptoms / reportsStats.total) * 100,
+                          0
+                        )}
+                        %)
+                      </span>
+                    </div>
+                    <div className="w-full bg-white/50 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="h-full transition-all rounded-full bg-green-500"
+                        style={{
+                          width: `${(reportsStats.withoutSymptoms / reportsStats.total) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Distribution par type de signalement */}
+              {Object.keys(reportsStats.distributionByType).length > 0 && (
+                <div className="space-y-3">
+                  <h5 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                    Distribution par type
+                  </h5>
+                  <div className="space-y-2">
+                    {Object.entries(reportsStats.distributionByType)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([type, count]) => {
+                        const percentage =
+                          (count / reportsStats.total) * 100;
+                        return (
+                          <div
+                            key={type}
+                            className="rounded-lg border border-gray-200 bg-gray-50 p-3"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-medium text-gray-900">
+                                {getSignalTypeName(type)}
+                              </span>
+                              <span className="text-sm font-semibold text-gray-900">
+                                {count} ({formatNumber(percentage, 0)}%)
+                              </span>
+                            </div>
+                            <div className="w-full bg-white/50 rounded-full h-2 overflow-hidden">
+                              <div
+                                className="h-full transition-all rounded-full bg-blue-500"
+                                style={{
+                                  width: `${percentage}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+              {/* Distribution par niveau de gêne */}
+              {Object.keys(reportsStats.distributionByNuisanceLevel).length >
+                0 && (
+                <div className="space-y-3">
+                  <h5 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                    Distribution par niveau de gêne
+                  </h5>
+                  <div className="space-y-2">
+                    {Object.entries(reportsStats.distributionByNuisanceLevel)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([level, count]) => {
+                        const percentage =
+                          (count / reportsStats.total) * 100;
+                        return (
+                          <div
+                            key={level}
+                            className="rounded-lg border border-gray-200 bg-gray-50 p-2"
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-medium text-gray-700">
+                                {level}
+                              </span>
+                              <span className="text-xs font-semibold text-gray-900">
+                                {count} ({formatNumber(percentage, 0)}%)
+                              </span>
+                            </div>
+                            <div className="w-full bg-white/50 rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className="h-full transition-all rounded-full bg-orange-500"
+                                style={{
+                                  width: `${percentage}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
             </>
