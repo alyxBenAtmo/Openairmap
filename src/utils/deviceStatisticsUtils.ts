@@ -213,6 +213,7 @@ export function calculateQualityDistribution(
   totalDevices: number
 ): QualityDistributionItem[] {
   // Ordre des niveaux de qualité (du meilleur au pire)
+  // "default" sera ajouté en dernier séparément
   const qualityOrder = [
     'bon',
     'moyen',
@@ -220,14 +221,25 @@ export function calculateQualityDistribution(
     'mauvais',
     'tresMauvais',
     'extrMauvais',
-    'default',
   ];
 
-  return qualityOrder
+  // Récupérer les niveaux avec valeurs (sauf default)
+  const orderedLevels = qualityOrder
     .filter((level) => qualityLevels[level] > 0)
     .map((level) => ({
       level,
       count: qualityLevels[level],
       percentage: totalDevices > 0 ? (qualityLevels[level] / totalDevices) * 100 : 0,
     }));
+
+  // Ajouter "default" en dernier s'il existe
+  if (qualityLevels['default'] > 0) {
+    orderedLevels.push({
+      level: 'default',
+      count: qualityLevels['default'],
+      percentage: totalDevices > 0 ? (qualityLevels['default'] / totalDevices) * 100 : 0,
+    });
+  }
+
+  return orderedLevels;
 }

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { MeasurementDevice, SignalAirReport } from "../../types";
 import StatisticsPanel from "./StatisticsPanel";
 import { cn } from "../../lib/utils";
+import { sources } from "../../constants/sources";
 import {
   DeviceStatistics as DeviceStatisticsType,
   SourceStatistics,
@@ -58,18 +59,49 @@ const DeviceStatistics: React.FC<DeviceStatisticsProps> = ({
     return num.toFixed(decimals);
   };
 
-  // Obtenir le nom lisible de la source
+  // Obtenir le nom lisible de la source depuis les constantes
   const getSourceName = (source: string): string => {
-    const sourceNames: Record<string, string> = {
-      atmoref: "AtmoRef",
-      atmomicro: "AtmoMicro",
-      "communautaire.nebuleair": "NebuleAir",
-      "communautaire.sensorcommunity": "Sensor.Community",
-      "communautaire.purpleair": "PurpleAir",
-      "communautaire.mobileair": "MobileAir",
-      signalair: "SignalAir",
-    };
-    return sourceNames[source] || source;
+    // Gérer les sous-sources (ex: "communautaire.nebuleair")
+    if (source.includes(".")) {
+      const [groupKey, subKey] = source.split(".");
+      const group = sources[groupKey as keyof typeof sources];
+      if (group?.isGroup && group.subSources) {
+        const subSource = group.subSources[subKey as keyof typeof group.subSources];
+        if (subSource) {
+          // Cas spécial pour NebuleAir
+          if (subKey === "nebuleair") {
+            return "NebuleAir AirCarto";
+          }
+          return subSource.name;
+        }
+      }
+    }
+    
+    // Vérifier si c'est une sous-source communautaire sans préfixe (ex: "nebuleair")
+    const communautaireGroup = sources.communautaire;
+    if (communautaireGroup?.isGroup && communautaireGroup.subSources) {
+      const subSource = communautaireGroup.subSources[source as keyof typeof communautaireGroup.subSources];
+      if (subSource) {
+        // Cas spécial pour NebuleAir
+        if (source === "nebuleair") {
+          return "NebuleAir AirCarto";
+        }
+        return subSource.name;
+      }
+    }
+    
+    // Source directe
+    const sourceConfig = sources[source as keyof typeof sources];
+    if (sourceConfig && !sourceConfig.isGroup) {
+      // Cas spécial pour atmoMicro (enlever "AtmoSud" à la fin)
+      if (source === "atmoMicro") {
+        return "Microcapteurs qualifiés";
+      }
+      return sourceConfig.name;
+    }
+    
+    // Fallback : retourner le code source tel quel
+    return source;
   };
 
   // Obtenir le nom lisible du niveau de qualité
@@ -81,7 +113,7 @@ const DeviceStatistics: React.FC<DeviceStatisticsProps> = ({
       mauvais: "Mauvais",
       tresMauvais: "Très mauvais",
       extrMauvais: "Extrêmement mauvais",
-      default: "Non défini",
+      default: "Pas de mesure récente",
     };
     return qualityNames[level] || level;
   };

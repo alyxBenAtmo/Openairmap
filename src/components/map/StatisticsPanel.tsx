@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { MeasurementDevice, SignalAirReport } from "../../types";
 import { cn } from "../../lib/utils";
 import { QUALITY_COLORS } from "../../constants/qualityColors";
+import { sources } from "../../constants/sources";
 import {
   DeviceStatistics as DeviceStatisticsType,
   SourceStatistics,
@@ -108,6 +109,8 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
       return acc;
     }, {} as Record<string, number>);
 
+    // Ordre des niveaux de qualité (du meilleur au pire)
+    // "default" sera ajouté en dernier séparément
     const qualityOrder = [
       "bon",
       "moyen",
@@ -115,16 +118,27 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
       "mauvais",
       "tresMauvais",
       "extrMauvais",
-      "default",
     ];
 
-    return qualityOrder
+    // Récupérer les niveaux avec valeurs (sauf default)
+    const orderedLevels = qualityOrder
       .filter((level) => distribution[level] > 0)
       .map((level) => ({
         level,
         count: distribution[level],
         percentage: (distribution[level] / visibleDevices.length) * 100,
       }));
+
+    // Ajouter "default" en dernier s'il existe
+    if (distribution["default"] > 0) {
+      orderedLevels.push({
+        level: "default",
+        count: distribution["default"],
+        percentage: (distribution["default"] / visibleDevices.length) * 100,
+      });
+    }
+
+    return orderedLevels;
   }, [statistics, visibleDevices]);
 
   /**
@@ -183,18 +197,49 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
     });
   }, [sourceStatistics, visibleDevices]);
 
-  // Obtenir le nom lisible de la source
+  // Obtenir le nom lisible de la source depuis les constantes
   const getSourceName = (source: string): string => {
-    const sourceNames: Record<string, string> = {
-      atmoref: "AtmoRef",
-      atmomicro: "AtmoMicro",
-      "communautaire.nebuleair": "NebuleAir",
-      "communautaire.sensorcommunity": "Sensor.Community",
-      "communautaire.purpleair": "PurpleAir",
-      "communautaire.mobileair": "MobileAir",
-      signalair: "SignalAir",
-    };
-    return sourceNames[source] || source;
+    // Gérer les sous-sources (ex: "communautaire.nebuleair")
+    if (source.includes(".")) {
+      const [groupKey, subKey] = source.split(".");
+      const group = sources[groupKey as keyof typeof sources];
+      if (group?.isGroup && group.subSources) {
+        const subSource = group.subSources[subKey as keyof typeof group.subSources];
+        if (subSource) {
+          // Cas spécial pour NebuleAir
+          if (subKey === "nebuleair") {
+            return "NebuleAir AirCarto";
+          }
+          return subSource.name;
+        }
+      }
+    }
+    
+    // Vérifier si c'est une sous-source communautaire sans préfixe (ex: "nebuleair")
+    const communautaireGroup = sources.communautaire;
+    if (communautaireGroup?.isGroup && communautaireGroup.subSources) {
+      const subSource = communautaireGroup.subSources[source as keyof typeof communautaireGroup.subSources];
+      if (subSource) {
+        // Cas spécial pour NebuleAir
+        if (source === "nebuleair") {
+          return "NebuleAir AirCarto";
+        }
+        return subSource.name;
+      }
+    }
+    
+    // Source directe
+    const sourceConfig = sources[source as keyof typeof sources];
+    if (sourceConfig && !sourceConfig.isGroup) {
+      // Cas spécial pour atmoMicro (enlever "AtmoSud" à la fin)
+      if (source === "atmoMicro") {
+        return "Microcapteurs qualifiés";
+      }
+      return sourceConfig.name;
+    }
+    
+    // Fallback : retourner le code source tel quel
+    return source;
   };
 
   // Obtenir le nom lisible du niveau de qualité
@@ -206,7 +251,7 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
       mauvais: "Mauvais",
       tresMauvais: "Très mauvais",
       extrMauvais: "Extrêmement mauvais",
-      default: "Non défini",
+      default: "Pas de mesure récente",
     };
     return qualityNames[level] || level;
   };
@@ -482,7 +527,7 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
           {statsBySource.length > 0 && (
             <div className="space-y-3">
               <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
-                Détail par source
+                Détail par type d'appareil de mesure
               </h4>
               <div className="space-y-4">
                 {statsBySource.map((sourceStats) => (
@@ -535,11 +580,31 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
                           Distribution par seuil
                         </p>
                         <div className="space-y-1">
-                          {Object.entries(sourceStats.qualityDistribution).map(
-                            ([level, count]) => {
+                          {(() => {
+                            // Ordre des niveaux de qualité (du meilleur au pire)
+                            // "default" sera ajouté en dernier
+                            const qualityOrder = [
+                              "bon",
+                              "moyen",
+                              "degrade",
+                              "mauvais",
+                              "tresMauvais",
+                              "extrMauvais",
+                            ];
+
+                            // Récupérer les niveaux avec valeurs dans l'ordre (sauf default)
+                            const orderedEntries = qualityOrder
+                              .filter((level) => sourceStats.qualityDistribution[level] > 0)
+                              .map((level) => [level, sourceStats.qualityDistribution[level]] as [string, number]);
+
+                            // Ajouter "default" en dernier s'il existe
+                            if (sourceStats.qualityDistribution["default"] > 0) {
+                              orderedEntries.push(["default", sourceStats.qualityDistribution["default"]]);
+                            }
+
+                            return orderedEntries.map(([level, count]) => {
                               const colors = getQualityColor(level);
-                              const percentage =
-                                (count / sourceStats.count) * 100;
+                              const percentage = (count / sourceStats.count) * 100;
                               return (
                                 <div
                                   key={level}
@@ -574,8 +639,8 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
                                   </div>
                                 </div>
                               );
-                            }
-                          )}
+                            });
+                          })()}
                         </div>
                       </div>
                     )}
