@@ -62,9 +62,13 @@ export const useVisibleDevices = ({
   const reportsHashRef = useRef<string>('');
 
   useEffect(() => {
-    // Créer un hash simple basé sur la longueur et quelques IDs pour détecter les changements
+    // Créer un hash simple basé sur la longueur, IDs, positions ET valeurs pour détecter les changements
+    // IMPORTANT : En mode historique, les devices ont les mêmes positions mais des valeurs différentes
+    // Il faut donc inclure les valeurs dans le hash pour détecter les changements
     // Plus fiable que de dépendre uniquement de la référence
-    const devicesHash = `${devices.length}_${devices.slice(0, 10).map(d => `${d.id}_${d.latitude.toFixed(2)}_${d.longitude.toFixed(2)}`).join('|')}`;
+    const devicesHash = `${devices.length}_${devices.slice(0, 10).map(d => 
+      `${d.id}_${d.latitude.toFixed(2)}_${d.longitude.toFixed(2)}_${d.value?.toFixed(2) || '0'}_${d.timestamp || ''}`
+    ).join('|')}`;
     
     // Reconstruire seulement si le hash a changé
     if (devicesHash !== devicesHashRef.current) {
