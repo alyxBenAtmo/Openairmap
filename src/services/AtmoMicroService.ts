@@ -652,46 +652,56 @@ export class AtmoMicroService extends BaseDataService {
               rawValue = measure.valeur_brute;
             }
 
-            if (displayValue !== null && !isNaN(displayValue)) {
+            // Ne créer le device que si la valeur est valide
+            if (
+              displayValue !== null &&
+              displayValue !== undefined &&
+              !isNaN(displayValue) &&
+              typeof displayValue === "number"
+            ) {
               totalValue += displayValue;
               validValues++;
+
+              const pollutantConfig = pollutants[pollutant];
+              if (!pollutantConfig) {
+                return; // Ignorer si le polluant n'est pas configuré
+              }
+
+              const qualityLevel = getAirQualityLevel(
+                displayValue,
+                pollutantConfig.thresholds
+              );
+
+              // Compter les niveaux de qualité
+              qualityLevels[qualityLevel] =
+                (qualityLevels[qualityLevel] || 0) + 1;
+
+              devices.push({
+                id: measure.id_site.toString(),
+                name: measure.nom_site, // Nom du site directement dans la réponse
+                latitude: measure.lat, // Coordonnées directement dans la réponse
+                longitude: measure.lon, // Coordonnées directement dans la réponse
+                source: this.sourceCode,
+                pollutant: pollutant,
+                value: displayValue,
+                unit: measure.unite,
+                timestamp: measure.time,
+                status: "active",
+                qualityLevel,
+                address: `${measure.nom_site}`, // Adresse simplifiée
+                departmentId: "", // Pas disponible dans cette API
+                corrected_value: correctedValue,
+                raw_value: rawValue,
+                has_correction: hasCorrection,
+              } as MeasurementDevice & {
+                qualityLevel: string;
+                address: string;
+                departmentId: string;
+                corrected_value?: number;
+                raw_value?: number;
+                has_correction?: boolean;
+              });
             }
-
-            const pollutantConfig = pollutants[pollutant];
-            const qualityLevel = getAirQualityLevel(
-              displayValue,
-              pollutantConfig.thresholds
-            );
-
-            // Compter les niveaux de qualité
-            qualityLevels[qualityLevel] =
-              (qualityLevels[qualityLevel] || 0) + 1;
-
-            devices.push({
-              id: measure.id_site.toString(),
-              name: measure.nom_site, // Nom du site directement dans la réponse
-              latitude: measure.lat, // Coordonnées directement dans la réponse
-              longitude: measure.lon, // Coordonnées directement dans la réponse
-              source: this.sourceCode,
-              pollutant: pollutant,
-              value: displayValue,
-              unit: measure.unite,
-              timestamp: measure.time,
-              status: "active",
-              qualityLevel,
-              address: `${measure.nom_site}`, // Adresse simplifiée
-              departmentId: "", // Pas disponible dans cette API
-              corrected_value: correctedValue,
-              raw_value: rawValue,
-              has_correction: hasCorrection,
-            } as MeasurementDevice & {
-              qualityLevel: string;
-              address: string;
-              departmentId: string;
-              corrected_value?: number;
-              raw_value?: number;
-              has_correction?: boolean;
-            });
           });
 
           const averageValue = validValues > 0 ? totalValue / validValues : 0;

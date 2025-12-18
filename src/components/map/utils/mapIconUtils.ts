@@ -72,7 +72,17 @@ export const createCustomIcon = (
     selectedStation,
   } = options;
 
-  const qualityLevel = device.qualityLevel || "default";
+  // Vérifier si le device a une valeur valide pour l'affichage
+  const hasValidValue =
+    device.status === "active" &&
+    device.value !== null &&
+    device.value !== undefined &&
+    !isNaN(device.value) &&
+    typeof device.value === "number";
+
+  // Utiliser "default" si le device n'a pas de valeur valide à afficher
+  const qualityLevel =
+    hasValidValue && device.qualityLevel ? device.qualityLevel : "default";
   const markerPath = getMarkerPath(device.source, qualityLevel);
 
   // Créer un élément HTML personnalisé pour le marqueur

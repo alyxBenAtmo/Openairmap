@@ -938,7 +938,16 @@ export class NebuleAirService extends BaseDataService {
               dataPoint,
               nebuleAirPollutant
             );
-            if (value === null || value === -1) return;
+            // Ne créer le device que si la valeur est valide
+            if (
+              value === null ||
+              value === undefined ||
+              value === -1 ||
+              isNaN(value) ||
+              typeof value !== "number"
+            ) {
+              return;
+            }
 
             // Créer le device de mesure
             const device: MeasurementDevice = {
