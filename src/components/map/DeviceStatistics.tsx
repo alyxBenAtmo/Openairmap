@@ -178,68 +178,6 @@ const DeviceStatistics: React.FC<DeviceStatisticsProps> = ({
       />
     </>
   );
-
-      {/* Détails supplémentaires si demandé */}
-      {showDetails && visibleDevices.length > 0 && (
-        <div className="mt-2 pt-2 border-t border-gray-200 space-y-1">
-          {/* Statistiques de valeurs */}
-          {values.length > 0 && (
-            <div className="space-y-0.5">
-              <div className="text-gray-500 text-[10px]">
-                {selectedPollutant.toUpperCase()} (moyenne: {formatNumber(averageValue)}{" "}
-                {visibleDevices[0]?.unit || ""})
-              </div>
-              <div className="text-gray-500 text-[10px]">
-                Min: {formatNumber(minValue)} | Max: {formatNumber(maxValue)}
-              </div>
-            </div>
-          )}
-
-          {/* Répartition par source */}
-          {Object.keys(devicesBySource).length > 1 && (
-            <div className="mt-1">
-              <div className="text-gray-500 text-[10px] font-medium mb-0.5">
-                Par source:
-              </div>
-              <div className="flex flex-wrap gap-x-2 gap-y-0.5">
-                {Object.entries(devicesBySource).map(([source, count]) => (
-                  <span key={source} className="text-[10px]">
-                    {getSourceName(source)}: {count}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Répartition par qualité */}
-          {Object.keys(qualityLevels).length > 0 && (
-            <div className="mt-1">
-              <div className="text-gray-500 text-[10px] font-medium mb-0.5">
-                Qualité:
-              </div>
-              <div className="flex flex-wrap gap-x-2 gap-y-0.5">
-                {Object.entries(qualityLevels).map(([level, count]) => (
-                  <span
-                    key={level}
-                    className={`text-[10px] ${getQualityColor(level)}`}
-                  >
-                    {getQualityName(level)}: {count}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Appareils actifs */}
-          {activeDevices !== visibleDevices.length && (
-            <div className="mt-1 text-[10px] text-gray-500">
-              {activeDevices} actif{activeDevices > 1 ? "s" : ""} /{" "}
-              {visibleDevices.length - activeDevices} inactif
-              {visibleDevices.length - activeDevices > 1 ? "s" : ""}
-            </div>
-          )}
-        </div>
-      )}
 };
 
 export default DeviceStatistics;
