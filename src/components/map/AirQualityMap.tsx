@@ -1172,6 +1172,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
             totalDevices={devices.length}
             totalReports={reports.length}
             selectedPollutant={selectedPollutant}
+            selectedSources={selectedSources}
             statistics={statistics} // OPTIMISATION : Passer les statistiques pré-calculées
             sourceStatistics={sourceStatistics} // OPTIMISATION : Passer les stats par source pré-calculées
             showDetails={false}

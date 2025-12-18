@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { MeasurementDevice } from "../../types";
+import { MeasurementDevice, SignalAirReport } from "../../types";
 import { cn } from "../../lib/utils";
 import { QUALITY_COLORS } from "../../constants/qualityColors";
 import {
@@ -10,6 +10,8 @@ import {
 
 interface StatisticsPanelProps {
   visibleDevices: MeasurementDevice[];
+  visibleReports?: SignalAirReport[];
+  selectedSources?: string[];
   selectedPollutant: string;
   isOpen: boolean;
   onClose: () => void;
@@ -23,12 +25,16 @@ interface StatisticsPanelProps {
  */
 const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
   visibleDevices,
+  visibleReports = [],
+  selectedSources = [],
   selectedPollutant,
   isOpen,
   onClose,
   statistics, // OPTIMISATION : Statistiques pré-calculées
   sourceStatistics, // OPTIMISATION : Stats par source pré-calculées
 }) => {
+  // Vérifier si SignalAir est actif
+  const isSignalAirActive = selectedSources.includes("signalair");
   /**
    * OPTIMISATION : Utiliser les statistiques pré-calculées si disponibles
    * Sinon, calculer localement (fallback pour compatibilité)
@@ -245,6 +251,66 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
     return num.toFixed(decimals);
   };
 
+  // Statistiques des signalements
+  const reportsStats = useMemo(() => {
+    if (!isSignalAirActive || visibleReports.length === 0) {
+      return null;
+    }
+
+    // Distribution par type de signalement
+    const distributionByType = visibleReports.reduce((acc, report) => {
+      const type = report.signalType || "autre";
+      acc[type] = (acc[type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Nombre de signalements avec symptômes
+    const withSymptoms = visibleReports.filter((report) => {
+      const hasSymptoms = report.signalHasSymptoms?.toLowerCase();
+      return (
+        hasSymptoms === "oui" ||
+        hasSymptoms === "yes" ||
+        hasSymptoms === "true" ||
+        (report.signalSymptoms && report.signalSymptoms.trim() !== "")
+      );
+    }).length;
+
+    // Distribution par niveau de gêne
+    const distributionByNuisanceLevel = visibleReports.reduce((acc, report) => {
+      const level = report.nuisanceLevel || "non spécifié";
+      acc[level] = (acc[level] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Distribution par origine de la nuisance
+    const distributionByOrigin = visibleReports.reduce((acc, report) => {
+      const origin = report.nuisanceOrigin || "non spécifiée";
+      acc[origin] = (acc[origin] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return {
+      total: visibleReports.length,
+      distributionByType,
+      withSymptoms,
+      withoutSymptoms: visibleReports.length - withSymptoms,
+      distributionByNuisanceLevel,
+      distributionByOrigin,
+    };
+  }, [visibleReports, isSignalAirActive]);
+
+  // Obtenir le nom lisible du type de signalement
+  const getSignalTypeName = (type: string): string => {
+    const typeNames: Record<string, string> = {
+      odeur: "Odeurs",
+      bruit: "Bruits",
+      brulage: "Brûlage",
+      visuel: "Visuel",
+      pollen: "Pollen",
+    };
+    return typeNames[type] || type;
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -273,11 +339,15 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">
-              Statistiques des appareils visibles
+              Statistiques
             </h3>
             <p className="text-sm text-gray-500 mt-0.5">
               {visibleDevices.length} appareil
-              {visibleDevices.length > 1 ? "s" : ""} • {selectedPollutant.toUpperCase()}
+              {visibleDevices.length > 1 ? "s" : ""}
+              {isSignalAirActive && reportsStats && reportsStats.total > 0 && (
+                <> • {reportsStats.total} signalement{reportsStats.total > 1 ? "s" : ""}</>
+              )}
+              {visibleDevices.length > 0 && <> • {selectedPollutant.toUpperCase()}</>}
             </p>
           </div>
           <button
@@ -512,6 +582,175 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Statistiques des signalements */}
+          {reportsStats && reportsStats.total > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
+                Statistiques des signalements
+              </h4>
+
+              {/* Statistiques générales */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="text-xs text-gray-500 mb-1">Total</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {reportsStats.total}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="text-xs text-gray-500 mb-1">Avec symptômes</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {reportsStats.withSymptoms} (
+                    {formatNumber(
+                      (reportsStats.withSymptoms / reportsStats.total) * 100,
+                      0
+                    )}
+                    %)
+                  </p>
+                </div>
+              </div>
+
+              {/* Distribution avec/sans symptômes */}
+              <div className="space-y-3">
+                <h5 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                  Répartition avec/sans symptômes
+                </h5>
+                <div className="space-y-2">
+                  {/* Avec symptômes */}
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-900">
+                        Avec symptômes
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {reportsStats.withSymptoms} (
+                        {formatNumber(
+                          (reportsStats.withSymptoms / reportsStats.total) * 100,
+                          0
+                        )}
+                        %)
+                      </span>
+                    </div>
+                    <div className="w-full bg-white/50 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="h-full transition-all rounded-full bg-red-500"
+                        style={{
+                          width: `${(reportsStats.withSymptoms / reportsStats.total) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Sans symptômes */}
+                  <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-900">
+                        Sans symptômes
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {reportsStats.withoutSymptoms} (
+                        {formatNumber(
+                          (reportsStats.withoutSymptoms / reportsStats.total) * 100,
+                          0
+                        )}
+                        %)
+                      </span>
+                    </div>
+                    <div className="w-full bg-white/50 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="h-full transition-all rounded-full bg-green-500"
+                        style={{
+                          width: `${(reportsStats.withoutSymptoms / reportsStats.total) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Distribution par type de signalement */}
+              {Object.keys(reportsStats.distributionByType).length > 0 && (
+                <div className="space-y-3">
+                  <h5 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                    Distribution par type
+                  </h5>
+                  <div className="space-y-2">
+                    {Object.entries(reportsStats.distributionByType)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([type, count]) => {
+                        const percentage =
+                          (count / reportsStats.total) * 100;
+                        return (
+                          <div
+                            key={type}
+                            className="rounded-lg border border-gray-200 bg-gray-50 p-3"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-medium text-gray-900">
+                                {getSignalTypeName(type)}
+                              </span>
+                              <span className="text-sm font-semibold text-gray-900">
+                                {count} ({formatNumber(percentage, 0)}%)
+                              </span>
+                            </div>
+                            <div className="w-full bg-white/50 rounded-full h-2 overflow-hidden">
+                              <div
+                                className="h-full transition-all rounded-full bg-blue-500"
+                                style={{
+                                  width: `${percentage}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+              {/* Distribution par niveau de gêne */}
+              {Object.keys(reportsStats.distributionByNuisanceLevel).length >
+                0 && (
+                <div className="space-y-3">
+                  <h5 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                    Distribution par niveau de gêne
+                  </h5>
+                  <div className="space-y-2">
+                    {Object.entries(reportsStats.distributionByNuisanceLevel)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([level, count]) => {
+                        const percentage =
+                          (count / reportsStats.total) * 100;
+                        return (
+                          <div
+                            key={level}
+                            className="rounded-lg border border-gray-200 bg-gray-50 p-2"
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-medium text-gray-700">
+                                {level}
+                              </span>
+                              <span className="text-xs font-semibold text-gray-900">
+                                {count} ({formatNumber(percentage, 0)}%)
+                              </span>
+                            </div>
+                            <div className="w-full bg-white/50 rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className="h-full transition-all rounded-full bg-orange-500"
+                                style={{
+                                  width: `${percentage}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
             </>

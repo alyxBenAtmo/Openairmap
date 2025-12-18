@@ -13,6 +13,7 @@ interface DeviceStatisticsProps {
   totalDevices: number;
   totalReports: number;
   selectedPollutant: string;
+  selectedSources?: string[];
   statistics?: DeviceStatisticsType; // OPTIMISATION : Statistiques pré-calculées
   sourceStatistics?: SourceStatistics[]; // OPTIMISATION : Stats par source pré-calculées
   showDetails?: boolean;
@@ -27,6 +28,7 @@ const DeviceStatistics: React.FC<DeviceStatisticsProps> = ({
   totalDevices,
   totalReports,
   selectedPollutant,
+  selectedSources = [],
   statistics, // OPTIMISATION : Utiliser les statistiques pré-calculées
   sourceStatistics, // OPTIMISATION : Stats par source pré-calculées
   showDetails = false,
@@ -106,13 +108,13 @@ const DeviceStatistics: React.FC<DeviceStatisticsProps> = ({
           "hover:bg-gray-50 rounded-md -mx-1 px-1 py-0.5",
           isPanelOpen && "bg-gray-50"
         )}
-        onClick={() => visibleDevices.length > 0 && setIsPanelOpen(!isPanelOpen)}
+        onClick={() => (visibleDevices.length > 0 || visibleReports.length > 0) && setIsPanelOpen(!isPanelOpen)}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            if (visibleDevices.length > 0) {
+            if (visibleDevices.length > 0 || visibleReports.length > 0) {
               setIsPanelOpen(!isPanelOpen);
             }
           }
@@ -132,7 +134,7 @@ const DeviceStatistics: React.FC<DeviceStatisticsProps> = ({
               )}
             </span>
           </div>
-          {visibleDevices.length > 0 && (
+          {(visibleDevices.length > 0 || visibleReports.length > 0) && (
             <svg
               className={cn(
                 "h-4 w-4 text-gray-400 transition-transform",
@@ -172,6 +174,8 @@ const DeviceStatistics: React.FC<DeviceStatisticsProps> = ({
       {/* Panel statistique */}
       <StatisticsPanel
         visibleDevices={visibleDevices}
+        visibleReports={visibleReports}
+        selectedSources={selectedSources}
         selectedPollutant={selectedPollutant}
         isOpen={isPanelOpen}
         onClose={() => setIsPanelOpen(false)}
