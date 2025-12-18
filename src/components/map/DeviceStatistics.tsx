@@ -2,6 +2,10 @@ import React, { useState } from "react";
 import { MeasurementDevice, SignalAirReport } from "../../types";
 import StatisticsPanel from "./StatisticsPanel";
 import { cn } from "../../lib/utils";
+import {
+  DeviceStatistics as DeviceStatisticsType,
+  SourceStatistics,
+} from "../../utils/deviceStatisticsUtils";
 
 interface DeviceStatisticsProps {
   visibleDevices: MeasurementDevice[];
@@ -9,6 +13,8 @@ interface DeviceStatisticsProps {
   totalDevices: number;
   totalReports: number;
   selectedPollutant: string;
+  statistics?: DeviceStatisticsType; // OPTIMISATION : Statistiques pré-calculées
+  sourceStatistics?: SourceStatistics[]; // OPTIMISATION : Stats par source pré-calculées
   showDetails?: boolean;
 }
 
@@ -21,35 +27,29 @@ const DeviceStatistics: React.FC<DeviceStatisticsProps> = ({
   totalDevices,
   totalReports,
   selectedPollutant,
+  statistics, // OPTIMISATION : Utiliser les statistiques pré-calculées
+  sourceStatistics, // OPTIMISATION : Stats par source pré-calculées
   showDetails = false,
 }) => {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-  // Calculer les statistiques par source
-  const devicesBySource = visibleDevices.reduce((acc, device) => {
+
+  // OPTIMISATION : Utiliser les statistiques pré-calculées si disponibles
+  // Sinon, calculer localement (fallback pour compatibilité)
+  const devicesBySource = statistics?.devicesBySource || visibleDevices.reduce((acc, device) => {
     acc[device.source] = (acc[device.source] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  // Calculer les statistiques de qualité
-  const qualityLevels = visibleDevices.reduce((acc, device) => {
+  const qualityLevels = statistics?.qualityLevels || visibleDevices.reduce((acc, device) => {
     const level = device.qualityLevel || "default";
     acc[level] = (acc[level] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  // Calculer la valeur moyenne, min et max
-  const values = visibleDevices.map((device) => device.value).filter((v) => v > 0);
-  const averageValue =
-    values.length > 0
-      ? values.reduce((sum, val) => sum + val, 0) / values.length
-      : 0;
-  const minValue = values.length > 0 ? Math.min(...values) : 0;
-  const maxValue = values.length > 0 ? Math.max(...values) : 0;
-
-  // Nombre d'appareils actifs
-  const activeDevices = visibleDevices.filter(
-    (device) => device.status === "active"
-  ).length;
+  const averageValue = statistics?.averageValue ?? 0;
+  const minValue = statistics?.minValue ?? 0;
+  const maxValue = statistics?.maxValue ?? 0;
+  const activeDevices = statistics?.activeDevices ?? 0;
 
   // Formatage des nombres
   const formatNumber = (num: number, decimals: number = 1): string => {
@@ -175,6 +175,8 @@ const DeviceStatistics: React.FC<DeviceStatisticsProps> = ({
         selectedPollutant={selectedPollutant}
         isOpen={isPanelOpen}
         onClose={() => setIsPanelOpen(false)}
+        statistics={statistics} // OPTIMISATION : Passer les statistiques pré-calculées
+        sourceStatistics={sourceStatistics} // OPTIMISATION : Passer les stats par source pré-calculées
       />
     </>
   );

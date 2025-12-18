@@ -2,12 +2,19 @@ import React, { useMemo } from "react";
 import { MeasurementDevice } from "../../types";
 import { cn } from "../../lib/utils";
 import { QUALITY_COLORS } from "../../constants/qualityColors";
+import {
+  DeviceStatistics as DeviceStatisticsType,
+  SourceStatistics,
+  calculateQualityDistribution,
+} from "../../utils/deviceStatisticsUtils";
 
 interface StatisticsPanelProps {
   visibleDevices: MeasurementDevice[];
   selectedPollutant: string;
   isOpen: boolean;
   onClose: () => void;
+  statistics?: DeviceStatisticsType; // OPTIMISATION : Statistiques pré-calculées
+  sourceStatistics?: SourceStatistics[]; // OPTIMISATION : Stats par source pré-calculées
 }
 
 /**
@@ -19,19 +26,28 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
   selectedPollutant,
   isOpen,
   onClose,
+  statistics, // OPTIMISATION : Statistiques pré-calculées
+  sourceStatistics, // OPTIMISATION : Stats par source pré-calculées
 }) => {
-  // Calculer la médiane
-  const calculateMedian = (values: number[]): number => {
-    if (values.length === 0) return 0;
-    const sorted = [...values].sort((a, b) => a - b);
-    const mid = Math.floor(sorted.length / 2);
-    return sorted.length % 2 === 0
-      ? (sorted[mid - 1] + sorted[mid]) / 2
-      : sorted[mid];
-  };
-
-  // Statistiques globales
+  /**
+   * OPTIMISATION : Utiliser les statistiques pré-calculées si disponibles
+   * Sinon, calculer localement (fallback pour compatibilité)
+   * Cela évite les recalculs redondants
+   */
   const globalStats = useMemo(() => {
+    if (statistics) {
+      // Utiliser les statistiques pré-calculées
+      return {
+        average: statistics.averageValue,
+        median: statistics.medianValue,
+        min: statistics.minValue,
+        max: statistics.maxValue,
+        count: statistics.validValuesCount,
+        unit: statistics.unit,
+      };
+    }
+
+    // Fallback : calculer localement si les stats ne sont pas fournies
     const values = visibleDevices
       .map((device) => device.value)
       .filter((v) => v > 0 && !isNaN(v));
@@ -47,26 +63,45 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
       };
     }
 
+    // Calculer la médiane
+    const calculateMedian = (vals: number[]): number => {
+      if (vals.length === 0) return 0;
+      const sorted = [...vals].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      return sorted.length % 2 === 0
+        ? (sorted[mid - 1] + sorted[mid]) / 2
+        : sorted[mid];
+    };
+
     return {
-      average:
-        values.reduce((sum, val) => sum + val, 0) / values.length,
+      average: values.reduce((sum, val) => sum + val, 0) / values.length,
       median: calculateMedian(values),
       min: Math.min(...values),
       max: Math.max(...values),
       count: values.length,
       unit: visibleDevices[0]?.unit || "",
     };
-  }, [visibleDevices]);
+  }, [statistics, visibleDevices]);
 
-  // Distribution par seuil de qualité
+  /**
+   * OPTIMISATION : Utiliser la distribution pré-calculée si disponible
+   */
   const qualityDistribution = useMemo(() => {
+    if (statistics) {
+      // Utiliser la fonction utilitaire pour obtenir la distribution ordonnée
+      return calculateQualityDistribution(
+        statistics.qualityLevels,
+        statistics.totalDevices
+      );
+    }
+
+    // Fallback : calculer localement
     const distribution = visibleDevices.reduce((acc, device) => {
       const level = device.qualityLevel || "default";
       acc[level] = (acc[level] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    // Ordre des niveaux de qualité
     const qualityOrder = [
       "bon",
       "moyen",
@@ -82,11 +117,20 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
       .map((level) => ({
         level,
         count: distribution[level],
+        percentage: (distribution[level] / visibleDevices.length) * 100,
       }));
-  }, [visibleDevices]);
+  }, [statistics, visibleDevices]);
 
-  // Statistiques par source
+  /**
+   * OPTIMISATION : Utiliser les statistiques par source pré-calculées si disponibles
+   */
   const statsBySource = useMemo(() => {
+    if (sourceStatistics) {
+      // Utiliser les stats pré-calculées
+      return sourceStatistics;
+    }
+
+    // Fallback : calculer localement
     const sourceMap = new Map<string, MeasurementDevice[]>();
 
     visibleDevices.forEach((device) => {
@@ -107,6 +151,16 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
         return acc;
       }, {} as Record<string, number>);
 
+      // Calculer la médiane
+      const calculateMedian = (vals: number[]): number => {
+        if (vals.length === 0) return 0;
+        const sorted = [...vals].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 === 0
+          ? (sorted[mid - 1] + sorted[mid]) / 2
+          : sorted[mid];
+      };
+
       return {
         source,
         devices,
@@ -121,7 +175,7 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
         unit: devices[0]?.unit || "",
       };
     });
-  }, [visibleDevices]);
+  }, [sourceStatistics, visibleDevices]);
 
   // Obtenir le nom lisible de la source
   const getSourceName = (source: string): string => {
@@ -311,9 +365,10 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
                 Distribution par seuil
               </h4>
               <div className="space-y-2">
-                {qualityDistribution.map(({ level, count }) => {
+                {qualityDistribution.map(({ level, count, percentage }) => {
                   const colors = getQualityColor(level);
-                  const percentage = (count / visibleDevices.length) * 100;
+                  // OPTIMISATION : Utiliser le pourcentage pré-calculé si disponible
+                  const displayPercentage = percentage ?? (count / visibleDevices.length) * 100;
                   return (
                     <div
                       key={level}
@@ -334,14 +389,14 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
                           className="text-sm font-semibold"
                           style={{ color: colors.text }}
                         >
-                          {count} ({formatNumber(percentage, 0)}%)
+                          {count} ({formatNumber(displayPercentage, 0)}%)
                         </span>
                       </div>
                       <div className="w-full bg-white/50 rounded-full h-2 overflow-hidden">
                         <div
                           className="h-full transition-all rounded-full"
                           style={{
-                            width: `${percentage}%`,
+                            width: `${displayPercentage}%`,
                             backgroundColor: colors.color,
                           }}
                         />

@@ -1,7 +1,13 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import L from "leaflet";
 import { MeasurementDevice, SignalAirReport } from "../../../types";
 import { SpatialGrid } from "../../../utils/spatialGrid";
+import {
+  calculateDeviceStatistics,
+  calculateSourceStatistics,
+  DeviceStatistics,
+  SourceStatistics,
+} from "../../../utils/deviceStatisticsUtils";
 
 interface UseVisibleDevicesProps {
   mapRef: React.RefObject<L.Map | null>;
@@ -222,49 +228,29 @@ export const useVisibleDevices = ({
     updateVisibleDevices();
   }, [devices, reports, updateVisibleDevices]);
 
-  // Calculer les statistiques des appareils visibles
-  const statistics = {
-    totalDevices: visibleDevices.length,
-    totalReports: visibleReports.length,
-    devicesBySource: visibleDevices.reduce((acc, device) => {
-      acc[device.source] = (acc[device.source] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>),
-    reportsByType: visibleReports.reduce((acc, report) => {
-      acc[report.signalType] = (acc[report.signalType] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>),
-    qualityLevels: visibleDevices.reduce((acc, device) => {
-      const level = device.qualityLevel || "default";
-      acc[level] = (acc[level] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>),
-    averageValue:
-      visibleDevices.length > 0
-        ? visibleDevices.reduce((sum, device) => sum + device.value, 0) /
-          visibleDevices.length
-        : 0,
-    minValue:
-      visibleDevices.length > 0
-        ? Math.min(...visibleDevices.map((device) => device.value))
-        : 0,
-    maxValue:
-      visibleDevices.length > 0
-        ? Math.max(...visibleDevices.map((device) => device.value))
-        : 0,
-    activeDevices: visibleDevices.filter(
-      (device) => device.status === "active"
-    ).length,
-    inactiveDevices: visibleDevices.filter(
-      (device) => device.status !== "active"
-    ).length,
-  };
+  /**
+   * OPTIMISATION : Calculer les statistiques une seule fois avec useMemo
+   * Les statistiques sont recalculées uniquement quand visibleDevices ou visibleReports changent
+   * Cela évite les recalculs dans DeviceStatistics et StatisticsPanel
+   */
+  const statistics = useMemo<DeviceStatistics>(() => {
+    return calculateDeviceStatistics(visibleDevices, visibleReports);
+  }, [visibleDevices, visibleReports]);
+
+  /**
+   * OPTIMISATION : Calculer les statistiques par source une seule fois
+   * Utilisé par StatisticsPanel pour éviter les recalculs
+   */
+  const sourceStatistics = useMemo<SourceStatistics[]>(() => {
+    return calculateSourceStatistics(visibleDevices);
+  }, [visibleDevices]);
 
   return {
     visibleDevices,
     visibleReports,
     mapBounds,
     statistics,
+    sourceStatistics,
     updateVisibleDevices,
   };
 };
