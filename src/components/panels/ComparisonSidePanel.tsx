@@ -392,9 +392,9 @@ const ComparisonSidePanel: React.FC<ComparisonSidePanelProps> = ({
               Comparaison multi-sources
             </h2>
             {/* Rappel visuel du bouton de réouverture */}
-            <div className="p-1 rounded bg-blue-50 border border-blue-200" title="Bouton bleu pour rouvrir le panel">
+            <div className="p-1 rounded bg-blue-600 border border-blue-600" title="Bouton bleu pour rouvrir le panel">
               <svg
-                className="w-3 h-3 text-blue-600"
+                className="w-3 h-3 text-white"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
