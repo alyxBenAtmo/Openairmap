@@ -255,9 +255,9 @@ const MobileAirSelectionPanel: React.FC<MobileAirSelectionPanelProps> = ({
               Sélection MobileAir
             </h2>
             {/* Rappel visuel du bouton de réouverture */}
-            <div className="p-1 rounded bg-green-50 border border-green-200" title="Bouton vert pour rouvrir le panel">
+            <div className="p-1 rounded bg-green-600 border border-green-600" title="Bouton vert pour rouvrir le panel">
               <svg
-                className="w-3 h-3 text-green-600"
+                className="w-3 h-3 text-white"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

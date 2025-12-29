@@ -63,12 +63,14 @@ export const useSignalAir = ({
       }
     }
 
-    if (!signalAirHasLoaded) {
+    // Ne rouvrir le panel que si l'utilisateur ne l'a pas fermé manuellement
+    // ET que le panel n'est pas déjà caché
+    if (!signalAirHasLoaded && !userClosedSignalAirPanel && signalAirPanelSize !== "hidden") {
       setIsSignalAirPanelOpen(true);
       setSignalAirPanelSize("normal");
       setUserClosedSignalAirPanel(false);
     }
-  }, [selectedSources, signalAirHasLoaded]);
+  }, [selectedSources, signalAirHasLoaded, userClosedSignalAirPanel, signalAirPanelSize]);
 
   // Effet pour gérer le feedback quand aucun signalement n'est trouvé
   useEffect(() => {

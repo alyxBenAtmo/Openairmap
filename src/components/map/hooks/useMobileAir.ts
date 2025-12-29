@@ -122,12 +122,14 @@ export const useMobileAir = ({
     const hasMobileAirRoutes = mobileAirRoutes.length > 0;
 
     // Si MobileAir est sélectionné mais qu'il n'y a pas encore de routes chargées,
-    // ouvrir le side panel de sélection (seulement si l'utilisateur ne l'a pas fermé manuellement)
+    // ouvrir le side panel de sélection (seulement si l'utilisateur ne l'a pas fermé manuellement
+    // ET que le panel n'est pas déjà caché)
     if (
       isMobileAirSelected &&
       !hasMobileAirRoutes &&
       !isMobileAirSelectionPanelOpen &&
-      !userClosedSelectionPanel
+      !userClosedSelectionPanel &&
+      mobileAirSelectionPanelSize !== "hidden"
     ) {
       setIsMobileAirSelectionPanelOpen(true);
     }
@@ -147,6 +149,7 @@ export const useMobileAir = ({
     mobileAirRoutes.length,
     isMobileAirSelectionPanelOpen,
     userClosedSelectionPanel,
+    mobileAirSelectionPanelSize,
   ]);
 
   // Effet pour fermer automatiquement le side panel de sélection quand les routes sont chargées
@@ -229,17 +232,21 @@ export const useMobileAir = ({
       setHoveredMobileAirPoint(null);
       setHighlightedMobileAirPoint(null);
       setMobileAirRoutes([]);
+      // Réinitialiser userClosedSelectionPanel seulement quand on désélectionne complètement
       setUserClosedSelectionPanel(false);
       setUserClosedDetailPanel(false);
       setIsMobileAirSelectionPanelOpen(false);
       setIsMobileAirDetailPanelOpen(false);
     } else {
       // Réinitialiser les états pour permettre à l'utilisateur de choisir à nouveau
+      // MAIS ne pas réinitialiser userClosedSelectionPanel si l'utilisateur a rabattu le panel
+      // On garde l'état "fermé" pour respecter le choix de l'utilisateur
       setActiveMobileAirRoute(null);
       setSelectedMobileAirRoute(null);
       setHoveredMobileAirPoint(null);
       setHighlightedMobileAirPoint(null);
-      setUserClosedSelectionPanel(false);
+      // Ne PAS réinitialiser userClosedSelectionPanel ici pour respecter le choix de l'utilisateur
+      // L'utilisateur peut toujours rouvrir le panel manuellement via le bouton
       setUserClosedDetailPanel(false);
       setIsMobileAirDetailPanelOpen(false);
       setMobileAirRoutes([]);
