@@ -61,42 +61,41 @@ const DeviceStatistics: React.FC<DeviceStatisticsProps> = ({
 
   // Obtenir le nom lisible de la source depuis les constantes
   const getSourceName = (source: string): string => {
-    // Gérer les sous-sources (ex: "communautaire.nebuleair")
+    // Gérer les sous-sources (ex: "microcapteursQualifies.atmoMicro")
     if (source.includes(".")) {
       const [groupKey, subKey] = source.split(".");
       const group = sources[groupKey as keyof typeof sources];
       if (group?.isGroup && group.subSources) {
+        // Si c'est le groupe microcapteursQualifies, retourner "NebuleAir"
+        if (groupKey === "microcapteursQualifies") {
+          return "NebuleAir";
+        }
         const subSource = group.subSources[subKey as keyof typeof group.subSources];
         if (subSource) {
-          // Cas spécial pour NebuleAir
-          if (subKey === "nebuleair") {
-            return "NebuleAir AirCarto";
-          }
           return subSource.name;
         }
       }
     }
     
-    // Vérifier si c'est une sous-source communautaire sans préfixe (ex: "nebuleair")
-    const communautaireGroup = sources.communautaire;
-    if (communautaireGroup?.isGroup && communautaireGroup.subSources) {
-      const subSource = communautaireGroup.subSources[source as keyof typeof communautaireGroup.subSources];
-      if (subSource) {
-        // Cas spécial pour NebuleAir
-        if (source === "nebuleair") {
-          return "NebuleAir AirCarto";
+    // Vérifier si c'est atmoMicro ou nebuleair (sous-sources de microcapteursQualifies)
+    // Dans cette branche, ils sont regroupés sous "NebuleAir"
+    if (source === "atmoMicro" || source === "nebuleair") {
+      return "NebuleAir";
+    }
+    
+    // Vérifier si c'est une sous-source d'un autre groupe sans préfixe
+    for (const [groupKey, group] of Object.entries(sources)) {
+      if (group.isGroup && group.subSources) {
+        const subSource = group.subSources[source as keyof typeof group.subSources];
+        if (subSource) {
+          return subSource.name;
         }
-        return subSource.name;
       }
     }
     
     // Source directe
     const sourceConfig = sources[source as keyof typeof sources];
     if (sourceConfig && !sourceConfig.isGroup) {
-      // Cas spécial pour atmoMicro (enlever "AtmoSud" à la fin)
-      if (source === "atmoMicro") {
-        return "Microcapteurs qualifiés";
-      }
       return sourceConfig.name;
     }
     

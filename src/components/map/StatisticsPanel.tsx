@@ -143,21 +143,86 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
 
   /**
    * OPTIMISATION : Utiliser les statistiques par source pré-calculées si disponibles
+   * ADAPTATION : Regrouper atmoMicro et nebuleair sous "NebuleAir"
    */
   const statsBySource = useMemo(() => {
+    // Fonction pour normaliser le nom de source (regrouper atmoMicro et nebuleair)
+    const normalizeSource = (source: string): string => {
+      // Regrouper atmoMicro et nebuleair sous "NebuleAir"
+      if (source === "atmoMicro" || source === "nebuleair" || 
+          source === "microcapteursQualifies.atmoMicro" || 
+          source === "microcapteursQualifies.nebuleair") {
+        return "NebuleAir";
+      }
+      return source;
+    };
+
     if (sourceStatistics) {
-      // Utiliser les stats pré-calculées
-      return sourceStatistics;
+      // Regrouper les statistiques pour atmoMicro et nebuleair
+      const groupedStats = new Map<string, SourceStatistics>();
+      
+      sourceStatistics.forEach((stat) => {
+        const normalizedSource = normalizeSource(stat.source);
+        
+        if (groupedStats.has(normalizedSource)) {
+          // Fusionner avec les statistiques existantes
+          const existing = groupedStats.get(normalizedSource)!;
+          const allDevices = [...existing.devices, ...stat.devices];
+          const values = allDevices
+            .map((d) => d.value)
+            .filter((v) => v > 0 && !isNaN(v));
+          
+          // Fusionner la distribution de qualité
+          const qualityDist = { ...existing.qualityDistribution };
+          stat.devices.forEach((device) => {
+            const level = device.qualityLevel || "default";
+            qualityDist[level] = (qualityDist[level] || 0) + 1;
+          });
+          
+          // Calculer la médiane
+          const calculateMedian = (vals: number[]): number => {
+            if (vals.length === 0) return 0;
+            const sorted = [...vals].sort((a, b) => a - b);
+            const mid = Math.floor(sorted.length / 2);
+            return sorted.length % 2 === 0
+              ? (sorted[mid - 1] + sorted[mid]) / 2
+              : sorted[mid];
+          };
+          
+          groupedStats.set(normalizedSource, {
+            source: normalizedSource,
+            devices: allDevices,
+            count: allDevices.length,
+            average: values.length > 0
+              ? values.reduce((sum, val) => sum + val, 0) / values.length
+              : 0,
+            median: calculateMedian(values),
+            min: values.length > 0 ? Math.min(...values) : 0,
+            max: values.length > 0 ? Math.max(...values) : 0,
+            qualityDistribution: qualityDist,
+            unit: existing.unit || stat.unit,
+          });
+        } else {
+          // Créer une nouvelle entrée avec le nom normalisé
+          groupedStats.set(normalizedSource, {
+            ...stat,
+            source: normalizedSource,
+          });
+        }
+      });
+      
+      return Array.from(groupedStats.values());
     }
 
-    // Fallback : calculer localement
+    // Fallback : calculer localement avec regroupement
     const sourceMap = new Map<string, MeasurementDevice[]>();
 
     visibleDevices.forEach((device) => {
-      if (!sourceMap.has(device.source)) {
-        sourceMap.set(device.source, []);
+      const normalizedSource = normalizeSource(device.source);
+      if (!sourceMap.has(normalizedSource)) {
+        sourceMap.set(normalizedSource, []);
       }
-      sourceMap.get(device.source)!.push(device);
+      sourceMap.get(normalizedSource)!.push(device);
     });
 
     return Array.from(sourceMap.entries()).map(([source, devices]) => {
@@ -199,42 +264,41 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
 
   // Obtenir le nom lisible de la source depuis les constantes
   const getSourceName = (source: string): string => {
-    // Gérer les sous-sources (ex: "communautaire.nebuleair")
+    // Gérer les sous-sources (ex: "microcapteursQualifies.atmoMicro")
     if (source.includes(".")) {
       const [groupKey, subKey] = source.split(".");
       const group = sources[groupKey as keyof typeof sources];
       if (group?.isGroup && group.subSources) {
+        // Si c'est le groupe microcapteursQualifies, retourner "NebuleAir"
+        if (groupKey === "microcapteursQualifies") {
+          return "NebuleAir";
+        }
         const subSource = group.subSources[subKey as keyof typeof group.subSources];
         if (subSource) {
-          // Cas spécial pour NebuleAir
-          if (subKey === "nebuleair") {
-            return "NebuleAir AirCarto";
-          }
           return subSource.name;
         }
       }
     }
     
-    // Vérifier si c'est une sous-source communautaire sans préfixe (ex: "nebuleair")
-    const communautaireGroup = sources.communautaire;
-    if (communautaireGroup?.isGroup && communautaireGroup.subSources) {
-      const subSource = communautaireGroup.subSources[source as keyof typeof communautaireGroup.subSources];
-      if (subSource) {
-        // Cas spécial pour NebuleAir
-        if (source === "nebuleair") {
-          return "NebuleAir AirCarto";
+    // Vérifier si c'est atmoMicro ou nebuleair (sous-sources de microcapteursQualifies)
+    // Dans cette branche, ils sont regroupés sous "NebuleAir"
+    if (source === "atmoMicro" || source === "nebuleair") {
+      return "NebuleAir";
+    }
+    
+    // Vérifier si c'est une sous-source d'un autre groupe sans préfixe
+    for (const [groupKey, group] of Object.entries(sources)) {
+      if (group.isGroup && group.subSources) {
+        const subSource = group.subSources[source as keyof typeof group.subSources];
+        if (subSource) {
+          return subSource.name;
         }
-        return subSource.name;
       }
     }
     
     // Source directe
     const sourceConfig = sources[source as keyof typeof sources];
     if (sourceConfig && !sourceConfig.isGroup) {
-      // Cas spécial pour atmoMicro (enlever "AtmoSud" à la fin)
-      if (source === "atmoMicro") {
-        return "Microcapteurs qualifiés";
-      }
       return sourceConfig.name;
     }
     
