@@ -250,9 +250,41 @@ const MobileAirSelectionPanel: React.FC<MobileAirSelectionPanelProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200 bg-gray-50">
         <div className="flex-1 min-w-0">
-          <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-            Sélection MobileAir
-          </h2>
+          <div className="flex items-center gap-2 mb-1">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
+              Sélection MobileAir
+            </h2>
+            {/* Rappel visuel du bouton de réouverture */}
+            <div className="p-1 rounded bg-green-50 border border-green-200" title="Bouton vert pour rouvrir le panel">
+              <svg
+                className="w-3 h-3 text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <rect
+                  x="5"
+                  y="4"
+                  width="14"
+                  height="16"
+                  rx="2"
+                  ry="2"
+                  strokeWidth={1.5}
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeWidth={1.5}
+                  d="M9 8h6M9 12h6M9 16h3"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M16 16c1.2-1 1.2-3 0-4"
+                />
+              </svg>
+            </div>
+          </div>
           <p className="text-xs sm:text-sm text-gray-600 truncate">
             {pollutants[initialPollutant]?.name || initialPollutant}
           </p>

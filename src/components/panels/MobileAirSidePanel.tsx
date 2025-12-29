@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   MobileAirSensor,
   MobileAirRoute,
@@ -44,6 +45,8 @@ const MobileAirSidePanel: React.FC<MobileAirSidePanelProps> = ({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAnimatingOut, setIsAnimatingOut] = useState(false);
+  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
@@ -208,10 +211,6 @@ const MobileAirSidePanel: React.FC<MobileAirSidePanelProps> = ({
       onHidden();
     }
   };
-
-  if (!isOpen) {
-    return null;
-  }
 
   const availableSensors = sensors.filter((s) => s.displayMap);
   const isPollutantSupported = Object.values(
@@ -546,7 +545,26 @@ const MobileAirSidePanel: React.FC<MobileAirSidePanelProps> = ({
         </div>
       )}
     </div>
-  );
+    );
+  };
+
+  if (!isOpen) {
+    return null;
+  }
+  
+  // Si on anime la sortie ET que panelSize est "hidden", rendre via portal
+  // Cela permet de sortir le panel du conteneur flex pour que la carte se redimensionne immédiatement
+  if (isAnimatingOut && currentPanelSize === "hidden") {
+    return createPortal(renderPanelContent(), document.body);
+  }
+  
+  // Si le panel est "hidden" et qu'on n'anime pas, ne rien rendre
+  if (currentPanelSize === "hidden") {
+    return null;
+  }
+  
+  // Sinon, rendre normalement dans le conteneur flex
+  return renderPanelContent();
 };
 
 export default MobileAirSidePanel;
