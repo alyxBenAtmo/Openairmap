@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { StationInfo } from "../../types";
 
 interface SensorCommunitySidePanelProps {
@@ -24,6 +25,8 @@ const SensorCommunitySidePanel: React.FC<SensorCommunitySidePanelProps> = ({
 }) => {
   const [internalPanelSize, setInternalPanelSize] =
     useState<PanelSize>("normal");
+  const [isAnimatingOut, setIsAnimatingOut] = useState(false);
+  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
@@ -45,18 +48,60 @@ const SensorCommunitySidePanel: React.FC<SensorCommunitySidePanelProps> = ({
   const grafanaUrl = `https://api-rrd.madavi.de:3000/grafana/d-solo/000000004/single-sensor-view-for-map?orgId=1&var-node=${sensorId}&panelId=2&theme=light`;
 
   const handlePanelSizeChange = (newSize: PanelSize) => {
-    if (onSizeChange) {
-      // Si on a un callback externe, l'utiliser
-      onSizeChange(newSize);
+    // Si on passe à "hidden", déclencher l'animation de sortie
+    if (newSize === "hidden" && currentPanelSize !== "hidden") {
+      // IMPORTANT: Mettre à jour immédiatement la taille pour retirer le panel du flux flex
+      // Cela permet à la carte de se redimensionner immédiatement
+      if (onSizeChange) {
+        onSizeChange(newSize);
+      } else {
+        setInternalPanelSize(newSize);
+      }
+      
+      // Ensuite, déclencher l'animation de sortie
+      setIsAnimatingOut(true);
+      
+      // Nettoyer le timeout précédent s'il existe
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+      }
+      
+      // Après l'animation, nettoyer l'état et appeler le callback
+      animationTimeoutRef.current = setTimeout(() => {
+        setIsAnimatingOut(false);
+        if (onHidden) {
+          onHidden();
+        }
+      }, 300); // Durée de l'animation
     } else {
-      // Sinon, utiliser l'état interne
-      setInternalPanelSize(newSize);
-    }
-
-    if (newSize === "hidden" && onHidden) {
-      onHidden();
+      // Pour les autres changements, réinitialiser l'animation et mettre à jour immédiatement
+      setIsAnimatingOut(false);
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+      }
+      if (onSizeChange) {
+        onSizeChange(newSize);
+      } else {
+        setInternalPanelSize(newSize);
+      }
     }
   };
+
+  // Réinitialiser l'animation quand le panel s'ouvre
+  useEffect(() => {
+    if (isOpen && currentPanelSize !== "hidden") {
+      setIsAnimatingOut(false);
+    }
+  }, [isOpen, currentPanelSize]);
+
+  // Nettoyer le timeout au démontage
+  useEffect(() => {
+    return () => {
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Réinitialiser la taille du panel quand la station change
   useEffect(() => {
@@ -67,36 +112,70 @@ const SensorCommunitySidePanel: React.FC<SensorCommunitySidePanelProps> = ({
     }
   }, [isOpen, selectedStation]);
 
-  if (!isOpen || !selectedStation) {
-    return null;
-  }
-
   const getPanelClasses = () => {
-  const baseClasses =
-    "bg-white shadow-xl flex flex-col border-r border-gray-200 transition-all duration-300 h-full md:h-[calc(100vh-64px)] relative z-[1500]";
+    const baseClasses =
+      "bg-white shadow-xl flex flex-col border-r border-gray-200 h-full md:h-[calc(100vh-64px)] relative z-[1500]";
+
+    // Si on est en train d'animer la sortie, utiliser fixed pour rester visible pendant l'animation
+    // mais le panelSize est déjà "hidden" donc le panel est retiré du flux flex
+    if (isAnimatingOut) {
+      // Calculer la largeur actuelle pour l'animation
+      const widthClass = "w-full sm:w-[320px] md:w-[400px] lg:w-[600px] xl:w-[650px]";
+      // Utiliser fixed pour positionner le panel pendant l'animation
+      // will-change optimise les performances de l'animation
+      return `${baseClasses} fixed left-0 top-0 ${widthClass} animate-slide-out-left will-change-transform`;
+    }
+
+    // Classes d'animation d'entrée
+    const animationClasses = currentPanelSize !== "hidden" && !isAnimatingOut
+      ? "animate-slide-in-left"
+      : "";
 
     switch (currentPanelSize) {
       case "fullscreen":
         // En fullscreen, utiliser absolute pour ne pas affecter le layout de la carte
-        return `${baseClasses} absolute inset-0 w-full`;
+        return `${baseClasses} absolute inset-0 w-full transition-all duration-300 ${animationClasses}`;
       case "hidden":
         // Retirer complètement du flux pour éviter l'espace réservé
+        // Mais si on anime, on ne doit pas être ici car isAnimatingOut gère ce cas
         return `${baseClasses} hidden`;
       case "normal":
       default:
         // Responsive: plein écran sur mobile, largeur réduite pour les petits écrans en paysage
-        return `${baseClasses} w-full sm:w-[320px] md:w-[400px] lg:w-[600px] xl:w-[650px]`;
+        return `${baseClasses} w-full sm:w-[320px] md:w-[400px] lg:w-[600px] xl:w-[650px] transition-all duration-300 ${animationClasses}`;
     }
   };
 
-  return (
-    <div className={getPanelClasses()}>
+  // Fonction pour rendre le contenu du panel
+  const renderPanelContent = () => {
+    if (!selectedStation) return null;
+    
+    return (
+      <div className={getPanelClasses()}>
       {/* Header */}
       <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200 bg-gray-50">
         <div className="flex-1 min-w-0">
-          <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-            {selectedStation.name || selectedStation.id}
-          </h2>
+          <div className="flex items-center gap-2 mb-1">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
+              {selectedStation.name || selectedStation.id}
+            </h2>
+            {/* Rappel visuel du bouton de réouverture */}
+            <div className="p-1 rounded bg-blue-50 border border-blue-200" title="Bouton bleu pour rouvrir le panel">
+              <svg
+                className="w-3 h-3 text-blue-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
+              </svg>
+            </div>
+          </div>
           <p className="text-xs text-gray-500 truncate">
             Capteur Sensor Community #{sensorId}
           </p>
@@ -373,7 +452,26 @@ const SensorCommunitySidePanel: React.FC<SensorCommunitySidePanelProps> = ({
         </div>
       )}
     </div>
-  );
+    );
+  };
+
+  if (!isOpen || !selectedStation) {
+    return null;
+  }
+  
+  // Si on anime la sortie ET que panelSize est "hidden", rendre via portal
+  // Cela permet de sortir le panel du conteneur flex pour que la carte se redimensionne immédiatement
+  if (isAnimatingOut && currentPanelSize === "hidden") {
+    return createPortal(renderPanelContent(), document.body);
+  }
+  
+  // Si le panel est "hidden" et qu'on n'anime pas, ne rien rendre
+  if (currentPanelSize === "hidden") {
+    return null;
+  }
+  
+  // Sinon, rendre normalement dans le conteneur flex
+  return renderPanelContent();
 };
 
 export default SensorCommunitySidePanel;

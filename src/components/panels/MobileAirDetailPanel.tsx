@@ -546,9 +546,27 @@ const MobileAirDetailPanel: React.FC<MobileAirDetailPanelProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between p-2 sm:p-3 md:p-4 border-b border-gray-200 bg-gray-50">
         <div className="flex-1 min-w-0">
-          <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-            Session {routeToUse.sessionId}
-          </h2>
+          <div className="flex items-center gap-2 mb-1">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
+              Session {routeToUse.sessionId}
+            </h2>
+            {/* Rappel visuel du bouton de réouverture */}
+            <div className="p-1 rounded bg-green-50 border border-green-200" title="Bouton vert pour rouvrir le panel">
+              <svg
+                className="w-3 h-3 text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
+              </svg>
+            </div>
+          </div>
           <p className="text-xs sm:text-sm text-gray-600 truncate">
             Capteur {routeToUse.sensorId}
           </p>
