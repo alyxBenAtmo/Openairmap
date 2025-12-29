@@ -86,15 +86,16 @@ export const useAirQualityData = ({
         signalAirOptions.loadTrigger > signalAirLastTriggerRef.current;
 
       if (!isSignalAirSourceSelected) {
+        // Si SignalAir n'est plus sélectionné, effacer tous les reports
         setReports([]);
       } else if (!shouldFetchSignalAir) {
-        setReports((prevReports) =>
-          prevReports.length > 0
-            ? prevReports.filter((report) => report.source !== "signalair")
-            : prevReports
-        );
+        // Si SignalAir est sélectionné mais qu'on ne le charge pas maintenant,
+        // NE PAS filtrer les reports existants pour les garder
+        // (par exemple, si on charge MobileAir alors que SignalAir est déjà chargé)
+        // Les reports SignalAir seront conservés
       } else {
-        // L'utilisateur vient de demander un chargement explicite
+        // L'utilisateur vient de demander un chargement explicite de SignalAir
+        // Filtrer les anciens reports SignalAir pour les remplacer par les nouveaux
         setReports((prevReports) =>
           prevReports.length > 0
             ? prevReports.filter((report) => report.source !== "signalair")
@@ -147,11 +148,9 @@ export const useAirQualityData = ({
         });
       }
 
-      // Réinitialiser les devices avant de recharger de nouvelles données
-      // MAIS seulement si on ne recharge pas juste MobileAir (pour garder les autres sources)
-      if (!(selectedSources.includes("communautaire.mobileair") && selectedMobileAirSensor)) {
-        setDevices([]);
-      }
+      // NE PAS réinitialiser tous les devices ici car cela effacerait les données des autres sources
+      // Le nettoyage sera fait plus tard (lignes 179-196) en filtrant par source
+      // Cela permet de garder les données SignalAir quand on charge MobileAir et vice versa
 
       if (fetchableSources.length === 0) {
         setLoading(false);

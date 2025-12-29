@@ -38,10 +38,16 @@ export const useSignalAir = ({
   const [signalAirFeedback, setSignalAirFeedback] = useState<string | null>(
     null
   );
+  const prevSelectedSourcesRef = useRef<string[]>([]);
 
   // Effet pour gérer l'ouverture/fermeture automatique du panel SignalAir
   useEffect(() => {
     const isSignalAirSourceSelected = selectedSources.includes("signalair");
+    const wasSignalAirSelected = prevSelectedSourcesRef.current.includes("signalair");
+    const isNewlySelected = isSignalAirSourceSelected && !wasSignalAirSelected;
+
+    // Mettre à jour la référence pour la prochaine fois
+    prevSelectedSourcesRef.current = [...selectedSources];
 
     if (!isSignalAirSourceSelected) {
       signalAirLoadPendingRef.current = false;
@@ -63,9 +69,17 @@ export const useSignalAir = ({
       }
     }
 
-    // Ne rouvrir le panel que si l'utilisateur ne l'a pas fermé manuellement
-    // ET que le panel n'est pas déjà caché
-    if (!signalAirHasLoaded && !userClosedSignalAirPanel && signalAirPanelSize !== "hidden") {
+    // Ne rouvrir le panel que si:
+    // 1. SignalAir vient d'être sélectionné (nouvelle sélection)
+    // 2. L'utilisateur ne l'a pas fermé manuellement
+    // 3. Le panel n'est pas déjà caché
+    // 4. Les données n'ont pas encore été chargées
+    if (
+      isNewlySelected &&
+      !signalAirHasLoaded &&
+      !userClosedSignalAirPanel &&
+      signalAirPanelSize !== "hidden"
+    ) {
       setIsSignalAirPanelOpen(true);
       setSignalAirPanelSize("normal");
       setUserClosedSignalAirPanel(false);

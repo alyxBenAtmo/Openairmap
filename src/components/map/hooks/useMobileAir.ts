@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   MobileAirRoute,
   MobileAirDataPoint,
@@ -46,6 +46,7 @@ export const useMobileAir = ({
     useState(false);
   const [userClosedDetailPanel, setUserClosedDetailPanel] = useState(false);
   const [forceNewChoice, setForceNewChoice] = useState(false);
+  const prevSelectedSourcesRef = useRef<string[]>([]);
 
   // Effet pour extraire les routes MobileAir des devices
   useEffect(() => {
@@ -119,13 +120,20 @@ export const useMobileAir = ({
     const isMobileAirSelected = selectedSources.includes(
       "communautaire.mobileair"
     );
+    const wasMobileAirSelected = prevSelectedSourcesRef.current.includes(
+      "communautaire.mobileair"
+    );
+    const isNewlySelected = isMobileAirSelected && !wasMobileAirSelected;
     const hasMobileAirRoutes = mobileAirRoutes.length > 0;
 
-    // Si MobileAir est sélectionné mais qu'il n'y a pas encore de routes chargées,
+    // Mettre à jour la référence pour la prochaine fois
+    prevSelectedSourcesRef.current = [...selectedSources];
+
+    // Si MobileAir vient d'être sélectionné et qu'il n'y a pas encore de routes chargées,
     // ouvrir le side panel de sélection (seulement si l'utilisateur ne l'a pas fermé manuellement
     // ET que le panel n'est pas déjà caché)
     if (
-      isMobileAirSelected &&
+      isNewlySelected &&
       !hasMobileAirRoutes &&
       !isMobileAirSelectionPanelOpen &&
       !userClosedSelectionPanel &&
