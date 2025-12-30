@@ -7,6 +7,25 @@ import { QUALITY_COLORS } from "../../../constants/qualityColors";
 import { areThresholdsEqual } from "./historicalChartUtils";
 import { getPollutantColor } from "./historicalChartUtils";
 
+/**
+ * Éclaircit une couleur hexadécimale
+ */
+const lightenColor = (color: string, factor: number): string => {
+  // Convertir la couleur hex en RGB
+  const hex = color.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  
+  // Éclaircir en ajoutant du blanc
+  const newR = Math.min(255, Math.round(r + (255 - r) * factor));
+  const newG = Math.min(255, Math.round(g + (255 - g) * factor));
+  const newB = Math.min(255, Math.round(b + (255 - b) * factor));
+  
+  // Convertir en hex
+  return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
+};
+
 export interface SeriesConfig {
   dataKey: string;
   name: string;
@@ -331,6 +350,56 @@ export const generateSeriesConfigs = (
           yAxisId,
           connectNulls: shouldConnectNulls,
         });
+      }
+
+      // Ajouter la série de modélisation si disponible
+      const modelingKey = `${pollutant}_modeling`;
+      if (chartData && chartData.length > 0) {
+        // Vérifier si des points ont des données de modélisation
+        const modelingPoints = chartData.filter((point: any) => {
+          const value = point[modelingKey];
+          return value !== undefined && value !== null && !isNaN(value);
+        });
+        
+        if (modelingPoints.length > 0) {
+          console.log(`[generateSeriesConfigs] Série de modélisation créée pour ${pollutant}:`, {
+            pollutant,
+            modelingKey,
+            totalPoints: chartData.length,
+            modelingPointsCount: modelingPoints.length,
+            sampleValues: modelingPoints.slice(0, 3).map((p: any) => p[modelingKey]),
+          });
+          
+          // Utiliser une couleur plus claire pour la modélisation (assombrir légèrement)
+          const modelingColor = lightenColor(pollutantColor, 0.3); // Éclaircir de 30%
+          configs.push({
+            dataKey: modelingKey,
+            name: `${pollutantName} (modélisation)`,
+            color: modelingColor,
+            strokeWidth: 2,
+            strokeDasharray: "5 5", // Pointillés plus espacés pour distinguer de la mesure
+            yAxisId,
+            connectNulls: shouldConnectNulls,
+          });
+        } else {
+          // Log détaillé pour déboguer
+          const samplePoints = chartData.slice(0, 5);
+          const sampleKeys = samplePoints.map((p: any) => Object.keys(p));
+          console.log(`[generateSeriesConfigs] Pas de données de modélisation pour ${pollutant} dans chartData:`, {
+            pollutant,
+            modelingKey,
+            totalPoints: chartData.length,
+            sampleKeys,
+            samplePoints: samplePoints.map((p: any) => ({
+              timestamp: p.timestamp,
+              hasModelingKey: modelingKey in p,
+              modelingValue: p[modelingKey],
+              allKeys: Object.keys(p),
+            })),
+          });
+        }
+      } else {
+        console.log(`[generateSeriesConfigs] chartData est vide ou undefined pour ${pollutant}`);
       }
     });
   });

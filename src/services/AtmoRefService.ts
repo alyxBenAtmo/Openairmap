@@ -297,6 +297,35 @@ export class AtmoRefService extends BaseDataService {
     }
   }
 
+  // Méthode pour récupérer les coordonnées d'une station
+  async fetchStationCoordinates(
+    stationId: string
+  ): Promise<{ latitude: number; longitude: number } | null> {
+    try {
+      const url = `${this.BASE_URL}/stations?format=json&station_en_service=true&polluant_en_service=true&download=false&metadata=true`;
+      const response = await this.makeRequest(url);
+
+      const station = response.stations.find(
+        (s: AtmoRefStation) => s.id_station === stationId
+      );
+      if (!station) {
+        console.warn(`Station ${stationId} non trouvée`);
+        return null;
+      }
+
+      return {
+        latitude: station.latitude,
+        longitude: station.longitude,
+      };
+    } catch (error) {
+      console.error(
+        "Erreur lors de la récupération des coordonnées de la station:",
+        error
+      );
+      return null;
+    }
+  }
+
   // Méthode pour récupérer les données temporelles AtmoRef
   async fetchTemporalData(params: {
     pollutant: string;

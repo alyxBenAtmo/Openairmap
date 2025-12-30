@@ -129,8 +129,11 @@ export const createLineSeries = (
   // 1. Insérer des valeurs null dans les données pour les gaps (fait par fillGapsInData)
   // 2. Utiliser connect: false pour ne pas connecter les points null
   // 3. Les timestamps doivent être des nombres (millisecondes) - déjà fait
-  const isAggregatedTimeStep = timeStep && ["quartHeure", "heure", "jour"].includes(timeStep);
-  const shouldConnect = !isAggregatedTimeStep; // false pour les pas de temps agrégés (avec valeurs null)
+  // 
+  // Utiliser connectNulls de la configuration si disponible, sinon calculer selon timeStep
+  const shouldConnect = seriesConfig.connectNulls !== undefined 
+    ? seriesConfig.connectNulls 
+    : !(timeStep && ["quartHeure", "heure", "jour"].includes(timeStep));
   lineSeries.set("connect", shouldConnect);
 
   // Configurer le tooltip

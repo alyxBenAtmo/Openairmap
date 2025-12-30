@@ -10,6 +10,7 @@ import {
 import { pollutants } from "../../constants/pollutants";
 import { pasDeTemps } from "../../constants/timeSteps";
 import { AtmoRefService } from "../../services/AtmoRefService";
+import { ModelingService } from "../../services/ModelingService";
 import HistoricalChart from "../charts/HistoricalChart";
 import HistoricalTimeRangeSelector, {
   TimeRange,
@@ -62,14 +63,30 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
   const [internalPanelSize, setInternalPanelSize] =
     useState<PanelSize>("normal");
   const [showPollutantsList, setShowPollutantsList] = useState(false);
+  const [showModeling, setShowModeling] = useState(false);
+  const [loadingModeling, setLoadingModeling] = useState(false);
   const stationIdRef = useRef<string | null>(null);
   const [isAnimatingOut, setIsAnimatingOut] = useState(false);
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [modelingData, setModelingData] = useState<Record<string, HistoricalDataPoint[]>>({});
+  const [stationCoordinates, setStationCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
 
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
 
-  const atmoRefService = new AtmoRefService();
+  // Créer les services une seule fois avec useRef pour éviter les recréations
+  const atmoRefServiceRef = useRef<AtmoRefService | null>(null);
+  const modelingServiceRef = useRef<ModelingService | null>(null);
+  
+  if (!atmoRefServiceRef.current) {
+    atmoRefServiceRef.current = new AtmoRefService();
+  }
+  if (!modelingServiceRef.current) {
+    modelingServiceRef.current = new ModelingService();
+  }
+  
+  const atmoRefService = atmoRefServiceRef.current;
+  const modelingService = modelingServiceRef.current;
 
   // Fonction utilitaire pour vérifier si un polluant est disponible dans la station
   const isPollutantAvailable = (pollutantCode: string): boolean => {
@@ -125,6 +142,13 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
         ? [availablePollutants[0]]
         : [];
 
+      // Utiliser les valeurs par défaut pour timeRange et timeStep
+      const defaultTimeRange: TimeRange = {
+        type: "preset",
+        preset: "24h",
+      };
+      const defaultTimeStep = "heure";
+
       setState((prev) => ({
         ...prev,
         isOpen,
@@ -132,6 +156,8 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
         chartControls: {
           ...prev.chartControls,
           selectedPollutants,
+          timeRange: defaultTimeRange,
+          timeStep: defaultTimeStep,
         },
         historicalData: {},
         loading: false,
@@ -146,8 +172,10 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
         loadHistoricalData(
           selectedStation,
           selectedPollutants,
-          state.chartControls.timeRange,
-          state.chartControls.timeStep
+          defaultTimeRange,
+          defaultTimeStep,
+          false, // Ne pas charger la modélisation au chargement initial
+          null
         );
       }
     } else {
@@ -158,15 +186,116 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
         selectedStation,
       }));
     }
-  }, [isOpen, selectedStation, initialPollutant]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, selectedStation?.id, initialPollutant]);
+
+  // Récupérer les coordonnées de la station
+  useEffect(() => {
+    const fetchCoordinates = async () => {
+      if (!selectedStation) return;
+      
+      try {
+        const coords = await atmoRefService.fetchStationCoordinates(selectedStation.id);
+        if (coords) {
+          setStationCoordinates(coords);
+        }
+      } catch (error) {
+        console.error("Erreur lors de la récupération des coordonnées:", error);
+      }
+    };
+
+    if (selectedStation && selectedStation.source === "atmoRef") {
+      fetchCoordinates();
+    }
+  }, [selectedStation, atmoRefService]);
+
+  // Recharger les données de modélisation quand les coordonnées sont disponibles et que la modélisation est activée
+  // Utiliser une ref pour éviter les rechargements multiples
+  const prevModelingStateRef = useRef<{ showModeling: boolean; hasCoords: boolean; stationId: string | null }>({
+    showModeling: false,
+    hasCoords: false,
+    stationId: null,
+  });
+
+  useEffect(() => {
+    // Ne charger la modélisation que si :
+    // 1. La modélisation est activée
+    // 2. On a les coordonnées
+    // 3. On a une station sélectionnée
+    // 4. L'état a vraiment changé (nouvelle station, modélisation activée, ou coordonnées disponibles)
+    
+    // Créer une clé stable pour les coordonnées
+    const coordsKey = stationCoordinates 
+      ? `${stationCoordinates.latitude},${stationCoordinates.longitude}` 
+      : null;
+    
+    const hasStateChanged = 
+      prevModelingStateRef.current.showModeling !== showModeling ||
+      prevModelingStateRef.current.hasCoords !== !!coordsKey ||
+      prevModelingStateRef.current.stationId !== selectedStation?.id;
+
+    if (showModeling && stationCoordinates && selectedStation && hasStateChanged) {
+      prevModelingStateRef.current = {
+        showModeling,
+        hasCoords: !!coordsKey,
+        stationId: selectedStation.id,
+      };
+      
+      // Utiliser les valeurs actuelles de state de manière stable via setState avec fonction
+      // pour éviter d'utiliser state directement qui peut changer
+      setState((currentState) => {
+        if (currentState.chartControls.selectedPollutants.length > 0) {
+          // Appeler loadHistoricalData de manière asynchrone pour ne pas bloquer le setState
+          setTimeout(() => {
+            loadHistoricalData(
+              selectedStation,
+              currentState.chartControls.selectedPollutants,
+              currentState.chartControls.timeRange,
+              currentState.chartControls.timeStep,
+              true,
+              stationCoordinates
+            );
+          }, 0);
+        }
+        return currentState; // Ne pas modifier l'état, juste déclencher le chargement
+      });
+    } else if (!showModeling && hasStateChanged) {
+      // Si la modélisation est désactivée, juste mettre à jour la ref
+      prevModelingStateRef.current = {
+        showModeling: false,
+        hasCoords: !!coordsKey,
+        stationId: selectedStation?.id || null,
+      };
+      setModelingData({});
+      setLoadingModeling(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stationCoordinates?.latitude, stationCoordinates?.longitude, showModeling, selectedStation?.id]);
+
+  // Ref pour éviter les appels multiples simultanés
+  const isLoadingRef = useRef(false);
+  const lastLoadParamsRef = useRef<string>("");
 
   const loadHistoricalData = useCallback(
     async (
       station: StationInfo,
       pollutants: string[],
       timeRange: TimeRange,
-      timeStep: string
+      timeStep: string,
+      shouldLoadModeling?: boolean,
+      coords?: { latitude: number; longitude: number } | null
     ) => {
+      // Créer une clé unique pour cette requête
+      const loadKey = `${station.id}-${pollutants.join(",")}-${JSON.stringify(timeRange)}-${timeStep}-${shouldLoadModeling}-${coords ? `${coords.latitude},${coords.longitude}` : ""}`;
+      
+      // Éviter les appels multiples avec les mêmes paramètres
+      if (isLoadingRef.current && lastLoadParamsRef.current === loadKey) {
+        console.log("[StationSidePanel] Chargement déjà en cours avec les mêmes paramètres, ignoré");
+        return;
+      }
+      
+      isLoadingRef.current = true;
+      lastLoadParamsRef.current = loadKey;
       // Pour l'instant, on ne supporte que AtmoRef
       // TODO: Ajouter le support pour d'autres sources
       setState((prev) => ({ ...prev, loading: true, error: null }));
@@ -194,11 +323,109 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
         }
 
         console.log("[StationSidePanel] Toutes les données historiques:", newHistoricalData);
-        setState((prev) => ({
-          ...prev,
-          historicalData: newHistoricalData,
-          loading: false,
-        }));
+        
+        // Fusionner avec les données existantes au lieu de les remplacer
+        // Cela permet de conserver les données des autres polluants déjà chargés
+        setState((prev) => {
+          // Fusionner les nouvelles données avec les données existantes
+          const mergedHistoricalData = {
+            ...prev.historicalData,
+            ...newHistoricalData,
+          };
+          
+          // Comparer les données de manière optimisée
+          // Comparer d'abord les clés pour éviter les comparaisons JSON coûteuses
+          const prevKeys = Object.keys(prev.historicalData).sort().join(",");
+          const newKeys = Object.keys(mergedHistoricalData).sort().join(",");
+          
+          if (prevKeys === newKeys) {
+            // Si les clés sont identiques, comparer le contenu pour les polluants chargés
+            let dataChanged = false;
+            for (const key of Object.keys(newHistoricalData)) {
+              const prevData = prev.historicalData[key];
+              const newData = newHistoricalData[key];
+              if (!prevData || prevData.length !== newData.length) {
+                dataChanged = true;
+                break;
+              }
+              // Comparer les premiers et derniers points pour une vérification rapide
+              if (prevData.length > 0 && newData.length > 0) {
+                if (JSON.stringify(prevData[0]) !== JSON.stringify(newData[0]) ||
+                    JSON.stringify(prevData[prevData.length - 1]) !== JSON.stringify(newData[newData.length - 1])) {
+                  dataChanged = true;
+                  break;
+                }
+              }
+            }
+            
+            if (!dataChanged && !prev.loading) {
+              // Si les données n'ont pas changé et qu'on n'est pas en train de charger, ne pas mettre à jour
+              return prev;
+            }
+          }
+          
+          return {
+            ...prev,
+            historicalData: mergedHistoricalData,
+            loading: false,
+          };
+        });
+
+        // Charger les données de modélisation si activé et si on a les coordonnées
+        const loadModeling = shouldLoadModeling !== undefined ? shouldLoadModeling : showModeling;
+        const coordinates = coords !== undefined ? coords : stationCoordinates;
+        
+        if (loadModeling && coordinates) {
+          setLoadingModeling(true);
+          const newModelingData: Record<string, HistoricalDataPoint[]> = {};
+          
+          try {
+            for (const pollutant of pollutants) {
+              // Vérifier si le polluant est supporté par l'API de modélisation
+              if (modelingService.isPollutantSupported(pollutant)) {
+                try {
+                  // Utiliser la date de fin comme datetime_echeance pour obtenir les prévisions
+                  // L'API retourne toutes les échéances si with_list=true
+                  const modelingPoints = await modelingService.fetchModelingData({
+                    longitude: coordinates.longitude,
+                    latitude: coordinates.latitude,
+                    pollutant,
+                    datetimeEcheance: endDate,
+                    withList: true,
+                  });
+
+                  // Filtrer les données de modélisation pour ne garder que celles dans la plage de dates
+                  const filteredModelingPoints = modelingPoints.filter((point) => {
+                    const pointDate = new Date(point.timestamp);
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+                    return pointDate >= start && pointDate <= end;
+                  });
+
+                  newModelingData[pollutant] = filteredModelingPoints;
+                  console.log(`[StationSidePanel] Données de modélisation chargées pour ${pollutant}:`, {
+                    pollutant,
+                    dataLength: filteredModelingPoints.length,
+                  });
+                } catch (error) {
+                  console.error(
+                    `Erreur lors du chargement des données de modélisation pour ${pollutant}:`,
+                    error
+                  );
+                  // Continuer même en cas d'erreur pour un polluant
+                }
+              }
+            }
+
+            setModelingData(newModelingData);
+          } finally {
+            setLoadingModeling(false);
+          }
+        } else if (!loadModeling) {
+          // Réinitialiser les données de modélisation si désactivé
+          setModelingData({});
+          setLoadingModeling(false);
+        }
       } catch (error) {
         console.error(
           "Erreur lors du chargement des données historiques:",
@@ -209,9 +436,11 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
           loading: false,
           error: "Erreur lors du chargement des données historiques",
         }));
+      } finally {
+        isLoadingRef.current = false;
       }
     },
-    [atmoRefService]
+    [] // Les services sont stables via useRef, pas besoin de dépendances
   );
 
   const getDateRange = (
@@ -275,6 +504,22 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
           ? prev.chartControls.selectedPollutants.filter((p) => p !== pollutant)
           : [...prev.chartControls.selectedPollutants, pollutant];
 
+      // Recharger les données si le polluant n'était pas encore chargé et qu'on l'ajoute
+      const isAddingPollutant = !prev.chartControls.selectedPollutants.includes(pollutant);
+      if (isAddingPollutant && selectedStation && !prev.historicalData[pollutant]) {
+        // Charger les données de manière asynchrone pour ne pas bloquer la mise à jour de l'état
+        setTimeout(() => {
+          loadHistoricalData(
+            selectedStation,
+            [pollutant],
+            prev.chartControls.timeRange,
+            prev.chartControls.timeStep,
+            showModeling,
+            stationCoordinates
+          );
+        }, 0);
+      }
+
       return {
         ...prev,
         chartControls: {
@@ -283,30 +528,6 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
         },
       };
     });
-
-    // Recharger les données si le polluant n'était pas encore chargé
-    if (selectedStation && !state.historicalData[pollutant]) {
-      const { startDate, endDate } = getDateRange(
-        state.chartControls.timeRange
-      );
-      atmoRefService
-        .fetchHistoricalData({
-          stationId: selectedStation.id,
-          pollutant,
-          timeStep: state.chartControls.timeStep,
-          startDate,
-          endDate,
-        })
-        .then((data) => {
-          setState((prev) => ({
-            ...prev,
-            historicalData: {
-              ...prev.historicalData,
-              [pollutant]: data,
-            },
-          }));
-        });
-    }
   };
 
   const handleTimeRangeChange = (timeRange: TimeRange) => {
@@ -339,7 +560,9 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
           selectedStation,
           prev.chartControls.selectedPollutants,
           validatedTimeRange,
-          prev.chartControls.timeStep
+          prev.chartControls.timeStep,
+          showModeling,
+          stationCoordinates
         );
       }
 
@@ -440,6 +663,13 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
 
   const handleTimeStepChange = (timeStep: string) => {
     setState((prev) => {
+      // Désactiver la modélisation si on change de pas de temps et que ce n'est pas horaire
+      if (timeStep !== "heure" && showModeling) {
+        setShowModeling(false);
+        setModelingData({});
+        setLoadingModeling(false);
+      }
+
       // Ajuster la période si nécessaire
       const { adjustedRange: adjustedTimeRange, wasAdjusted } = adjustTimeRangeIfNeeded(
         prev.chartControls.timeRange,
@@ -463,12 +693,16 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
       }
 
       // Charger les données avec la période ajustée
+      // Ne pas charger la modélisation si le pas de temps n'est pas horaire
+      const shouldLoadModeling = timeStep === "heure" && showModeling;
       if (selectedStation) {
         loadHistoricalData(
           selectedStation,
           prev.chartControls.selectedPollutants,
           adjustedTimeRange,
-          timeStep
+          timeStep,
+          shouldLoadModeling,
+          stationCoordinates
         );
       }
 
@@ -913,6 +1147,52 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
                   </div>
                 )}
 
+                {/* Toggle modélisation - Disponible uniquement au pas de temps horaire */}
+                <div className="mb-2 sm:mb-3 flex items-center justify-between">
+                  <label className={`flex items-center space-x-2 ${state.chartControls.timeStep === "heure" ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}>
+                    <input
+                      type="checkbox"
+                      checked={showModeling && state.chartControls.timeStep === "heure"}
+                      disabled={loadingModeling || state.chartControls.timeStep !== "heure"}
+                      onChange={(e) => {
+                        const newValue = e.target.checked;
+                        // Ne permettre l'activation que si le pas de temps est horaire
+                        if (state.chartControls.timeStep !== "heure" && newValue) {
+                          return;
+                        }
+                        setShowModeling(newValue);
+                        // Recharger les données si on active la modélisation et qu'on a les coordonnées
+                        if (newValue && selectedStation && stationCoordinates) {
+                          loadHistoricalData(
+                            selectedStation,
+                            state.chartControls.selectedPollutants,
+                            state.chartControls.timeRange,
+                            state.chartControls.timeStep,
+                            true,
+                            stationCoordinates
+                          );
+                        } else if (!newValue) {
+                          setModelingData({});
+                          setLoadingModeling(false);
+                        }
+                        // Si on active mais qu'on n'a pas encore les coordonnées, elles seront chargées dans le useEffect
+                      }}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <span className="text-sm text-gray-700 flex items-center space-x-2">
+                      <span>
+                        Afficher la modélisation AZUR
+                        {state.chartControls.timeStep !== "heure" && (
+                          <span className="text-xs text-gray-500 ml-1">(disponible uniquement au pas de temps horaire)</span>
+                        )}
+                      </span>
+                      {loadingModeling && (
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                      )}
+                    </span>
+                  </label>
+                </div>
+
                 {/* Graphique */}
                 <div className="h-64 sm:h-80 md:h-96 lg:h-[28rem] mb-2 sm:mb-3 md:mb-4">
                   <HistoricalChart
@@ -921,6 +1201,7 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
                     source="atmoRef"
                     stationInfo={selectedStation}
                     timeStep={state.chartControls.timeStep}
+                    modelingData={showModeling && Object.keys(modelingData).length > 0 ? modelingData : undefined}
                   />
                 </div>
 

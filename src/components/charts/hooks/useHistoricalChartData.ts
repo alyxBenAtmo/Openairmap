@@ -2,7 +2,7 @@
  * Hook pour gérer les données transformées et la configuration du graphique historique
  */
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { HistoricalDataPoint, StationInfo } from "../../../types";
 import { transformData, groupPollutantsByUnit } from "../utils/historicalChartDataTransformers";
 import { getCommonThresholds, getXAxisDateFormat, generateSeriesConfigs, SeriesConfig } from "../utils/historicalChartConfig";
@@ -17,6 +17,7 @@ interface UseHistoricalChartDataProps {
   showRawData: boolean;
   useSolidNebuleAirLines: boolean;
   timeStep?: string;
+  modelingData?: Record<string, HistoricalDataPoint[]>;
 }
 
 export const useHistoricalChartData = ({
@@ -28,17 +29,149 @@ export const useHistoricalChartData = ({
   showRawData,
   useSolidNebuleAirLines,
   timeStep,
+  modelingData,
 }: UseHistoricalChartDataProps) => {
+  // Ref pour mémoriser le dernier résultat de fusion
+  const lastMergedDataRef = useRef<{
+    dataString: string;
+    modelingString: string;
+    result: Record<string, HistoricalDataPoint[]>;
+  } | null>(null);
+
+  // Fusionner les données mesurées et de modélisation
+  // Utiliser une comparaison profonde pour éviter les recréations inutiles
+  const mergedData = useMemo(() => {
+    // Log pour déboguer
+    console.log(`[useHistoricalChartData] mergedData useMemo appelé:`, {
+      dataKeys: Object.keys(data),
+      dataLength: Object.keys(data).length,
+      modelingDataKeys: modelingData ? Object.keys(modelingData) : [],
+      modelingDataLength: modelingData ? Object.keys(modelingData).length : 0,
+    });
+    
+    if (!modelingData || Object.keys(modelingData).length === 0) {
+      // Si pas de modélisation, retourner directement data
+      const dataString = JSON.stringify(data);
+      if (lastMergedDataRef.current?.dataString === dataString && 
+          lastMergedDataRef.current?.modelingString === "") {
+        return lastMergedDataRef.current.result;
+      }
+      lastMergedDataRef.current = {
+        dataString,
+        modelingString: "",
+        result: data,
+      };
+      return data;
+    }
+    
+    // Vérifier si les données ont vraiment changé
+    const dataString = JSON.stringify(data);
+    const modelingString = JSON.stringify(modelingData);
+    
+    // Si les données n'ont pas changé, retourner le résultat précédent
+    if (lastMergedDataRef.current &&
+        lastMergedDataRef.current.dataString === dataString &&
+        lastMergedDataRef.current.modelingString === modelingString) {
+      return lastMergedDataRef.current.result;
+    }
+    
+    // Fusionner les données de modélisation avec les données mesurées
+    const merged: Record<string, HistoricalDataPoint[]> = { ...data };
+    
+    Object.entries(modelingData).forEach(([pollutant, points]) => {
+      merged[`${pollutant}_modeling`] = points;
+      console.log(`[useHistoricalChartData] Données de modélisation fusionnées pour ${pollutant}:`, {
+        pollutant,
+        modelingKey: `${pollutant}_modeling`,
+        pointsCount: points.length,
+        samplePoints: points.slice(0, 3),
+      });
+    });
+    
+    console.log(`[useHistoricalChartData] Données fusionnées:`, {
+      dataKeys: Object.keys(data),
+      mergedKeys: Object.keys(merged),
+      modelingKeys: Object.keys(merged).filter(k => k.includes('_modeling')),
+    });
+    
+    // Mémoriser le résultat
+    lastMergedDataRef.current = {
+      dataString,
+      modelingString,
+      result: merged,
+    };
+    
+    return merged;
+  }, [data, modelingData]);
+
+  // Ref pour mémoriser le dernier chartData
+  const lastChartDataRef = useRef<{
+    mergedDataString: string;
+    selectedPollutantsString: string;
+    source: string;
+    stationsString: string;
+    isMobile: boolean;
+    timeStep: string | undefined;
+    result: any[];
+  } | null>(null);
+
   // Transformer les données pour amCharts
   const chartData = useMemo(() => {
-    return transformData(data, selectedPollutants, source, stations, isMobile, timeStep);
-  }, [data, selectedPollutants, source, stations, isMobile, timeStep]);
+    // Créer des clés de comparaison (copier avant de trier pour ne pas modifier l'original)
+    const mergedDataString = JSON.stringify(mergedData);
+    const selectedPollutantsString = [...selectedPollutants].sort().join(",");
+    const stationsString = JSON.stringify(stations);
+    
+    // Toujours recalculer si selectedPollutants change (même si mergedData n'a pas encore les données)
+    // Cela permet d'afficher immédiatement le nouveau polluant (même vide) et de le mettre à jour quand les données arrivent
+    const shouldRecalculate = !lastChartDataRef.current ||
+        lastChartDataRef.current.selectedPollutantsString !== selectedPollutantsString ||
+        lastChartDataRef.current.source !== source ||
+        lastChartDataRef.current.stationsString !== stationsString ||
+        lastChartDataRef.current.isMobile !== isMobile ||
+        lastChartDataRef.current.timeStep !== timeStep ||
+        lastChartDataRef.current.mergedDataString !== mergedDataString;
+    
+    if (!shouldRecalculate && lastChartDataRef.current) {
+      return lastChartDataRef.current.result;
+    }
+    
+    const result = transformData(mergedData, selectedPollutants, source, stations, isMobile, timeStep);
+    
+    // Log pour déboguer
+    if (selectedPollutants.includes('pm25')) {
+      const pm25ModelingPoints = result.filter((point: any) => 
+        point.pm25_modeling !== undefined && point.pm25_modeling !== null
+      );
+      console.log(`[useHistoricalChartData] Résultat transformData pour pm25:`, {
+        totalPoints: result.length,
+        pm25ModelingPointsCount: pm25ModelingPoints.length,
+        sampleModelingPoints: pm25ModelingPoints.slice(0, 3),
+        mergedDataKeys: Object.keys(mergedData),
+        hasModelingInMergedData: !!mergedData['pm25_modeling'],
+        modelingDataLength: mergedData['pm25_modeling']?.length,
+      });
+    }
+    
+    // Mémoriser le résultat
+    lastChartDataRef.current = {
+      mergedDataString,
+      selectedPollutantsString,
+      source,
+      stationsString,
+      isMobile,
+      timeStep,
+      result,
+    };
+    
+    return result;
+  }, [mergedData, selectedPollutants, source, stations, isMobile, timeStep]);
 
-  // Grouper les polluants par unité
+  // Grouper les polluants par unité (utiliser mergedData pour inclure les données de modélisation si nécessaire)
   const unitGroups = useMemo(() => {
-    const groups = groupPollutantsByUnit(data, selectedPollutants, source, stations);
+    const groups = groupPollutantsByUnit(mergedData, selectedPollutants, source, stations);
     return groups;
-  }, [selectedPollutants, data, source, stations]);
+  }, [selectedPollutants, mergedData, source, stations]);
 
   const unitKeys = useMemo(() => Object.keys(unitGroups), [unitGroups]);
 
@@ -68,8 +201,52 @@ export const useHistoricalChartData = ({
     return flags;
   }, [selectedPollutants, chartData]);
 
+  // Ref pour mémoriser la dernière configuration des séries
+  const lastSeriesConfigsRef = useRef<{
+    configKey: string;
+    result: SeriesConfig[];
+  } | null>(null);
+
   // Générer les configurations de séries
   const seriesConfigs = useMemo<SeriesConfig[]>(() => {
+    // Vérifier quelles séries de modélisation sont présentes dans chartData
+    const modelingSeriesPresent = selectedPollutants.map((pollutant) => {
+      const modelingKey = `${pollutant}_modeling`;
+      const hasModeling = chartData.some((point: any) => {
+        const value = point[modelingKey];
+        return value !== undefined && value !== null && !isNaN(value);
+      });
+      return hasModeling ? `${pollutant}_modeling` : null;
+    }).filter(Boolean).join(",");
+    
+    // Créer une clé de comparaison pour la configuration (copier avant de trier)
+    const sortedPollutants = [...selectedPollutants].sort();
+    const sortedUnitKeys = [...unitKeys].sort();
+    const configKey = JSON.stringify({
+      source,
+      stations: stations.map(s => s.id).sort().join(","),
+      selectedPollutants: sortedPollutants.join(","),
+      unitKeys: sortedUnitKeys.join(","),
+      unitGroups: JSON.stringify(unitGroups),
+      pollutantDataFlags: JSON.stringify(pollutantDataFlags),
+      showRawData,
+      useSolidNebuleAirLines,
+      timeStep,
+      chartDataLength: chartData.length,
+      modelingSeriesPresent, // Inclure la présence de séries de modélisation
+    });
+    
+    // Si la configuration n'a pas changé, retourner le résultat précédent
+    if (lastSeriesConfigsRef.current &&
+        lastSeriesConfigsRef.current.configKey === configKey) {
+      return lastSeriesConfigsRef.current.result;
+    }
+    
+    console.log(`[useHistoricalChartData] Recalcul de seriesConfigs:`, {
+      modelingSeriesPresent,
+      chartDataLength: chartData.length,
+      configKeyChanged: !lastSeriesConfigsRef.current || lastSeriesConfigsRef.current.configKey !== configKey,
+    });
     
     const configs = generateSeriesConfigs(
       source,
@@ -85,8 +262,14 @@ export const useHistoricalChartData = ({
       chartData
     );
 
+    // Mémoriser le résultat
+    lastSeriesConfigsRef.current = {
+      configKey,
+      result: configs,
+    };
+
     return configs;
-  }, [source, stations, selectedPollutants, unitKeys, unitGroups, pollutantDataFlags, showRawData, useSolidNebuleAirLines, timeStep]);
+  }, [source, stations, selectedPollutants, unitKeys, unitGroups, pollutantDataFlags, showRawData, useSolidNebuleAirLines, timeStep, chartData]);
 
   // Détecter si des données corrigées sont disponibles (pour AtmoMicro ou en mode comparaison avec stations atmoMicro)
   const hasCorrectedData = useMemo(() => {
@@ -114,10 +297,25 @@ export const useHistoricalChartData = ({
     return false;
   }, [source, selectedPollutants, chartData, stations]);
 
+  // Ref pour mémoriser le dernier amChartsData
+  const lastAmChartsDataRef = useRef<{
+    chartDataString: string;
+    result: any[];
+  } | null>(null);
+
   // Transformer les données pour amCharts (timestamp en nombre)
   // IMPORTANT: Préserver les valeurs null pour les gaps
   // Les points null insérés par fillGapsInData doivent être préservés
   const amChartsData = useMemo(() => {
+    // Créer une clé de comparaison basée sur le contenu de chartData
+    const chartDataString = JSON.stringify(chartData);
+    
+    // Si les données n'ont pas changé, retourner le résultat précédent
+    if (lastAmChartsDataRef.current &&
+        lastAmChartsDataRef.current.chartDataString === chartDataString) {
+      return lastAmChartsDataRef.current.result;
+    }
+    
     const transformed = chartData.map((point: any) => {
       let timestamp: number;
       
@@ -151,7 +349,15 @@ export const useHistoricalChartData = ({
     });
     
     // Trier par timestamp pour que les gaps soient correctement positionnés
-    return transformed.sort((a, b) => a.timestamp - b.timestamp);
+    const sorted = transformed.sort((a, b) => a.timestamp - b.timestamp);
+    
+    // Mémoriser le résultat
+    lastAmChartsDataRef.current = {
+      chartDataString,
+      result: sorted,
+    };
+    
+    return sorted;
   }, [chartData]);
 
   return {

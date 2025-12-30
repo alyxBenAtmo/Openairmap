@@ -135,43 +135,92 @@ export const fillGapsInData = (
   );
 
   // Créer une map des données existantes par timestamp arrondi
+  // IMPORTANT: Utiliser le timestamp arrondi comme clé, mais préserver le timestampValue original du point
   const dataMap = new Map<number, any>();
   sortedData.forEach((point) => {
     const ts = point.timestampValue !== undefined 
       ? point.timestampValue 
       : normalizeTimestamp(point.rawTimestamp);
     const roundedTs = roundToTimeStep(ts, interval);
+    
+    // Si on a déjà un point pour ce timestamp arrondi, garder celui qui est le plus proche
     if (!dataMap.has(roundedTs)) {
-      dataMap.set(roundedTs, point);
+      // Créer une copie du point avec le timestamp arrondi pour timestampValue
+      // mais garder les autres propriétés intactes
+      const mappedPoint = {
+        ...point,
+        timestampValue: roundedTs, // Utiliser le timestamp arrondi pour l'alignement
+      };
+      dataMap.set(roundedTs, mappedPoint);
+    } else {
+      // Si on a déjà un point, vérifier lequel est le plus proche du timestamp arrondi
+      const existingPoint = dataMap.get(roundedTs);
+      const existingTs = existingPoint.timestampValue !== undefined 
+        ? existingPoint.timestampValue 
+        : normalizeTimestamp(existingPoint.rawTimestamp);
+      const existingDiff = Math.abs(existingTs - roundedTs);
+      const currentDiff = Math.abs(ts - roundedTs);
+      
+      // Garder le point le plus proche
+      if (currentDiff < existingDiff) {
+        const mappedPoint = {
+          ...point,
+          timestampValue: roundedTs,
+        };
+        dataMap.set(roundedTs, mappedPoint);
+      }
     }
   });
 
-  // Identifier toutes les clés de données (polluants, stations, etc.) présentes dans les données
+  // Identifier toutes les clés de données (polluants, stations, modélisation, etc.) présentes dans les données
   const allDataKeys = new Set<string>();
   sortedData.forEach((point) => {
     Object.keys(point).forEach((key) => {
+      // Inclure toutes les clés sauf les métadonnées de timestamp et les unités
+      // Cela inclut les polluants, les données corrigées/brutes, et les données de modélisation
       if (!["timestamp", "rawTimestamp", "timestampValue"].includes(key) && !key.endsWith("_unit")) {
         allDataKeys.add(key);
       }
     });
   });
+  
+  // Log pour déboguer
+  if (Array.from(allDataKeys).some(k => k.includes('_modeling'))) {
+    console.log(`[fillGapsInData] Clés de modélisation détectées:`, {
+      allKeys: Array.from(allDataKeys),
+      modelingKeys: Array.from(allDataKeys).filter(k => k.includes('_modeling')),
+      totalPoints: sortedData.length,
+    });
+  }
 
   // Construire le tableau final avec les gaps remplis
   // Selon la doc amCharts: insérer des valeurs null pour créer des gaps avec connect: false
   const filledData: any[] = [];
+  let gapCount = 0;
+  let dataPointCount = 0;
+  
   expectedTimestamps.forEach((expectedTs) => {
     const existingPoint = dataMap.get(expectedTs);
     
     if (existingPoint) {
-      filledData.push(existingPoint);
+      // Créer une copie du point avec le timestampValue correct (arrondi)
+      // pour s'assurer que les timestamps sont bien alignés
+      const point = {
+        ...existingPoint,
+        timestampValue: expectedTs, // Utiliser le timestamp arrondi attendu
+      };
+      filledData.push(point);
+      dataPointCount++;
     } else {
       // Gap détecté : créer un point avec des valeurs null
       // Selon la doc amCharts, les valeurs null créent des gaps avec connect: false
       const date = new Date(expectedTs);
+      // Formater le timestamp pour l'affichage (utiliser le même format que les autres points)
+      const timestampFormatted = formatTimestamp(date.toISOString(), false);
       const gapPoint: any = {
-        timestamp: expectedTs, // Timestamp en nombre (millisecondes) pour amCharts DateAxis
+        timestamp: timestampFormatted, // Formaté pour l'affichage
         rawTimestamp: date.toISOString(),
-        timestampValue: expectedTs,
+        timestampValue: expectedTs, // Timestamp en nombre (millisecondes) pour amCharts DateAxis
       };
 
       // Ajouter null pour chaque série
@@ -192,8 +241,23 @@ export const fillGapsInData = (
       }
 
       filledData.push(gapPoint);
+      gapCount++;
     }
   });
+  
+  // Log pour déboguer
+  if (timeStep && ["quartHeure", "heure", "jour"].includes(timeStep)) {
+    console.log(`[fillGapsInData] Résultat pour ${timeStep}:`, {
+      timeStep,
+      interval: interval / (60 * 1000), // en minutes
+      inputPoints: sortedData.length,
+      expectedTimestamps: expectedTimestamps.length,
+      outputPoints: filledData.length,
+      dataPoints: dataPointCount,
+      gapPoints: gapCount,
+      gapPercentage: ((gapCount / filledData.length) * 100).toFixed(1) + "%",
+    });
+  }
 
   return filledData;
 };
@@ -295,11 +359,18 @@ export const transformNormalData = (
   isMobile: boolean,
   timeStep?: string
 ): any[] => {
-  // Récupérer tous les timestamps uniques
+  // Récupérer tous les timestamps uniques (y compris ceux de la modélisation)
   const allTimestamps = new Set<string>();
   selectedPollutants.forEach((pollutant) => {
     if (data[pollutant]) {
       data[pollutant].forEach((point) => {
+        allTimestamps.add(point.timestamp);
+      });
+    }
+    // Ajouter aussi les timestamps de la modélisation
+    const modelingKey = `${pollutant}_modeling`;
+    if (data[modelingKey]) {
+      data[modelingKey].forEach((point) => {
         allTimestamps.add(point.timestamp);
       });
     }
@@ -309,6 +380,25 @@ export const transformNormalData = (
   const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => {
     return normalizeTimestamp(a) - normalizeTimestamp(b);
   });
+  
+  // Log pour déboguer les problèmes de pas de temps
+  if (selectedPollutants.includes('pm25') && sortedTimestamps.length > 0) {
+    const firstTs = normalizeTimestamp(sortedTimestamps[0]);
+    const lastTs = normalizeTimestamp(sortedTimestamps[sortedTimestamps.length - 1]);
+    const timeDiff = lastTs - firstTs;
+    const hours = timeDiff / (60 * 60 * 1000);
+    const expectedPoints = timeStep === "quartHeure" ? hours * 4 : timeStep === "heure" ? hours : timeStep === "jour" ? hours / 24 : sortedTimestamps.length;
+    
+    console.log(`[transformNormalData] Timestamps pour pm25:`, {
+      timeStep,
+      totalTimestamps: sortedTimestamps.length,
+      firstTimestamp: sortedTimestamps[0],
+      lastTimestamp: sortedTimestamps[sortedTimestamps.length - 1],
+      timeSpanHours: hours.toFixed(2),
+      expectedPoints: expectedPoints.toFixed(2),
+      dataPointsCount: data['pm25']?.length || 0,
+    });
+  }
 
   // Créer les points de données
   const transformedData = sortedTimestamps.map((timestamp) => {
@@ -326,10 +416,17 @@ export const transformNormalData = (
       if (data[pollutant]) {
         const timestampMs = normalizeTimestamp(timestamp);
         
+        // Pour les pas de temps agrégés, utiliser une tolérance plus large
+        // car les données peuvent être arrondies différemment
+        const isAggregatedTimeStep = timeStep && ["quartHeure", "heure", "jour"].includes(timeStep);
+        const tolerance = isAggregatedTimeStep 
+          ? (timeStep === "quartHeure" ? 15 * 60 * 1000 : timeStep === "heure" ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000) / 2
+          : 1000; // 1 seconde pour les pas de temps non agrégés
+        
         const dataPoint = data[pollutant].find((p) => {
           const pTimestampMs = normalizeTimestamp(p.timestamp);
-          // Comparer en millisecondes pour éviter les problèmes de format
-          return Math.abs(pTimestampMs - timestampMs) < 1000; // Tolérance de 1 seconde
+          // Comparer en millisecondes avec une tolérance adaptée au pas de temps
+          return Math.abs(pTimestampMs - timestampMs) < tolerance;
         });
         
         if (dataPoint) {
@@ -359,14 +456,89 @@ export const transformNormalData = (
           }
           point[`${pollutant}_unit`] = unit;
         }
+
+        // Ajouter les données de modélisation si disponibles
+        const modelingKey = `${pollutant}_modeling`;
+        if (data[modelingKey]) {
+          const timestampMs = normalizeTimestamp(timestamp);
+          // Chercher le point de modélisation le plus proche (tolérance de 30 minutes pour les données horaires)
+          const modelingPoint = data[modelingKey].reduce((closest: any, p: any) => {
+            const pTimestampMs = normalizeTimestamp(p.timestamp);
+            const diff = Math.abs(pTimestampMs - timestampMs);
+            // Tolérance de 30 minutes (1800000 ms) pour les données horaires
+            if (diff < 1800000) {
+              if (!closest || diff < Math.abs(normalizeTimestamp(closest.timestamp) - timestampMs)) {
+                return p;
+              }
+            }
+            return closest;
+          }, null);
+
+          if (modelingPoint) {
+            const value = ensureNonNegativeValue(modelingPoint.value);
+            point[modelingKey] = value;
+          } else {
+            // Si pas de point correspondant, mettre null pour créer un gap
+            point[modelingKey] = null;
+          }
+        }
       }
     });
 
     return point;
   });
+  
+  // Log pour déboguer après la création de transformedData
+  if (selectedPollutants.includes('pm25')) {
+    const pm25ModelingPoints = transformedData.filter((point: any) => 
+      point.pm25_modeling !== undefined && point.pm25_modeling !== null
+    );
+    if (pm25ModelingPoints.length > 0 || transformedData.length > 0) {
+      console.log(`[transformNormalData] Résultat pour pm25 AVANT fillGapsInData:`, {
+        totalPoints: transformedData.length,
+        pm25ModelingPointsCount: pm25ModelingPoints.length,
+        sampleModelingPoints: pm25ModelingPoints.slice(0, 3),
+        dataKeys: Object.keys(data),
+        hasModelingInData: !!data['pm25_modeling'],
+        modelingDataLength: data['pm25_modeling']?.length,
+      });
+    }
+  }
 
   // Remplir les gaps pour les pas de temps agrégés
-  return fillGapsInData(transformedData, timeStep);
+  const filledData = fillGapsInData(transformedData, timeStep);
+  
+  // Log après fillGapsInData pour déboguer les problèmes de pas de temps
+  if (selectedPollutants.includes('pm25')) {
+    const pm25ModelingAfter = filledData.filter((point: any) => 
+      point.pm25_modeling !== undefined && point.pm25_modeling !== null
+    );
+    const pm25ValidPoints = filledData.filter((point: any) => 
+      point.pm25 !== undefined && point.pm25 !== null
+    );
+    const pm25NullPoints = filledData.filter((point: any) => 
+      point.pm25 === null || point.pm25 === undefined
+    );
+    
+    console.log(`[transformNormalData] Résultat pour pm25 APRÈS fillGapsInData:`, {
+      timeStep,
+      totalPoints: filledData.length,
+      pm25ValidPoints: pm25ValidPoints.length,
+      pm25NullPoints: pm25NullPoints.length,
+      pm25ModelingPointsCount: pm25ModelingAfter.length,
+      sampleValidPoints: pm25ValidPoints.slice(0, 3).map((p: any) => ({
+        timestamp: p.timestamp,
+        timestampValue: p.timestampValue,
+        value: p.pm25,
+      })),
+      sampleNullPoints: pm25NullPoints.slice(0, 3).map((p: any) => ({
+        timestamp: p.timestamp,
+        timestampValue: p.timestampValue,
+      })),
+    });
+  }
+  
+  return filledData;
 };
 
 /**

@@ -21,6 +21,7 @@ interface HistoricalChartProps {
   stationInfo?: StationInfo | null; // Informations de la station pour les exports
   timeStep?: string; // Pas de temps sélectionné (pour les métadonnées d'export)
   sensorTimeStep?: number | null; // Pas de temps du capteur en secondes (pour le mode instantane)
+  modelingData?: Record<string, HistoricalDataPoint[]>; // Données de modélisation
 }
 
 const HistoricalChart: React.FC<HistoricalChartProps> = ({
@@ -33,6 +34,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   stationInfo = null,
   timeStep,
   sensorTimeStep,
+  modelingData,
 }) => {
 
   // État pour détecter le mode paysage sur mobile
@@ -91,6 +93,17 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     };
   }, []);
 
+  // Log pour déboguer
+  useEffect(() => {
+    console.log(`[HistoricalChart] Props reçues:`, {
+      dataKeys: Object.keys(data),
+      dataLength: Object.keys(data).length,
+      selectedPollutants,
+      modelingDataKeys: modelingData ? Object.keys(modelingData) : [],
+      modelingDataLength: modelingData ? Object.keys(modelingData).length : 0,
+    });
+  }, [data, selectedPollutants, modelingData]);
+
   // Utiliser le hook pour gérer les données transformées
   const {
     chartData,
@@ -109,6 +122,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     showRawData,
     useSolidNebuleAirLines,
     timeStep,
+    modelingData,
   });
 
   // Calculer les marges du graphique
