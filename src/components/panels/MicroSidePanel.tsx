@@ -1185,9 +1185,12 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                         const newValue = e.target.checked;
                         setShowModeling(newValue);
                         if (newValue && selectedStation && stationCoordinates) {
+                          // Charger les données de modélisation pour tous les polluants actuellement sélectionnés
+                          const pollutantsToLoad = state.chartControls.selectedPollutants;
+                          console.log(`[MicroSidePanel] Activation de la modélisation pour les polluants:`, pollutantsToLoad);
                           loadHistoricalData(
                             selectedStation,
-                            state.chartControls.selectedPollutants,
+                            pollutantsToLoad,
                             state.chartControls.timeRange,
                             state.chartControls.timeStep,
                             true,

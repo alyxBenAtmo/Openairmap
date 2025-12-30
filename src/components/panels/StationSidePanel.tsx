@@ -402,10 +402,12 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
                     return pointDate >= start && pointDate <= end;
                   });
 
-                  newModelingData[pollutant] = filteredModelingPoints;
+                  // Utiliser la même convention de nommage que MicroSidePanel : ${pollutant}_modeling
+                  newModelingData[`${pollutant}_modeling`] = filteredModelingPoints;
                   console.log(`[StationSidePanel] Données de modélisation chargées pour ${pollutant}:`, {
                     pollutant,
                     dataLength: filteredModelingPoints.length,
+                    samplePoints: filteredModelingPoints.slice(0, 3),
                   });
                 } catch (error) {
                   console.error(
@@ -1163,9 +1165,12 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
                         setShowModeling(newValue);
                         // Recharger les données si on active la modélisation et qu'on a les coordonnées
                         if (newValue && selectedStation && stationCoordinates) {
+                          // Charger les données de modélisation pour tous les polluants actuellement sélectionnés
+                          const pollutantsToLoad = state.chartControls.selectedPollutants;
+                          console.log(`[StationSidePanel] Activation de la modélisation pour les polluants:`, pollutantsToLoad);
                           loadHistoricalData(
                             selectedStation,
-                            state.chartControls.selectedPollutants,
+                            pollutantsToLoad,
                             state.chartControls.timeRange,
                             state.chartControls.timeStep,
                             true,

@@ -58,6 +58,8 @@ export const createSeriesTooltip = (
     // Obtenir le nom du polluant
     // Extraire le polluant de base en retirant les suffixes _corrected, _raw, _modeling
     const isModeling = seriesConfig.dataKey.endsWith("_modeling");
+    const isRaw = seriesConfig.dataKey.endsWith("_raw");
+    const isCorrected = seriesConfig.dataKey.endsWith("_corrected");
     const pollutantKey = seriesConfig.dataKey.replace(/_corrected$|_raw$|_modeling$/, "");
     const pollutantName = pollutants[pollutantKey]?.name || seriesConfig.name;
     
@@ -75,12 +77,17 @@ export const createSeriesTooltip = (
       tooltipText += `${dateStr}\n`;
     }
     
-    // Ajouter une indication si c'est la modélisation
+    // Construire le label avec les indications appropriées
+    let label = pollutantName;
     if (isModeling) {
-      tooltipText += `${pollutantName} (modélisation): ${typeof value === "number" ? value.toFixed(1) : value} ${encodedUnit}`;
-    } else {
-      tooltipText += `${pollutantName}: ${typeof value === "number" ? value.toFixed(1) : value} ${encodedUnit}`;
+      label += " (modélisation)";
+    } else if (isRaw) {
+      label += " (brute)";
+    } else if (isCorrected) {
+      label += " (corrigé)";
     }
+    
+    tooltipText += `${label}: ${typeof value === "number" ? value.toFixed(1) : value} ${encodedUnit}`;
     
     return tooltipText;
   });
