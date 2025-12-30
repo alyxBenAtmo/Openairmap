@@ -1054,4 +1054,38 @@ export class NebuleAirService extends BaseDataService {
 
     return this.sensorsMetadataCache;
   }
+
+  // Méthode pour récupérer les coordonnées d'un capteur
+  async fetchSensorCoordinates(
+    sensorId: string
+  ): Promise<{ latitude: number; longitude: number } | null> {
+    try {
+      const sensorsMetadata = await this.getCachedSensorsMetadata();
+      const sensor = sensorsMetadata.find((s) => s.sensorId === sensorId);
+      
+      if (!sensor) {
+        console.warn(`Capteur ${sensorId} non trouvé dans les métadonnées`);
+        return null;
+      }
+
+      const lat = parseFloat(sensor.latitude);
+      const lon = parseFloat(sensor.longitude);
+      
+      if (isNaN(lat) || isNaN(lon) || lat === 0 || lon === 0) {
+        console.warn(`Coordonnées invalides pour le capteur ${sensorId}`);
+        return null;
+      }
+
+      return {
+        latitude: lat,
+        longitude: lon,
+      };
+    } catch (error) {
+      console.error(
+        "Erreur lors de la récupération des coordonnées du capteur NebuleAir:",
+        error
+      );
+      return null;
+    }
+  }
 }

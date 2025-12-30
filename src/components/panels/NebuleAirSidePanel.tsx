@@ -9,6 +9,7 @@ import {
 } from "../../types";
 import { pollutants } from "../../constants/pollutants";
 import { NebuleAirService } from "../../services/NebuleAirService";
+import { ModelingService } from "../../services/ModelingService";
 import HistoricalChart from "../charts/HistoricalChart";
 import HistoricalTimeRangeSelector, {
   TimeRange,
@@ -111,12 +112,19 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
   const stationIdRef = useRef<string | null>(null);
   const [isAnimatingOut, setIsAnimatingOut] = useState(false);
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // États pour la modélisation
+  const [showModeling, setShowModeling] = useState(false);
+  const [modelingData, setModelingData] = useState<Record<string, HistoricalDataPoint[]>>({});
+  const [stationCoordinates, setStationCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [loadingModeling, setLoadingModeling] = useState(false);
 
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
 
-  // Créer le service une seule fois avec useMemo pour éviter les re-renders
+  // Créer les services une seule fois avec useMemo pour éviter les re-renders
   const nebuleAirService = useMemo(() => new NebuleAirService(), []);
+  const modelingService = useMemo(() => new ModelingService(), []);
 
   // Fonction utilitaire pour vérifier si un polluant est disponible dans la station
   const isPollutantAvailable = (pollutantCode: string): boolean => {
@@ -188,7 +196,9 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
       station: StationInfo,
       pollutants: string[],
       timeRange: TimeRange,
-      timeStep: string
+      timeStep: string,
+      shouldLoadModeling: boolean = false,
+      coords: { latitude: number; longitude: number } | null = null
     ) => {
       console.log("🚀 [NebuleAirSidePanel] Début loadHistoricalData:", {
         station: station.id,
@@ -237,9 +247,92 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
           newHistoricalData
         );
 
+        // Charger les données de modélisation si demandé et si on a les coordonnées
+        const newModelingData: Record<string, HistoricalDataPoint[]> = {};
+        console.log(`[NebuleAirSidePanel] Vérification modélisation:`, {
+          shouldLoadModeling,
+          hasCoords: !!coords,
+          timeStep,
+          timeStepIsHeure: timeStep === "heure",
+          willLoad: shouldLoadModeling && coords && timeStep === "heure"
+        });
+        
+        if (shouldLoadModeling && coords && timeStep === "heure") {
+          setLoadingModeling(true);
+          try {
+            // Utiliser la date de fin comme datetime_echeance pour récupérer les données autour de cette date
+            const datetimeEcheance = new Date(endDate).toISOString();
+            console.log(`[NebuleAirSidePanel] Début chargement modélisation pour ${pollutants.length} polluants`);
+            
+            // Charger les données de modélisation pour chaque polluant sélectionné
+            const modelingPromises = pollutants.map(async (pollutant) => {
+              if (!modelingService.isPollutantSupported(pollutant)) {
+                console.log(`[NebuleAirSidePanel] Polluant ${pollutant} non supporté par la modélisation`);
+                return null;
+              }
+              
+              try {
+                console.log(`[NebuleAirSidePanel] Chargement modélisation pour ${pollutant}...`);
+                const data = await modelingService.fetchModelingData({
+                  longitude: coords.longitude,
+                  latitude: coords.latitude,
+                  pollutant,
+                  datetimeEcheance,
+                  withList: true, // Récupérer toutes les échéances
+                });
+                
+                console.log(`[NebuleAirSidePanel] Données modélisation reçues pour ${pollutant}:`, data.length, "points");
+                
+                // Filtrer les données pour correspondre à la plage de temps sélectionnée
+                const filteredData = data.filter((point) => {
+                  const pointDate = new Date(point.timestamp);
+                  return pointDate >= new Date(startDate) && pointDate <= new Date(endDate);
+                });
+                
+                console.log(`[NebuleAirSidePanel] Données modélisation filtrées pour ${pollutant}:`, filteredData.length, "points");
+                
+                return { pollutant, data: filteredData };
+              } catch (error) {
+                console.error(`Erreur lors du chargement de la modélisation pour ${pollutant}:`, error);
+                return null;
+              }
+            });
+            
+            const modelingResults = await Promise.all(modelingPromises);
+            console.log(`[NebuleAirSidePanel] Résultats modélisation:`, modelingResults.length, "résultats");
+            
+            modelingResults.forEach((result) => {
+              if (result && result.data.length > 0) {
+                newModelingData[`${result.pollutant}_modeling`] = result.data;
+                console.log(`[NebuleAirSidePanel] Données de modélisation chargées pour ${result.pollutant}:`, {
+                  pollutant: result.pollutant,
+                  dataLength: result.data.length,
+                  samplePoints: result.data.slice(0, 3),
+                });
+              }
+            });
+            
+            console.log(`[NebuleAirSidePanel] Toutes les données de modélisation:`, {
+              modelingKeys: Object.keys(newModelingData),
+              totalKeys: Object.keys(newModelingData).length,
+              data: newModelingData
+            });
+            
+            setModelingData(newModelingData);
+          } catch (error) {
+            console.error("Erreur lors du chargement des données de modélisation:", error);
+            setModelingData({});
+          } finally {
+            setLoadingModeling(false);
+          }
+        } else if (!shouldLoadModeling) {
+          // Si la modélisation est désactivée, vider les données
+          setModelingData({});
+        }
+
         setState((prev) => ({
           ...prev,
-          historicalData: newHistoricalData,
+          historicalData: { ...prev.historicalData, ...newHistoricalData },
           loading: false,
         }));
 
@@ -262,7 +355,7 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
         loadingRef.current = false;
       }
     },
-    [nebuleAirService]
+    [nebuleAirService, modelingService]
   );
 
   // Mettre à jour l'état uniquement lors de l'ouverture du panel ou du changement de station
@@ -290,6 +383,11 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
       setIsLoading(false);
       loadingRef.current = false;
       initialLoadDoneRef.current = null;
+      // Réinitialiser les états de modélisation quand le panel est fermé
+      setShowModeling(false);
+      setModelingData({});
+      setLoadingModeling(false);
+      setStationCoordinates(null);
       return;
     }
 
@@ -351,6 +449,12 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
       setInternalPanelSize("normal");
       // Réinitialiser le flag de chargement initial pour la nouvelle station
       initialLoadDoneRef.current = null;
+      
+      // Réinitialiser les états de modélisation AVANT le chargement des données
+      setShowModeling(false);
+      setModelingData({});
+      setStationCoordinates(null);
+      setLoadingModeling(false);
 
       // Charger les données historiques initiales si des polluants sont disponibles
       // Utiliser setTimeout pour s'assurer que l'état est bien mis à jour
@@ -377,7 +481,9 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                 selectedStation,
                 selectedPollutants,
                 initialTimeRange,
-                nextTimeStep
+                nextTimeStep,
+                false, // Ne pas charger la modélisation au chargement initial
+                null
               );
             }
           });
@@ -392,6 +498,112 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
       }));
     }
   }, [isOpen, selectedStation, initialPollutant, loadHistoricalData]);
+
+  // Récupérer les coordonnées du capteur
+  useEffect(() => {
+    const fetchCoordinates = async () => {
+      if (!selectedStation) return;
+      
+      console.log(`[NebuleAirSidePanel] Récupération des coordonnées pour ${selectedStation.id}, source: ${selectedStation.source}`);
+      
+      try {
+        const coords = await nebuleAirService.fetchSensorCoordinates(selectedStation.id);
+        if (coords) {
+          console.log(`[NebuleAirSidePanel] Coordonnées récupérées:`, coords);
+          setStationCoordinates(coords);
+        } else {
+          console.warn(`[NebuleAirSidePanel] Aucune coordonnée trouvée pour ${selectedStation.id}`);
+        }
+      } catch (error) {
+        console.error("Erreur lors de la récupération des coordonnées:", error);
+      }
+    };
+
+    // Vérifier si c'est une station NebuleAir (source est "nebuleair" en minuscules)
+    if (selectedStation && selectedStation.source === "nebuleair") {
+      fetchCoordinates();
+    } else {
+      console.log(`[NebuleAirSidePanel] Station source ne correspond pas: ${selectedStation?.source}, attendu: "nebuleair"`);
+    }
+  }, [selectedStation, nebuleAirService]);
+
+  // Recharger les données de modélisation quand les coordonnées sont disponibles et que la modélisation est activée
+  const prevModelingStateRef = useRef<{ showModeling: boolean; hasCoords: boolean; stationId: string | null }>({
+    showModeling: false,
+    hasCoords: false,
+    stationId: null,
+  });
+
+  useEffect(() => {
+    // Ne charger la modélisation que si :
+    // 1. La modélisation est activée
+    // 2. On a les coordonnées
+    // 3. On a une station sélectionnée
+    // 4. Le pas de temps est horaire
+    // 5. L'état a vraiment changé
+    
+    const coordsKey = stationCoordinates 
+      ? `${stationCoordinates.latitude},${stationCoordinates.longitude}` 
+      : null;
+    const currentState = {
+      showModeling,
+      hasCoords: !!stationCoordinates,
+      stationId: selectedStation?.id || null,
+    };
+    
+    const prevState = prevModelingStateRef.current;
+    const stateChanged = 
+      currentState.showModeling !== prevState.showModeling ||
+      currentState.hasCoords !== prevState.hasCoords ||
+      currentState.stationId !== prevState.stationId;
+    
+    // Si la station a changé, vider immédiatement les données de modélisation
+    if (currentState.stationId !== prevState.stationId && prevState.stationId !== null) {
+      setModelingData({});
+      setLoadingModeling(false);
+    }
+    
+    if (!stateChanged) {
+      return;
+    }
+    
+    prevModelingStateRef.current = currentState;
+    
+    console.log(`[NebuleAirSidePanel] État de la modélisation:`, {
+      showModeling,
+      hasCoords: !!stationCoordinates,
+      stationId: selectedStation?.id,
+      timeStep: state.chartControls.timeStep,
+      shouldLoad: showModeling && stationCoordinates && selectedStation && state.chartControls.timeStep === "heure"
+    });
+    
+    if (showModeling && stationCoordinates && selectedStation && state.chartControls.timeStep === "heure") {
+      // Capturer les valeurs actuelles pour éviter les problèmes de closure
+      const currentPollutants = state.chartControls.selectedPollutants;
+      const currentTimeRange = state.chartControls.timeRange;
+      const currentTimeStep = state.chartControls.timeStep;
+      
+      console.log(`[NebuleAirSidePanel] Chargement de la modélisation pour:`, {
+        pollutants: currentPollutants,
+        timeRange: currentTimeRange,
+        timeStep: currentTimeStep,
+        coords: stationCoordinates
+      });
+      
+      loadHistoricalData(
+        selectedStation,
+        currentPollutants,
+        currentTimeRange,
+        currentTimeStep,
+        true,
+        stationCoordinates
+      );
+    } else if (!showModeling) {
+      // Si la modélisation est désactivée, vider les données immédiatement
+      setModelingData({});
+      setLoadingModeling(false);
+    }
+  }, [showModeling, stationCoordinates, selectedStation, state.chartControls.timeStep, state.chartControls.selectedPollutants, state.chartControls.timeRange, loadHistoricalData]);
 
   const handlePollutantToggle = (pollutant: string) => {
     setState((prev) => {
@@ -409,6 +621,54 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
           ? prev.chartControls.selectedPollutants.filter((p) => p !== pollutant)
           : [...prev.chartControls.selectedPollutants, pollutant];
 
+      const isAddingPollutant = !prev.chartControls.selectedPollutants.includes(pollutant);
+      
+      // Recharger les données si le polluant n'était pas encore chargé et qu'on l'ajoute
+      if (isAddingPollutant && selectedStation && !prev.historicalData[pollutant]) {
+        // Charger les données de manière asynchrone pour ne pas bloquer la mise à jour de l'état
+        setTimeout(() => {
+          // Si la modélisation est activée, charger la modélisation pour TOUS les polluants sélectionnés
+          // Sinon, charger seulement les données historiques pour le nouveau polluant
+          if (showModeling && stationCoordinates && prev.chartControls.timeStep === "heure") {
+            // Charger les données historiques ET la modélisation pour tous les polluants sélectionnés
+            loadHistoricalData(
+              selectedStation,
+              newSelectedPollutants, // Tous les polluants sélectionnés (y compris le nouveau)
+              prev.chartControls.timeRange,
+              prev.chartControls.timeStep,
+              true, // Charger la modélisation
+              stationCoordinates
+            );
+          } else {
+            // Charger seulement les données historiques pour le nouveau polluant
+            const { startDate, endDate } = getDateRange(prev.chartControls.timeRange);
+            nebuleAirService
+              .fetchHistoricalData({
+                sensorId: selectedStation.id,
+                pollutant,
+                timeStep: prev.chartControls.timeStep,
+                startDate,
+                endDate,
+              })
+              .then((data) => {
+                setState((current) => ({
+                  ...current,
+                  historicalData: {
+                    ...current.historicalData,
+                    [pollutant]: data,
+                  },
+                }));
+              })
+              .catch((error) => {
+                console.error(
+                  `Erreur lors du chargement des données pour ${pollutant}:`,
+                  error
+                );
+              });
+          }
+        }, 0);
+      }
+
       return {
         ...prev,
         chartControls: {
@@ -417,30 +677,6 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
         },
       };
     });
-
-    // Recharger les données si le polluant n'était pas encore chargé
-    if (selectedStation && !state.historicalData[pollutant]) {
-      const { startDate, endDate } = getDateRange(
-        state.chartControls.timeRange
-      );
-      nebuleAirService
-        .fetchHistoricalData({
-          sensorId: selectedStation.id,
-          pollutant,
-          timeStep: state.chartControls.timeStep,
-          startDate,
-          endDate,
-        })
-        .then((data) => {
-          setState((prev) => ({
-            ...prev,
-            historicalData: {
-              ...prev.historicalData,
-              [pollutant]: data,
-            },
-          }));
-        });
-    }
   };
 
   const handleTimeRangeChange = (timeRange: TimeRange) => {
@@ -474,6 +710,8 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
       }
 
       // Charger les données avec la période validée
+      // Ne pas charger la modélisation si le pas de temps n'est pas horaire
+      const shouldLoadModeling = prev.chartControls.timeStep === "heure" && showModeling;
       if (selectedStation) {
         console.log(
           "🚀 [NebuleAirSidePanel] Appel loadHistoricalData depuis handleTimeRangeChange"
@@ -482,7 +720,9 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
           selectedStation,
           prev.chartControls.selectedPollutants,
           validatedTimeRange,
-          prev.chartControls.timeStep
+          prev.chartControls.timeStep,
+          shouldLoadModeling,
+          stationCoordinates
         );
       }
 
@@ -641,7 +881,16 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
         );
       }
 
+      // Désactiver la modélisation si on change de pas de temps et que ce n'est pas horaire
+      if (timeStep !== "heure" && showModeling) {
+        setShowModeling(false);
+        setModelingData({});
+        setLoadingModeling(false);
+      }
+
       // Charger les données avec la période ajustée
+      // Ne pas charger la modélisation si le pas de temps n'est pas horaire
+      const shouldLoadModeling = timeStep === "heure" && showModeling;
       if (selectedStation) {
         console.log(
           "🚀 [NebuleAirSidePanel] Appel loadHistoricalData depuis handleTimeStepChange"
@@ -650,7 +899,9 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
           selectedStation,
           prev.chartControls.selectedPollutants,
           adjustedTimeRange,
-          timeStep
+          timeStep,
+          shouldLoadModeling,
+          stationCoordinates
         );
       }
 
@@ -1122,6 +1373,48 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                   </div>
                 )}
 
+                {/* Toggle pour afficher la modélisation AZUR */}
+                <div className="mb-3 sm:mb-4 border border-gray-200 rounded-lg p-2 sm:p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      {loadingModeling && (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#4271B3]"></div>
+                      )}
+                      <span className="text-sm text-gray-700">
+                        Afficher la modélisation AZUR
+                        {state.chartControls.timeStep !== "heure" && (
+                          <span className="text-xs text-gray-500 ml-2">(disponible uniquement au pas de temps horaire)</span>
+                        )}
+                      </span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={showModeling}
+                      disabled={loadingModeling || state.chartControls.timeStep !== "heure"}
+                      onChange={(e) => {
+                        const newValue = e.target.checked;
+                        setShowModeling(newValue);
+                        if (newValue && selectedStation && stationCoordinates) {
+                          // Charger les données de modélisation pour tous les polluants actuellement sélectionnés
+                          const pollutantsToLoad = state.chartControls.selectedPollutants;
+                          console.log(`[NebuleAirSidePanel] Activation de la modélisation pour les polluants:`, pollutantsToLoad);
+                          loadHistoricalData(
+                            selectedStation,
+                            pollutantsToLoad,
+                            state.chartControls.timeRange,
+                            state.chartControls.timeStep,
+                            true,
+                            stationCoordinates
+                          );
+                        } else if (!newValue) {
+                          setModelingData({});
+                        }
+                      }}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+
                 {/* Graphique */}
                 <div className="h-80 sm:h-96 md:h-[28rem] mb-3 sm:mb-4">
                   <HistoricalChart
@@ -1130,6 +1423,7 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                     source="nebuleAir"
                     stationInfo={selectedStation}
                     timeStep={state.chartControls.timeStep}
+                    modelingData={showModeling && Object.keys(modelingData).length > 0 ? modelingData : undefined}
                   />
                 </div>
 
