@@ -413,16 +413,17 @@ export const transformNormalData = (
 
     // Ajouter les valeurs pour chaque polluant (corrigées et brutes)
     selectedPollutants.forEach((pollutant) => {
+      const timestampMs = normalizeTimestamp(timestamp);
+      
+      // Pour les pas de temps agrégés, utiliser une tolérance plus large
+      // car les données peuvent être arrondies différemment
+      const isAggregatedTimeStep = timeStep && ["quartHeure", "heure", "jour"].includes(timeStep);
+      const tolerance = isAggregatedTimeStep 
+        ? (timeStep === "quartHeure" ? 15 * 60 * 1000 : timeStep === "heure" ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000) / 2
+        : 1000; // 1 seconde pour les pas de temps non agrégés
+      
+      // Chercher les données mesurées pour ce polluant
       if (data[pollutant]) {
-        const timestampMs = normalizeTimestamp(timestamp);
-        
-        // Pour les pas de temps agrégés, utiliser une tolérance plus large
-        // car les données peuvent être arrondies différemment
-        const isAggregatedTimeStep = timeStep && ["quartHeure", "heure", "jour"].includes(timeStep);
-        const tolerance = isAggregatedTimeStep 
-          ? (timeStep === "quartHeure" ? 15 * 60 * 1000 : timeStep === "heure" ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000) / 2
-          : 1000; // 1 seconde pour les pas de temps non agrégés
-        
         const dataPoint = data[pollutant].find((p) => {
           const pTimestampMs = normalizeTimestamp(p.timestamp);
           // Comparer en millisecondes avec une tolérance adaptée au pas de temps
@@ -456,31 +457,30 @@ export const transformNormalData = (
           }
           point[`${pollutant}_unit`] = unit;
         }
+      }
 
-        // Ajouter les données de modélisation si disponibles
-        const modelingKey = `${pollutant}_modeling`;
-        if (data[modelingKey]) {
-          const timestampMs = normalizeTimestamp(timestamp);
-          // Chercher le point de modélisation le plus proche (tolérance de 30 minutes pour les données horaires)
-          const modelingPoint = data[modelingKey].reduce((closest: any, p: any) => {
-            const pTimestampMs = normalizeTimestamp(p.timestamp);
-            const diff = Math.abs(pTimestampMs - timestampMs);
-            // Tolérance de 30 minutes (1800000 ms) pour les données horaires
-            if (diff < 1800000) {
-              if (!closest || diff < Math.abs(normalizeTimestamp(closest.timestamp) - timestampMs)) {
-                return p;
-              }
+      // Ajouter les données de modélisation si disponibles (même si pas de données mesurées)
+      const modelingKey = `${pollutant}_modeling`;
+      if (data[modelingKey]) {
+        // Chercher le point de modélisation le plus proche (tolérance de 30 minutes pour les données horaires)
+        const modelingPoint = data[modelingKey].reduce((closest: any, p: any) => {
+          const pTimestampMs = normalizeTimestamp(p.timestamp);
+          const diff = Math.abs(pTimestampMs - timestampMs);
+          // Tolérance de 30 minutes (1800000 ms) pour les données horaires
+          if (diff < 1800000) {
+            if (!closest || diff < Math.abs(normalizeTimestamp(closest.timestamp) - timestampMs)) {
+              return p;
             }
-            return closest;
-          }, null);
-
-          if (modelingPoint) {
-            const value = ensureNonNegativeValue(modelingPoint.value);
-            point[modelingKey] = value;
-          } else {
-            // Si pas de point correspondant, mettre null pour créer un gap
-            point[modelingKey] = null;
           }
+          return closest;
+        }, null);
+
+        if (modelingPoint) {
+          const value = ensureNonNegativeValue(modelingPoint.value);
+          point[modelingKey] = value;
+        } else {
+          // Si pas de point correspondant, mettre null pour créer un gap
+          point[modelingKey] = null;
         }
       }
     });
@@ -493,14 +493,18 @@ export const transformNormalData = (
     const pm25ModelingPoints = transformedData.filter((point: any) => 
       point.pm25_modeling !== undefined && point.pm25_modeling !== null
     );
+    const pm25ModelingValues = transformedData.map((p: any) => p.pm25_modeling).filter(v => v !== undefined && v !== null);
     if (pm25ModelingPoints.length > 0 || transformedData.length > 0) {
       console.log(`[transformNormalData] Résultat pour pm25 AVANT fillGapsInData:`, {
         totalPoints: transformedData.length,
         pm25ModelingPointsCount: pm25ModelingPoints.length,
+        pm25ModelingValuesCount: pm25ModelingValues.length,
         sampleModelingPoints: pm25ModelingPoints.slice(0, 3),
+        sampleModelingValues: pm25ModelingValues.slice(0, 3),
         dataKeys: Object.keys(data),
         hasModelingInData: !!data['pm25_modeling'],
         modelingDataLength: data['pm25_modeling']?.length,
+        modelingDataSample: data['pm25_modeling']?.slice(0, 3),
       });
     }
   }

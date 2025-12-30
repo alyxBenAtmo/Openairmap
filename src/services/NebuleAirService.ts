@@ -86,48 +86,41 @@ export class NebuleAirService extends BaseDataService {
           timeStepSuffix
         );
 
+        // Si le capteur ne mesure pas ce polluant (valeur null ou -1), l'ignorer complètement
+        if (value === null || value === -1) {
+          continue;
+        }
+
         // Vérifier si la donnée est récente selon le pas de temps
         const isDataRecent = this.isDataRecent(sensor.time, params.timeStep);
 
-        if (value === null || value === -1 || !isDataRecent) {
-          // Capteur sans donnée valide ou donnée trop ancienne - utiliser le marqueur par défaut
-          devices.push({
-            id: sensor.sensorId,
-            name: `NebuleAir ${sensor.sensorId}`,
-            latitude: lat,
-            longitude: lon,
-            source: this.sourceCode,
-            pollutant: params.pollutant,
-            value: 0,
-            unit: pollutantConfig?.unit || "µg/m³",
-            timestamp: sensor.time,
-            status: "inactive",
-            qualityLevel: "default",
-          } as MeasurementDevice & { qualityLevel: string });
-        } else {
-          // Capteur avec donnée valide et récente - considérer comme actif
-          const pollutant = pollutants[params.pollutant];
-          // Utiliser la valeur arrondie pour la cohérence avec l'affichage
-          const roundedValue = Math.round(value);
-          const qualityLevel =
-            pollutant && pollutant.thresholds
-              ? getAirQualityLevel(roundedValue, pollutant.thresholds)
-              : "default";
-
-          devices.push({
-            id: sensor.sensorId,
-            name: `NebuleAir ${sensor.sensorId}`,
-            latitude: lat,
-            longitude: lon,
-            source: this.sourceCode,
-            pollutant: params.pollutant,
-            value: value, // Garder la valeur exacte pour les calculs
-            unit: pollutantConfig?.unit || pollutant?.unit || "µg/m³",
-            timestamp: sensor.time,
-            status: "active", // Toujours actif si on a une valeur valide et récente
-            qualityLevel,
-          } as MeasurementDevice & { qualityLevel: string });
+        // Si la donnée n'est pas récente, ignorer le capteur également
+        if (!isDataRecent) {
+          continue;
         }
+
+        // Capteur avec donnée valide et récente - considérer comme actif
+        const pollutant = pollutants[params.pollutant];
+        // Utiliser la valeur arrondie pour la cohérence avec l'affichage
+        const roundedValue = Math.round(value);
+        const qualityLevel =
+          pollutant && pollutant.thresholds
+            ? getAirQualityLevel(roundedValue, pollutant.thresholds)
+            : "default";
+
+        devices.push({
+          id: sensor.sensorId,
+          name: `NebuleAir ${sensor.sensorId}`,
+          latitude: lat,
+          longitude: lon,
+          source: this.sourceCode,
+          pollutant: params.pollutant,
+          value: value, // Garder la valeur exacte pour les calculs
+          unit: pollutantConfig?.unit || pollutant?.unit || "µg/m³",
+          timestamp: sensor.time,
+          status: "active", // Toujours actif si on a une valeur valide et récente
+          qualityLevel,
+        } as MeasurementDevice & { qualityLevel: string });
       }
 
       return devices;

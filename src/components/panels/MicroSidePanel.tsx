@@ -9,6 +9,7 @@ import {
 } from "../../types";
 import { pollutants } from "../../constants/pollutants";
 import { AtmoMicroService } from "../../services/AtmoMicroService";
+import { ModelingService } from "../../services/ModelingService";
 import { getSensorModelImage } from "../../constants/sensorModels";
 import HistoricalChart from "../charts/HistoricalChart";
 import HistoricalTimeRangeSelector, {
@@ -69,11 +70,18 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
   const stationIdRef = useRef<string | null>(null);
   const [isAnimatingOut, setIsAnimatingOut] = useState(false);
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // États pour la modélisation
+  const [showModeling, setShowModeling] = useState(false);
+  const [modelingData, setModelingData] = useState<Record<string, HistoricalDataPoint[]>>({});
+  const [stationCoordinates, setStationCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [loadingModeling, setLoadingModeling] = useState(false);
 
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
 
-  const atmoMicroService = new AtmoMicroService();
+  const atmoMicroService = useRef(new AtmoMicroService()).current;
+  const modelingService = useRef(new ModelingService()).current;
 
   // Fonction utilitaire pour vérifier si un polluant est disponible dans la station
   const isPollutantAvailable = (pollutantCode: string): boolean => {
@@ -94,6 +102,177 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
       })
       .map(([pollutantCode]) => pollutantCode);
   };
+
+  const getDateRange = (
+    timeRange: TimeRange
+  ): { startDate: string; endDate: string } => {
+    const now = new Date();
+    const endDate = now.toISOString();
+
+    // Si c'est une plage personnalisée, utiliser les dates fournies
+    if (timeRange.type === "custom" && timeRange.custom) {
+      // Créer les dates en heure LOCALE (sans Z), puis convertir en UTC
+      // Cela permet d'avoir 00:00-23:59 en heure locale, pas en UTC
+      const startDate = new Date(timeRange.custom.startDate + "T00:00:00");
+      const endDate = new Date(timeRange.custom.endDate + "T23:59:59.999");
+
+      return {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      };
+    }
+
+    // Sinon, utiliser les périodes prédéfinies
+    let startDate: Date;
+
+    switch (timeRange.preset) {
+      case "3h":
+        startDate = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+        break;
+      case "24h":
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case "7d":
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case "30d":
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    }
+
+    return {
+      startDate: startDate.toISOString(),
+      endDate,
+    };
+  };
+
+  const loadHistoricalData = useCallback(
+    async (
+      station: StationInfo,
+      selectedPollutants: string[],
+      timeRange: TimeRange,
+      timeStep: string,
+      shouldLoadModeling: boolean = false,
+      coords: { latitude: number; longitude: number } | null = null
+    ) => {
+      setState((prev) => ({
+        ...prev,
+        loading: true,
+        error: null,
+        infoMessage: null,
+      }));
+
+      try {
+        const { startDate, endDate } = getDateRange(timeRange);
+        const newHistoricalData: Record<string, HistoricalDataPoint[]> = {};
+
+        // Charger les données pour chaque polluant sélectionné
+        for (const pollutant of selectedPollutants) {
+          const data = await atmoMicroService.fetchHistoricalData({
+            siteId: station.id,
+            pollutant,
+            timeStep,
+            startDate,
+            endDate,
+          });
+          newHistoricalData[pollutant] = data;
+        }
+
+        const hasData = Object.values(newHistoricalData).some(
+          (dataPoints) => dataPoints && dataPoints.length > 0
+        );
+
+        // Charger les données de modélisation si demandé et si on a les coordonnées
+        const newModelingData: Record<string, HistoricalDataPoint[]> = {};
+        if (shouldLoadModeling && coords && timeStep === "heure") {
+          setLoadingModeling(true);
+          try {
+            // Utiliser la date de fin comme datetime_echeance pour récupérer les données autour de cette date
+            const datetimeEcheance = new Date(endDate).toISOString();
+            
+            // Charger les données de modélisation pour chaque polluant sélectionné
+            const modelingPromises = selectedPollutants.map(async (pollutant) => {
+              if (!modelingService.isPollutantSupported(pollutant)) {
+                return null;
+              }
+              
+              try {
+                const data = await modelingService.fetchModelingData({
+                  longitude: coords.longitude,
+                  latitude: coords.latitude,
+                  pollutant,
+                  datetimeEcheance,
+                  withList: true, // Récupérer toutes les échéances
+                });
+                
+                // Filtrer les données pour correspondre à la plage de temps sélectionnée
+                const filteredData = data.filter((point) => {
+                  const pointDate = new Date(point.timestamp);
+                  return pointDate >= new Date(startDate) && pointDate <= new Date(endDate);
+                });
+                
+                return { pollutant, data: filteredData };
+              } catch (error) {
+                console.error(`Erreur lors du chargement de la modélisation pour ${pollutant}:`, error);
+                return null;
+              }
+            });
+            
+            const modelingResults = await Promise.all(modelingPromises);
+            modelingResults.forEach((result) => {
+              if (result && result.data.length > 0) {
+                newModelingData[`${result.pollutant}_modeling`] = result.data;
+                console.log(`[MicroSidePanel] Données de modélisation chargées pour ${result.pollutant}:`, {
+                  pollutant: result.pollutant,
+                  dataLength: result.data.length,
+                  samplePoints: result.data.slice(0, 3),
+                });
+              }
+            });
+            
+            console.log(`[MicroSidePanel] Toutes les données de modélisation:`, {
+              modelingKeys: Object.keys(newModelingData),
+              totalKeys: Object.keys(newModelingData).length,
+            });
+            
+            setModelingData(newModelingData);
+          } catch (error) {
+            console.error("Erreur lors du chargement des données de modélisation:", error);
+            setModelingData({});
+          } finally {
+            setLoadingModeling(false);
+          }
+        } else if (!shouldLoadModeling) {
+          // Si la modélisation est désactivée, vider les données
+          setModelingData({});
+        }
+
+        setState((prev) => ({
+          ...prev,
+          historicalData: { ...prev.historicalData, ...newHistoricalData },
+          loading: false,
+          error: null,
+          infoMessage: hasData
+            ? null
+            : "Aucune mesure disponible sur la période sélectionnée. Essayez d'élargir la période ou vérifiez si le capteur a changé de localisation.",
+        }));
+      } catch (error) {
+        console.error(
+          "Erreur lors du chargement des données historiques:",
+          error
+        );
+        setState((prev) => ({
+          ...prev,
+          loading: false,
+          error: "Erreur lors du chargement des données historiques",
+          infoMessage: null,
+        }));
+      }
+    },
+    [atmoMicroService, modelingService]
+  );
 
   // Mettre à jour l'état uniquement lors de l'ouverture du panel ou du changement de station
   useEffect(() => {
@@ -167,9 +346,17 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
           selectedStation,
           selectedPollutants,
           state.chartControls.timeRange,
-          state.chartControls.timeStep
+          state.chartControls.timeStep,
+          false, // Ne pas charger la modélisation au chargement initial
+          null
         );
       }
+      
+      // Réinitialiser les états de modélisation
+      setShowModeling(false);
+      setModelingData({});
+      setStationCoordinates(null);
+      setLoadingModeling(false);
     } else {
       // Si c'est la même station, juste mettre à jour isOpen et selectedStation sans réinitialiser les polluants
       setState((prev) => ({
@@ -180,109 +367,81 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
     }
   }, [isOpen, selectedStation, initialPollutant]);
 
-  const loadHistoricalData = useCallback(
-    async (
-      station: StationInfo,
-      pollutants: string[],
-      timeRange: TimeRange,
-      timeStep: string
-    ) => {
-      setState((prev) => ({
-        ...prev,
-        loading: true,
-        error: null,
-        infoMessage: null,
-      }));
-
+  // Récupérer les coordonnées du site
+  useEffect(() => {
+    const fetchCoordinates = async () => {
+      if (!selectedStation) return;
+      
       try {
-        const { startDate, endDate } = getDateRange(timeRange);
-        const newHistoricalData: Record<string, HistoricalDataPoint[]> = {};
-
-        // Charger les données pour chaque polluant sélectionné
-        for (const pollutant of pollutants) {
-          const data = await atmoMicroService.fetchHistoricalData({
-            siteId: station.id,
-            pollutant,
-            timeStep,
-            startDate,
-            endDate,
-          });
-          newHistoricalData[pollutant] = data;
+        const coords = await atmoMicroService.fetchSiteCoordinates(selectedStation.id);
+        if (coords) {
+          setStationCoordinates(coords);
         }
-
-        const hasData = Object.values(newHistoricalData).some(
-          (dataPoints) => dataPoints && dataPoints.length > 0
-        );
-
-        setState((prev) => ({
-          ...prev,
-          historicalData: newHistoricalData,
-          loading: false,
-          error: null,
-          infoMessage: hasData
-            ? null
-            : "Aucune mesure disponible sur la période sélectionnée. Essayez d'élargir la période ou vérifiez si le capteur a changé de localisation.",
-        }));
       } catch (error) {
-        console.error(
-          "Erreur lors du chargement des données historiques:",
-          error
-        );
-        setState((prev) => ({
-          ...prev,
-          loading: false,
-          error: "Erreur lors du chargement des données historiques",
-          infoMessage: null,
-        }));
+        console.error("Erreur lors de la récupération des coordonnées:", error);
       }
-    },
-    [atmoMicroService]
-  );
-
-  const getDateRange = (
-    timeRange: TimeRange
-  ): { startDate: string; endDate: string } => {
-    const now = new Date();
-    const endDate = now.toISOString();
-
-    // Si c'est une plage personnalisée, utiliser les dates fournies
-    if (timeRange.type === "custom" && timeRange.custom) {
-      // Créer les dates en heure LOCALE (sans Z), puis convertir en UTC
-      // Cela permet d'avoir 00:00-23:59 en heure locale, pas en UTC
-      const startDate = new Date(timeRange.custom.startDate + "T00:00:00");
-      const endDate = new Date(timeRange.custom.endDate + "T23:59:59.999");
-
-      return {
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-      };
-    }
-
-    // Sinon, utiliser les périodes prédéfinies
-    let startDate: Date;
-
-    switch (timeRange.preset) {
-      case "3h":
-        startDate = new Date(now.getTime() - 3 * 60 * 60 * 1000);
-        break;
-      case "24h":
-        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        break;
-      case "7d":
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case "30d":
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      default:
-        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    }
-
-    return {
-      startDate: startDate.toISOString(),
-      endDate,
     };
-  };
+
+    if (selectedStation && selectedStation.source === "atmoMicro") {
+      fetchCoordinates();
+    }
+  }, [selectedStation, atmoMicroService]);
+
+  // Recharger les données de modélisation quand les coordonnées sont disponibles et que la modélisation est activée
+  const prevModelingStateRef = useRef<{ showModeling: boolean; hasCoords: boolean; stationId: string | null }>({
+    showModeling: false,
+    hasCoords: false,
+    stationId: null,
+  });
+
+  useEffect(() => {
+    // Ne charger la modélisation que si :
+    // 1. La modélisation est activée
+    // 2. On a les coordonnées
+    // 3. On a une station sélectionnée
+    // 4. Le pas de temps est horaire
+    // 5. L'état a vraiment changé
+    
+    const coordsKey = stationCoordinates 
+      ? `${stationCoordinates.latitude},${stationCoordinates.longitude}` 
+      : null;
+    const currentState = {
+      showModeling,
+      hasCoords: !!stationCoordinates,
+      stationId: selectedStation?.id || null,
+    };
+    
+    const prevState = prevModelingStateRef.current;
+    const stateChanged = 
+      currentState.showModeling !== prevState.showModeling ||
+      currentState.hasCoords !== prevState.hasCoords ||
+      currentState.stationId !== prevState.stationId;
+    
+    if (!stateChanged) {
+      return;
+    }
+    
+    prevModelingStateRef.current = currentState;
+    
+    if (showModeling && stationCoordinates && selectedStation && state.chartControls.timeStep === "heure") {
+      // Capturer les valeurs actuelles pour éviter les problèmes de closure
+      const currentPollutants = state.chartControls.selectedPollutants;
+      const currentTimeRange = state.chartControls.timeRange;
+      const currentTimeStep = state.chartControls.timeStep;
+      
+      loadHistoricalData(
+        selectedStation,
+        currentPollutants,
+        currentTimeRange,
+        currentTimeStep,
+        true,
+        stationCoordinates
+      );
+    } else if (!showModeling) {
+      // Si la modélisation est désactivée, vider les données
+      setModelingData({});
+    }
+  }, [showModeling, stationCoordinates, selectedStation, state.chartControls.timeStep, state.chartControls.selectedPollutants, state.chartControls.timeRange, loadHistoricalData]);
 
   const handlePollutantToggle = (pollutant: string) => {
     setState((prev) => {
@@ -310,28 +469,44 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
     });
 
     // Recharger les données si le polluant n'était pas encore chargé
-    if (selectedStation && !state.historicalData[pollutant]) {
-      const { startDate, endDate } = getDateRange(
-        state.chartControls.timeRange
-      );
-      atmoMicroService
-        .fetchHistoricalData({
-          siteId: selectedStation.id,
-          pollutant,
-          timeStep: state.chartControls.timeStep,
-          startDate,
-          endDate,
-        })
-        .then((data) => {
-          setState((prev) => ({
-            ...prev,
-            historicalData: {
-              ...prev.historicalData,
-              [pollutant]: data,
-            },
-          }));
-        });
-    }
+    // Utiliser setTimeout pour éviter les problèmes de closure avec state
+    setTimeout(() => {
+      if (selectedStation && !state.historicalData[pollutant]) {
+        const { startDate, endDate } = getDateRange(
+          state.chartControls.timeRange
+        );
+        const shouldLoadModeling = state.chartControls.timeStep === "heure" && showModeling;
+        atmoMicroService
+          .fetchHistoricalData({
+            siteId: selectedStation.id,
+            pollutant,
+            timeStep: state.chartControls.timeStep,
+            startDate,
+            endDate,
+          })
+          .then((data) => {
+            setState((prev) => ({
+              ...prev,
+              historicalData: {
+                ...prev.historicalData,
+                [pollutant]: data,
+              },
+            }));
+            
+            // Si la modélisation est activée, charger aussi les données de modélisation pour ce polluant
+            if (shouldLoadModeling && stationCoordinates) {
+              loadHistoricalData(
+                selectedStation,
+                [...state.chartControls.selectedPollutants, pollutant].filter((p, i, arr) => arr.indexOf(p) === i),
+                state.chartControls.timeRange,
+                state.chartControls.timeStep,
+                true,
+                stationCoordinates
+              );
+            }
+          });
+      }
+    }, 0);
   };
 
   const handleTimeRangeChange = (timeRange: TimeRange) => {
@@ -359,12 +534,16 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
       }
 
       // Charger les données avec la période validée
+      // Ne pas charger la modélisation si le pas de temps n'est pas horaire
+      const shouldLoadModeling = prev.chartControls.timeStep === "heure" && showModeling;
       if (selectedStation) {
         loadHistoricalData(
           selectedStation,
           prev.chartControls.selectedPollutants,
           validatedTimeRange,
-          prev.chartControls.timeStep
+          prev.chartControls.timeStep,
+          shouldLoadModeling,
+          stationCoordinates
         );
       }
 
@@ -487,13 +666,24 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
         }
       }
 
+      // Désactiver la modélisation si on change de pas de temps et que ce n'est pas horaire
+      if (timeStep !== "heure" && showModeling) {
+        setShowModeling(false);
+        setModelingData({});
+        setLoadingModeling(false);
+      }
+
       // Charger les données avec la période ajustée
+      // Ne pas charger la modélisation si le pas de temps n'est pas horaire
+      const shouldLoadModeling = timeStep === "heure" && showModeling;
       if (selectedStation) {
         loadHistoricalData(
           selectedStation,
           prev.chartControls.selectedPollutants,
           adjustedTimeRange,
-          timeStep
+          timeStep,
+          shouldLoadModeling,
+          stationCoordinates
         );
       }
 
@@ -973,6 +1163,45 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                   )}
                 </div>
 
+                {/* Toggle pour afficher la modélisation AZUR */}
+                <div className="mb-3 sm:mb-4 border border-gray-200 rounded-lg p-2 sm:p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      {loadingModeling && (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#4271B3]"></div>
+                      )}
+                      <span className="text-sm text-gray-700">
+                        Afficher la modélisation AZUR
+                        {state.chartControls.timeStep !== "heure" && (
+                          <span className="text-xs text-gray-500 ml-2">(disponible uniquement au pas de temps horaire)</span>
+                        )}
+                      </span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={showModeling}
+                      disabled={loadingModeling || state.chartControls.timeStep !== "heure"}
+                      onChange={(e) => {
+                        const newValue = e.target.checked;
+                        setShowModeling(newValue);
+                        if (newValue && selectedStation && stationCoordinates) {
+                          loadHistoricalData(
+                            selectedStation,
+                            state.chartControls.selectedPollutants,
+                            state.chartControls.timeRange,
+                            state.chartControls.timeStep,
+                            true,
+                            stationCoordinates
+                          );
+                        } else if (!newValue) {
+                          setModelingData({});
+                        }
+                      }}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+
                 {state.infoMessage && (
                   <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-blue-50 border border-blue-100 rounded-lg text-xs sm:text-sm text-blue-800 flex items-start space-x-2">
                     <svg
@@ -1003,6 +1232,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                     stationInfo={selectedStation}
                     timeStep={state.chartControls.timeStep}
                     sensorTimeStep={sensorTimeStep}
+                    modelingData={modelingData}
                   />
                 </div>
 

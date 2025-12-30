@@ -56,10 +56,13 @@ export const createSeriesTooltip = (
     }
     
     // Obtenir le nom du polluant
-    const pollutantKey = seriesConfig.dataKey.replace(/_corrected$|_raw$/, "");
+    // Extraire le polluant de base en retirant les suffixes _corrected, _raw, _modeling
+    const isModeling = seriesConfig.dataKey.endsWith("_modeling");
+    const pollutantKey = seriesConfig.dataKey.replace(/_corrected$|_raw$|_modeling$/, "");
     const pollutantName = pollutants[pollutantKey]?.name || seriesConfig.name;
     
     // Obtenir l'unité
+    // Pour les données de modélisation, utiliser l'unité du polluant de base (même que les mesures)
     let unit = data?.[`${pollutantKey}_unit`] || "";
     if (!unit && pollutants[pollutantKey]) {
       unit = pollutants[pollutantKey].unit;
@@ -71,7 +74,13 @@ export const createSeriesTooltip = (
     if (dateStr) {
       tooltipText += `${dateStr}\n`;
     }
-    tooltipText += `${pollutantName}: ${typeof value === "number" ? value.toFixed(1) : value} ${encodedUnit}`;
+    
+    // Ajouter une indication si c'est la modélisation
+    if (isModeling) {
+      tooltipText += `${pollutantName} (modélisation): ${typeof value === "number" ? value.toFixed(1) : value} ${encodedUnit}`;
+    } else {
+      tooltipText += `${pollutantName}: ${typeof value === "number" ? value.toFixed(1) : value} ${encodedUnit}`;
+    }
     
     return tooltipText;
   });

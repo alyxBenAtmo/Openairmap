@@ -339,6 +339,55 @@ export class AtmoMicroService extends BaseDataService {
     }
   }
 
+  // Méthode pour récupérer les coordonnées d'un site AtmoMicro
+  async fetchSiteCoordinates(
+    siteId: string
+  ): Promise<{ latitude: number; longitude: number } | null> {
+    try {
+      // Récupérer les dernières mesures pour obtenir les coordonnées à jour
+      // Utiliser n'importe quel polluant pour récupérer les coordonnées
+      const url = `${this.BASE_URL}/mesures/dernieres?id_site=${siteId}&format=json&download=false&nb_dec=0&variable=PM25&valeur_brute=false&type_capteur=false&detail_position=false`;
+      const response = await this.makeRequest(url);
+
+      // Vérifier si on a une réponse valide
+      if (!response || !Array.isArray(response) || response.length === 0) {
+        // Si pas de mesures récentes, essayer avec l'API sites
+        const sitesUrl = `${this.BASE_URL}/sites?format=json&download=false`;
+        const sitesResponse = await this.makeRequest(sitesUrl);
+        
+        if (sitesResponse && Array.isArray(sitesResponse)) {
+          const site = sitesResponse.find((s: AtmoMicroSite) => s.id_site.toString() === siteId);
+          if (site) {
+            return {
+              latitude: site.lat,
+              longitude: site.lon,
+            };
+          }
+        }
+        
+        console.warn(`Site ${siteId} non trouvé`);
+        return null;
+      }
+
+      // Utiliser les coordonnées de la première mesure (les plus récentes)
+      const firstMeasure = response[0];
+      if (firstMeasure.lat && firstMeasure.lon) {
+        return {
+          latitude: firstMeasure.lat,
+          longitude: firstMeasure.lon,
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.error(
+        "Erreur lors de la récupération des coordonnées du site:",
+        error
+      );
+      return null;
+    }
+  }
+
   // Méthode pour récupérer les données historiques d'un site
   async fetchHistoricalData(params: {
     siteId: string;

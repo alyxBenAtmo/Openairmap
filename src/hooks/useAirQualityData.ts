@@ -241,16 +241,16 @@ export const useAirQualityData = ({
             });
 
             // Mettre à jour les appareils de mesure
-            if (measurementDevices.length > 0) {
-              setDevices((prevDevices) => {
-                // Filtrer les anciennes données de cette source
-                const filteredDevices = prevDevices.filter(
-                  (device) => device.source !== mappedSourceCode
-                );
-                // Ajouter les nouvelles données
-                return [...filteredDevices, ...measurementDevices];
-              });
-            }
+            // Toujours filtrer les anciennes données de cette source, même si le service retourne un tableau vide
+            // (par exemple, si NebuleAir ne supporte pas le polluant sélectionné)
+            setDevices((prevDevices) => {
+              // Filtrer les anciennes données de cette source
+              const filteredDevices = prevDevices.filter(
+                (device) => device.source !== mappedSourceCode
+              );
+              // Ajouter les nouvelles données (peut être un tableau vide)
+              return [...filteredDevices, ...measurementDevices];
+            });
 
             // Mettre à jour les signalements (uniquement pour SignalAir)
             if (mappedSourceCode === "signalair") {

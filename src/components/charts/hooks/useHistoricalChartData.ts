@@ -78,11 +78,14 @@ export const useHistoricalChartData = ({
     // Fusionner les données de modélisation avec les données mesurées
     const merged: Record<string, HistoricalDataPoint[]> = { ...data };
     
-    Object.entries(modelingData).forEach(([pollutant, points]) => {
-      merged[`${pollutant}_modeling`] = points;
-      console.log(`[useHistoricalChartData] Données de modélisation fusionnées pour ${pollutant}:`, {
-        pollutant,
-        modelingKey: `${pollutant}_modeling`,
+    Object.entries(modelingData).forEach(([key, points]) => {
+      // La clé peut être soit "pollutant" (ex: "pm25") soit déjà "pollutant_modeling" (ex: "pm25_modeling")
+      // Si elle se termine déjà par "_modeling", l'utiliser telle quelle, sinon ajouter "_modeling"
+      const modelingKey = key.endsWith("_modeling") ? key : `${key}_modeling`;
+      merged[modelingKey] = points;
+      console.log(`[useHistoricalChartData] Données de modélisation fusionnées:`, {
+        originalKey: key,
+        modelingKey,
         pointsCount: points.length,
         samplePoints: points.slice(0, 3),
       });
