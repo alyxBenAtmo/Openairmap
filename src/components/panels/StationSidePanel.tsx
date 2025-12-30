@@ -245,6 +245,12 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
       prevModelingStateRef.current.hasCoords !== !!coordsKey ||
       prevModelingStateRef.current.stationId !== selectedStation?.id;
 
+    // Si la station a changé, vider immédiatement les données de modélisation
+    if (prevModelingStateRef.current.stationId !== selectedStation?.id && prevModelingStateRef.current.stationId !== null) {
+      setModelingData({});
+      setLoadingModeling(false);
+    }
+
     if (showModeling && stationCoordinates && selectedStation && hasStateChanged) {
       prevModelingStateRef.current = {
         showModeling,

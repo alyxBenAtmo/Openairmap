@@ -422,6 +422,12 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
       currentState.hasCoords !== prevState.hasCoords ||
       currentState.stationId !== prevState.stationId;
     
+    // Si la station a changé, vider immédiatement les données de modélisation
+    if (currentState.stationId !== prevState.stationId && prevState.stationId !== null) {
+      setModelingData({});
+      setLoadingModeling(false);
+    }
+    
     if (!stateChanged) {
       return;
     }
@@ -443,8 +449,9 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
         stationCoordinates
       );
     } else if (!showModeling) {
-      // Si la modélisation est désactivée, vider les données
+      // Si la modélisation est désactivée, vider les données immédiatement
       setModelingData({});
+      setLoadingModeling(false);
     }
   }, [showModeling, stationCoordinates, selectedStation, state.chartControls.timeStep, state.chartControls.selectedPollutants, state.chartControls.timeRange, loadHistoricalData]);
 
@@ -1248,7 +1255,7 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                     stationInfo={selectedStation}
                     timeStep={state.chartControls.timeStep}
                     sensorTimeStep={sensorTimeStep}
-                    modelingData={modelingData}
+                    modelingData={showModeling && Object.keys(modelingData).length > 0 ? modelingData : undefined}
                   />
                 </div>
 
