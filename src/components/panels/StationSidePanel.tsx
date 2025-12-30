@@ -120,6 +120,11 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
         selectedStation: null,
       }));
       setInternalPanelSize("hidden");
+      // Réinitialiser les états de modélisation quand le panel est fermé
+      setShowModeling(false);
+      setModelingData({});
+      setLoadingModeling(false);
+      setStationCoordinates(null);
       return;
     }
 
@@ -166,6 +171,12 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
 
       // Réinitialiser la taille du panel
       setInternalPanelSize("normal");
+      
+      // Réinitialiser le toggle de modélisation et les données de modélisation
+      setShowModeling(false);
+      setModelingData({});
+      setLoadingModeling(false);
+      setStationCoordinates(null);
 
       // Charger les données historiques initiales si des polluants sont disponibles
       if (selectedPollutants.length > 0) {
@@ -511,14 +522,29 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
       if (isAddingPollutant && selectedStation && !prev.historicalData[pollutant]) {
         // Charger les données de manière asynchrone pour ne pas bloquer la mise à jour de l'état
         setTimeout(() => {
-          loadHistoricalData(
-            selectedStation,
-            [pollutant],
-            prev.chartControls.timeRange,
-            prev.chartControls.timeStep,
-            showModeling,
-            stationCoordinates
-          );
+          // Si la modélisation est activée, charger la modélisation pour TOUS les polluants sélectionnés
+          // Sinon, charger seulement les données historiques pour le nouveau polluant
+          if (showModeling && stationCoordinates) {
+            // Charger les données historiques ET la modélisation pour tous les polluants sélectionnés
+            loadHistoricalData(
+              selectedStation,
+              newSelectedPollutants, // Tous les polluants sélectionnés (y compris le nouveau)
+              prev.chartControls.timeRange,
+              prev.chartControls.timeStep,
+              true, // Charger la modélisation
+              stationCoordinates
+            );
+          } else {
+            // Charger seulement les données historiques pour le nouveau polluant
+            loadHistoricalData(
+              selectedStation,
+              [pollutant], // Seulement le nouveau polluant
+              prev.chartControls.timeRange,
+              prev.chartControls.timeStep,
+              false, // Ne pas charger la modélisation
+              stationCoordinates
+            );
+          }
         }, 0);
       }
 

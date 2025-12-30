@@ -285,6 +285,11 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
         selectedStation: null,
       }));
       setInternalPanelSize("hidden");
+      // Réinitialiser les états de modélisation quand le panel est fermé
+      setShowModeling(false);
+      setModelingData({});
+      setLoadingModeling(false);
+      setStationCoordinates(null);
       return;
     }
 
@@ -325,6 +330,12 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
       setInternalPanelSize("normal");
       setHasCorrectedData(false);
       setShowRawData(false); // Réinitialiser l'affichage des données brutes (désactivé par défaut)
+      
+      // Réinitialiser les états de modélisation AVANT le chargement des données
+      setShowModeling(false);
+      setModelingData({});
+      setStationCoordinates(null);
+      setLoadingModeling(false);
 
       // Charger le pas de temps par défaut du capteur
       if (selectedPollutants.length > 0) {
@@ -351,12 +362,6 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
           null
         );
       }
-      
-      // Réinitialiser les états de modélisation
-      setShowModeling(false);
-      setModelingData({});
-      setStationCoordinates(null);
-      setLoadingModeling(false);
     } else {
       // Si c'est la même station, juste mettre à jour isOpen et selectedStation sans réinitialiser les polluants
       setState((prev) => ({
@@ -459,6 +464,54 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
           ? prev.chartControls.selectedPollutants.filter((p) => p !== pollutant)
           : [...prev.chartControls.selectedPollutants, pollutant];
 
+      const isAddingPollutant = !prev.chartControls.selectedPollutants.includes(pollutant);
+      
+      // Recharger les données si le polluant n'était pas encore chargé et qu'on l'ajoute
+      if (isAddingPollutant && selectedStation && !prev.historicalData[pollutant]) {
+        // Charger les données de manière asynchrone pour ne pas bloquer la mise à jour de l'état
+        setTimeout(() => {
+          // Si la modélisation est activée, charger la modélisation pour TOUS les polluants sélectionnés
+          // Sinon, charger seulement les données historiques pour le nouveau polluant
+          if (showModeling && stationCoordinates && prev.chartControls.timeStep === "heure") {
+            // Charger les données historiques ET la modélisation pour tous les polluants sélectionnés
+            loadHistoricalData(
+              selectedStation,
+              newSelectedPollutants, // Tous les polluants sélectionnés (y compris le nouveau)
+              prev.chartControls.timeRange,
+              prev.chartControls.timeStep,
+              true, // Charger la modélisation
+              stationCoordinates
+            );
+          } else {
+            // Charger seulement les données historiques pour le nouveau polluant
+            const { startDate, endDate } = getDateRange(prev.chartControls.timeRange);
+            atmoMicroService
+              .fetchHistoricalData({
+                siteId: selectedStation.id,
+                pollutant,
+                timeStep: prev.chartControls.timeStep,
+                startDate,
+                endDate,
+              })
+              .then((data) => {
+                setState((current) => ({
+                  ...current,
+                  historicalData: {
+                    ...current.historicalData,
+                    [pollutant]: data,
+                  },
+                }));
+              })
+              .catch((error) => {
+                console.error(
+                  `Erreur lors du chargement des données pour ${pollutant}:`,
+                  error
+                );
+              });
+          }
+        }, 0);
+      }
+
       return {
         ...prev,
         chartControls: {
@@ -467,46 +520,6 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
         },
       };
     });
-
-    // Recharger les données si le polluant n'était pas encore chargé
-    // Utiliser setTimeout pour éviter les problèmes de closure avec state
-    setTimeout(() => {
-      if (selectedStation && !state.historicalData[pollutant]) {
-        const { startDate, endDate } = getDateRange(
-          state.chartControls.timeRange
-        );
-        const shouldLoadModeling = state.chartControls.timeStep === "heure" && showModeling;
-        atmoMicroService
-          .fetchHistoricalData({
-            siteId: selectedStation.id,
-            pollutant,
-            timeStep: state.chartControls.timeStep,
-            startDate,
-            endDate,
-          })
-          .then((data) => {
-            setState((prev) => ({
-              ...prev,
-              historicalData: {
-                ...prev.historicalData,
-                [pollutant]: data,
-              },
-            }));
-            
-            // Si la modélisation est activée, charger aussi les données de modélisation pour ce polluant
-            if (shouldLoadModeling && stationCoordinates) {
-              loadHistoricalData(
-                selectedStation,
-                [...state.chartControls.selectedPollutants, pollutant].filter((p, i, arr) => arr.indexOf(p) === i),
-                state.chartControls.timeRange,
-                state.chartControls.timeStep,
-                true,
-                stationCoordinates
-              );
-            }
-          });
-      }
-    }, 0);
   };
 
   const handleTimeRangeChange = (timeRange: TimeRange) => {
