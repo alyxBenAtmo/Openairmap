@@ -105,12 +105,30 @@ export const useSidePanels = ({ initialSelectedPollutant }: UseSidePanelsProps) 
     }
   };
 
+  // Logs pour debug
+  const setSelectedStationWithLog = (station: StationInfo | null) => {
+    console.log(`🔄 [useSidePanels] setSelectedStation appelé:`, {
+      stationId: station?.id,
+      stationSource: station?.source,
+      variablesCount: station ? Object.keys(station.variables || {}).length : 0,
+    });
+    setSelectedStation(station);
+  };
+
+  const setIsSidePanelOpenWithLog = (isOpen: boolean) => {
+    console.log(`🔄 [useSidePanels] setIsSidePanelOpen appelé:`, {
+      isOpen,
+      currentSelectedStation: selectedStation?.id,
+    });
+    setIsSidePanelOpen(isOpen);
+  };
+
   return {
     // États
     selectedStation,
-    setSelectedStation,
+    setSelectedStation: setSelectedStationWithLog,
     isSidePanelOpen,
-    setIsSidePanelOpen,
+    setIsSidePanelOpen: setIsSidePanelOpenWithLog,
     panelSize,
     setPanelSize,
     comparisonState,

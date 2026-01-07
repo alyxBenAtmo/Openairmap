@@ -81,6 +81,15 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
   onComparisonModeToggle,
   isComparisonMode = false,
 }) => {
+  console.log(`🎨 [NebuleAirSidePanel] Rendu du composant:`, {
+    isOpen,
+    selectedStationId: selectedStation?.id,
+    selectedStationSource: selectedStation?.source,
+    initialPollutant,
+    externalPanelSize,
+    timestamp: new Date().toISOString(),
+  });
+  
   const initialTimeStep = getInitialTimeStepForPollutants(
     initialPollutant ? [initialPollutant] : [],
     "heure"

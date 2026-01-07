@@ -476,17 +476,21 @@ export interface NebuleAirSensor {
   PM1: string;
   PM25: string;
   PM10: string;
+  NO2?: string;
   NOISE_qh?: string;
   PM1_qh: string;
   PM25_qh: string;
   PM10_qh: string;
+  NO2_qh?: string;
   NOISE_h?: string;
   PM1_h: string;
   PM25_h: string;
   PM10_h: string;
+  NO2_h?: string;
   PM1_d: string | null;
   PM25_d: string | null;
   PM10_d: string | null;
+  NO2_d?: string | null;
   NOISE_d?: string | null;
   TEMP: string;
   HUM: string;
@@ -515,9 +519,10 @@ export const NEBULEAIR_POLLUTANT_MAPPING: Record<string, string> = {
   PM1: "pm1",
   PM25: "pm25",
   PM10: "pm10",
+  NO2: "no2",
   NOISE: "bruit",
-  // Note: NebuleAir fournit les particules fines (PM1, PM2.5, PM10) et le bruit (NOISE)
-  // Les autres polluants (NO2, O3, SO2) ne sont pas disponibles
+  // Note: NebuleAir fournit les particules fines (PM1, PM2.5, PM10), le dioxyde d'azote (NO2) et le bruit (NOISE)
+  // Les autres polluants (O3, SO2) ne sont pas disponibles
 };
 
 // Mapping des pas de temps NebuleAir vers nos codes

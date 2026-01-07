@@ -35,6 +35,8 @@
   align-items: center;
   justify-content: center;
   background: transparent;
+  pointer-events: auto !important;
+  cursor: pointer;
 }
 
 .custom-marker-container img {

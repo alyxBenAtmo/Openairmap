@@ -276,6 +276,33 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   // Refs pour empêcher les clics multiples rapides
   const isProcessingClickRef = useRef(false);
   const lastClickedDeviceIdRef = useRef<string | null>(null);
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const clickStartTimeRef = useRef<number | null>(null);
+  
+  // Réinitialiser le flag après un délai maximum pour éviter qu'il reste bloqué
+  useEffect(() => {
+    const checkAndReset = setInterval(() => {
+      if (isProcessingClickRef.current && clickStartTimeRef.current) {
+        const elapsed = Date.now() - clickStartTimeRef.current;
+        // Si le flag est bloqué depuis plus de 3 secondes, le réinitialiser
+        if (elapsed > 3000) {
+          console.warn('⚠️ [Map] Flag de traitement bloqué depuis trop longtemps, réinitialisation forcée', {
+            elapsed: `${elapsed}ms`,
+            lastClicked: lastClickedDeviceIdRef.current,
+          });
+          isProcessingClickRef.current = false;
+          lastClickedDeviceIdRef.current = null;
+          clickStartTimeRef.current = null;
+          if (clickTimeoutRef.current) {
+            clearTimeout(clickTimeoutRef.current);
+            clickTimeoutRef.current = null;
+          }
+        }
+      }
+    }, 500); // Vérifier toutes les 500ms pour une réactivité plus rapide
+    
+    return () => clearInterval(checkAndReset);
+  }, []);
 
 
   // Effet pour fermer tous les side panels quand le mode historique est activé
@@ -497,10 +524,29 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   };
 
   const handleMarkerClick = useCallback(async (device: MeasurementDevice) => {
-    // Empêcher les clics multiples rapides sur le même device
+    console.log(`🖱️ [Map] Clic sur capteur: ${device.id} (source: ${device.source})`, {
+      isProcessing: isProcessingClickRef.current,
+      lastClicked: lastClickedDeviceIdRef.current,
+    });
+    
+    // Empêcher uniquement les clics multiples rapides sur le même device
+    // Permettre les clics sur d'autres devices même si un traitement est en cours
     if (isProcessingClickRef.current && lastClickedDeviceIdRef.current === device.id) {
-      console.log('Clic ignoré : traitement en cours pour ce device');
+      console.log('⚠️ [Map] Clic ignoré : traitement en cours pour ce device');
       return;
+    }
+    
+    // Si on clique sur un autre device, réinitialiser le flag immédiatement
+    if (isProcessingClickRef.current && lastClickedDeviceIdRef.current !== device.id) {
+      console.log('🔄 [Map] Nouveau device cliqué, réinitialisation du flag pour permettre le traitement');
+      // Nettoyer le timeout précédent
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = null;
+      }
+      isProcessingClickRef.current = false;
+      lastClickedDeviceIdRef.current = null;
+      clickStartTimeRef.current = null;
     }
 
     // Masquer le tooltip immédiatement lors d'un clic
@@ -508,17 +554,21 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
 
     // Désactiver les clics sur les marqueurs en mode historique
     if (isHistoricalModeActive) {
+      console.log('⚠️ [Map] Clic ignoré : mode historique actif');
       return;
     }
 
     // Exclure SignalAir
     if (device.source === "signalair") {
+      console.log('⚠️ [Map] Clic ignoré : SignalAir non géré ici');
       return;
     }
 
     // Marquer comme en cours de traitement
     isProcessingClickRef.current = true;
     lastClickedDeviceIdRef.current = device.id;
+    clickStartTimeRef.current = Date.now();
+    console.log(`🔄 [Map] Début traitement clic pour ${device.id}`);
 
     try {
       // Gérer PurpleAir avec side panel
@@ -599,6 +649,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
         device.source !== "atmoMicro" &&
         device.source !== "nebuleair"
       ) {
+        console.log(`⚠️ [Map] Clic ignoré : source ${device.source} non supportée en mode normal`);
         return;
       }
 
@@ -611,24 +662,32 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       let lastSeenSec: number | undefined;
 
       try {
+        console.log(`📡 [Map] Récupération des informations pour ${device.id} (source: ${device.source})`);
         // Récupérer les informations détaillées selon la source
         if (device.source === "atmoRef") {
           const atmoRefService = new AtmoRefService();
           variables = await atmoRefService.fetchStationVariables(device.id);
+          console.log(`✅ [Map] Variables AtmoRef récupérées:`, Object.keys(variables));
         } else if (device.source === "atmoMicro") {
           const atmoMicroService = new AtmoMicroService();
           const siteInfo = await atmoMicroService.fetchSiteVariables(device.id);
           variables = siteInfo.variables;
           sensorModel = siteInfo.sensorModel;
+          console.log(`✅ [Map] Variables AtmoMicro récupérées:`, Object.keys(variables));
         } else if (device.source === "nebuleair") {
+          console.log(`🔄 [Map] Appel fetchSiteInfo pour ${device.id}`);
           const nebuleAirService = new NebuleAirService();
           const siteInfo = await nebuleAirService.fetchSiteInfo(device.id);
           variables = siteInfo.variables;
           lastSeenSec = siteInfo.lastSeenSec;
+          console.log(`✅ [Map] Variables NebuleAir récupérées:`, {
+            variables: Object.keys(variables),
+            lastSeenSec,
+          });
         }
       } catch (error) {
         console.error(
-          "Erreur lors de la récupération des informations de la station:",
+          `❌ [Map] Erreur lors de la récupération des informations de la station ${device.id}:`,
           error
         );
         // Continuer avec des variables vides - le sidepanel s'ouvrira quand même
@@ -646,22 +705,55 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
         ...(lastSeenSec !== undefined && { lastSeenSec }),
       };
 
+      console.log(`📋 [Map] Création stationInfo:`, {
+        id: stationInfo.id,
+        source: stationInfo.source,
+        variablesCount: Object.keys(stationInfo.variables).length,
+        hasSensorModel: !!stationInfo.sensorModel,
+        hasLastSeenSec: lastSeenSec !== undefined,
+      });
+
+      console.log(`🔄 [Map] Appel setSelectedStation pour ${device.id}`);
       sidePanels.setSelectedStation(stationInfo);
+      
+      console.log(`🔄 [Map] Appel setIsSidePanelOpen(true) pour ${device.id}`);
       sidePanels.setIsSidePanelOpen(true);
+      
+      console.log(`📊 [Map] État après ouverture:`, {
+        isSidePanelOpen: sidePanels.isSidePanelOpen,
+        panelSize: sidePanels.panelSize,
+        selectedStationId: sidePanels.selectedStation?.id,
+        selectedStationSource: sidePanels.selectedStation?.source,
+      });
       
       // Si le panneau est caché, le rouvrir automatiquement
       if (sidePanels.panelSize === "hidden") {
+        console.log(`🔄 [Map] Panel caché, réouverture automatique`);
         sidePanels.setPanelSize("normal");
       }
+      
+      console.log(`✅ [Map] Sidepanel ouvert pour ${device.id}`);
+      
+    } catch (error) {
+      console.error(`❌ [Map] Erreur lors du traitement du clic pour ${device.id}:`, error);
+      // Même en cas d'erreur, réinitialiser le flag pour permettre de nouveaux clics
     } finally {
+      // Nettoyer le timeout précédent s'il existe
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+      }
+      
       // Réinitialiser le flag après un court délai pour permettre les clics sur d'autres devices
-      setTimeout(() => {
+      clickTimeoutRef.current = setTimeout(() => {
+        console.log(`🔄 [Map] Réinitialisation flag de traitement pour ${device.id}`);
         isProcessingClickRef.current = false;
         // Ne réinitialiser lastClickedDeviceIdRef que si c'est toujours le même device
         if (lastClickedDeviceIdRef.current === device.id) {
           lastClickedDeviceIdRef.current = null;
         }
-      }, 500); // Délai de 500ms pour éviter les clics multiples rapides
+        clickStartTimeRef.current = null;
+        clickTimeoutRef.current = null;
+      }, 300); // Délai réduit à 300ms pour une meilleure réactivité
     }
   }, [isHistoricalModeActive, hideTooltip, sidePanels, handleAddStationToComparison]);
 
@@ -739,9 +831,24 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
         )}
 
       {/* Side Panel - NebuleAir */}
-      {!sidePanels.comparisonState.isComparisonMode &&
-        sidePanels.selectedStation?.source === "nebuleair" &&
-        sidePanels.panelSize !== "hidden" && (
+      {(() => {
+        const shouldShowNebuleAir = !sidePanels.comparisonState.isComparisonMode &&
+          sidePanels.selectedStation?.source === "nebuleair" &&
+          sidePanels.panelSize !== "hidden";
+        
+        if (sidePanels.selectedStation?.source === "nebuleair") {
+          console.log(`🔍 [Map] Conditions affichage NebuleAir:`, {
+            shouldShow: shouldShowNebuleAir,
+            isComparisonMode: sidePanels.comparisonState.isComparisonMode,
+            source: sidePanels.selectedStation?.source,
+            panelSize: sidePanels.panelSize,
+            isSidePanelOpen: sidePanels.isSidePanelOpen,
+            hasSelectedStation: !!sidePanels.selectedStation,
+          });
+        }
+        
+        return shouldShowNebuleAir;
+      })() && (
           <NebuleAirSidePanel
             isOpen={sidePanels.isSidePanelOpen}
             selectedStation={sidePanels.selectedStation}
@@ -917,7 +1024,12 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
                     position={[device.latitude, device.longitude]}
                     icon={createCustomIconWrapper(device)}
                     eventHandlers={{
-                      click: () => {
+                      click: (e: L.LeafletMouseEvent) => {
+                        console.log(`🖱️ [AirQualityMap] Clic détecté sur marqueur (cluster): ${device.id} (source: ${device.source})`, {
+                          device,
+                          event: e,
+                          timestamp: new Date().toISOString(),
+                        });
                         hideTooltip(true);
                         handleMarkerClick(device);
                       },
@@ -962,7 +1074,12 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
                   position={[device.latitude, device.longitude]}
                   icon={createCustomIconWrapper(device)}
                   eventHandlers={{
-                    click: () => {
+                    click: (e: L.LeafletMouseEvent) => {
+                      console.log(`🖱️ [AirQualityMap] Clic détecté sur marqueur (simple): ${device.id} (source: ${device.source})`, {
+                        device,
+                        event: e,
+                        timestamp: new Date().toISOString(),
+                      });
                       hideTooltip(true);
                       handleMarkerClick(device);
                     },
