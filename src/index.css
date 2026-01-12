@@ -18,24 +18,12 @@
 .custom-marker-div {
   background: transparent !important;
   border: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
-}
-
-/* Limiter la taille de l'élément Leaflet wrapper pour les marqueurs default */
-.custom-marker-div:has(.marker-default) {
-  width: 24px !important;
-  height: 24px !important;
-  max-width: 24px !important;
-  max-height: 24px !important;
 }
 
 /* Masquer complètement les marqueurs Leaflet par défaut */
 .leaflet-marker-icon {
   background: transparent !important;
   border: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
 }
 
 /* S'assurer que nos marqueurs personnalisés sont bien visibles */
@@ -49,14 +37,6 @@
   background: transparent;
   pointer-events: auto !important;
   cursor: pointer;
-}
-
-/* Marqueurs "default" plus petits - taille réduite pour correspondre à l'image visible */
-.custom-marker-container.marker-default {
-  width: 24px !important;
-  height: 24px !important;
-  max-width: 24px !important;
-  max-height: 24px !important;
 }
 
 .custom-marker-container img {

@@ -85,25 +85,10 @@ export const createCustomIcon = (
     hasValidValue && device.qualityLevel ? device.qualityLevel : "default";
   const markerPath = getMarkerPath(device.source, qualityLevel);
 
-  // Déterminer la taille du marqueur selon le niveau de qualité
-  // Les marqueurs "default" sont plus petits visuellement, donc on réduit leur zone de clic
-  const isDefaultMarker = qualityLevel === "default";
-  const markerSize = isDefaultMarker ? 24 : 32;
-
   // Créer un élément HTML personnalisé pour le marqueur
   const div = document.createElement("div");
-  div.className = `custom-marker-container ${device.source} ${isDefaultMarker ? "marker-default" : ""}`;
-  // Définir la taille du conteneur pour correspondre exactement à l'image
-  // Utiliser setProperty avec !important pour forcer la taille
-  div.style.setProperty("width", `${markerSize}px`, "important");
-  div.style.setProperty("height", `${markerSize}px`, "important");
-  div.style.setProperty("max-width", `${markerSize}px`, "important");
-  div.style.setProperty("max-height", `${markerSize}px`, "important");
-  div.style.position = "relative";
-  div.style.display = "flex";
-  div.style.alignItems = "center";
-  div.style.justifyContent = "center";
-  div.style.background = "transparent";
+  div.className = `custom-marker-container ${device.source}`;
+  // S'assurer que le conteneur peut recevoir les clics
   div.style.pointerEvents = "auto";
   div.style.cursor = "pointer";
 
@@ -251,8 +236,8 @@ export const createCustomIcon = (
   return L.divIcon({
     html: div.outerHTML,
     className: "custom-marker-div",
-    iconSize: [markerSize, markerSize],
-    iconAnchor: [0, markerSize],
+    iconSize: [32, 32],
+    iconAnchor: [0, 32],
   });
 };
 
