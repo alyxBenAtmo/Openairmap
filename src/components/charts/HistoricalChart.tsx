@@ -48,7 +48,9 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
 
   const useSolidNebuleAirLines =
     featureFlags.solidLineNebuleAir &&
-    (source?.toLowerCase() === "nebuleair");
+    (source?.toLowerCase() === "nebuleair" ||
+      (source === "comparison" &&
+        stations.some((station) => station.source === "nebuleair")));
 
   // Créer une clé stable basée sur les IDs des stations pour éviter les recréations inutiles
   const prevStationsKeyRef = useRef<string>('');

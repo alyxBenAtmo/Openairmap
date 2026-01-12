@@ -242,7 +242,7 @@ export const generateSeriesConfigs = (
         }
       } else {
         // Pour les autres sources, déterminer le style de ligne selon la source
-        // NebuleAir : trait discontinu pour mettre en valeur les valeurs corrigées d'AtmoMicro
+        // NebuleAir : dépend de useSolidNebuleAirLines (feature flag SOLID_LINE_NEBULEAIR)
         // AtmoRef et autres : trait plein
         const isNebuleAir = station.source === "nebuleair";
         configs.push({
@@ -250,7 +250,7 @@ export const generateSeriesConfigs = (
           name: `${station.name} - ${pollutantName}`,
           color: stationColor,
           strokeWidth: 2,
-          strokeDasharray: isNebuleAir ? "3 3" : "0",
+          strokeDasharray: isNebuleAir && !useSolidNebuleAirLines ? "3 3" : "0",
           yAxisId: "left" as const,
           connectNulls: shouldConnectNulls,
         });
