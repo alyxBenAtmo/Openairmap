@@ -137,6 +137,7 @@ export class NebuleAirService extends BaseDataService {
           qualityLevel,
         } as MeasurementDevice & { qualityLevel: string });
       }
+      }
 
       return devices;
     } catch (error) {
