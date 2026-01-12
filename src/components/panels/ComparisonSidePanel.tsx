@@ -22,7 +22,7 @@ interface ComparisonSidePanelProps {
   onHidden?: () => void;
   onSizeChange?: (size: "normal" | "fullscreen" | "hidden") => void;
   onRemoveStation: (stationId: string) => void;
-  onComparisonModeToggle: () => void;
+  onComparisonModeToggle: (pollutantToPreserve?: string) => void;
   onLoadComparisonData: (
     stations: StationInfo[],
     pollutant: string,
@@ -52,6 +52,7 @@ const ComparisonSidePanel: React.FC<ComparisonSidePanelProps> = ({
   const [showRawData, setShowRawData] = useState(false);
   const [isAnimatingOut, setIsAnimatingOut] = useState(false);
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasInitializedPollutant = useRef(false);
 
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
@@ -121,17 +122,43 @@ const ComparisonSidePanel: React.FC<ComparisonSidePanelProps> = ({
       // Déterminer quels polluants sont disponibles dans toutes les stations
       const availablePollutants = getAvailablePollutants();
 
-      // Sélectionner le polluant actuel s'il est disponible, sinon le premier disponible
-      const selectedPollutant = availablePollutants.includes(
+      // Vérifier si le polluant actuel est disponible
+      const isCurrentPollutantAvailable = availablePollutants.includes(
         comparisonState.selectedPollutant
-      )
-        ? comparisonState.selectedPollutant
-        : availablePollutants.length > 0
-        ? availablePollutants[0]
-        : "";
+      );
 
-      // Charger les données si un polluant est disponible
-      if (selectedPollutant) {
+      // Sélectionner le polluant : préserver le polluant actuel s'il est disponible,
+      // sinon utiliser le premier disponible seulement lors de la première initialisation
+      let selectedPollutant = comparisonState.selectedPollutant;
+      
+      if (!isCurrentPollutantAvailable) {
+        // Le polluant actuel n'est pas disponible
+        // On le change seulement si c'est la première initialisation (panel vient de s'ouvrir)
+        // ou si on n'a pas encore initialisé le polluant
+        if (!hasInitializedPollutant.current && availablePollutants.length > 0) {
+          selectedPollutant = availablePollutants[0];
+          hasInitializedPollutant.current = true;
+        } else if (hasInitializedPollutant.current) {
+          // Déjà initialisé mais le polluant n'est plus disponible (station ajoutée qui ne le supporte pas)
+          // Dans ce cas, on doit changer pour un polluant disponible
+          if (availablePollutants.length > 0) {
+            selectedPollutant = availablePollutants[0];
+          }
+        }
+      } else {
+        // Le polluant actuel est disponible, on le garde
+        hasInitializedPollutant.current = true;
+      }
+
+      // Vérifier si toutes les stations actuelles ont des données pour le polluant sélectionné
+      const pollutantData = comparisonState.comparisonData[selectedPollutant] || {};
+      const stationsWithData = Object.keys(pollutantData);
+      const allStationsHaveData = comparisonState.comparedStations.every(
+        (station) => stationsWithData.includes(station.id)
+      );
+
+      // Charger les données si on n'a pas de données pour toutes les stations
+      if (selectedPollutant && !allStationsHaveData) {
         onLoadComparisonData(
           comparisonState.comparedStations,
           selectedPollutant,
@@ -147,6 +174,10 @@ const ComparisonSidePanel: React.FC<ComparisonSidePanelProps> = ({
       setShowRawData(false);
     } else {
       setInternalPanelSize("hidden");
+      // Réinitialiser le flag quand le panel se ferme
+      if (!isOpen) {
+        hasInitializedPollutant.current = false;
+      }
     }
   }, [
     isOpen,

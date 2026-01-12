@@ -88,6 +88,9 @@ export const createCustomIcon = (
   // Créer un élément HTML personnalisé pour le marqueur
   const div = document.createElement("div");
   div.className = `custom-marker-container ${device.source}`;
+  // S'assurer que le conteneur peut recevoir les clics
+  div.style.pointerEvents = "auto";
+  div.style.cursor = "pointer";
 
   // Image de base du marqueur
   const img = document.createElement("img");

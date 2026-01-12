@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { ModelingLayerType, modelingLayers } from "../../constants/mapLayers";
 import { pollutants } from "../../constants/pollutants";
 import { isModelingAvailable } from "../../services/ModelingLayerService";
@@ -53,11 +53,27 @@ const ModelingLayerControl: React.FC<ModelingLayerControlProps> = ({
   const isDisabled = !isModelingAvailable(selectedTimeStep);
 
   // Désactiver automatiquement si le pas de temps ne permet pas les modélisations
+  // Utiliser useRef pour éviter les appels multiples et les boucles infinies
+  const prevIsDisabledRef = useRef(isDisabled);
+  const hasCalledRef = useRef(false);
+  
   useEffect(() => {
-    if (isDisabled && currentModelingLayer) {
+    // Ne désactiver que si isDisabled vient de passer de false à true ET qu'on n'a pas déjà appelé
+    if (isDisabled && !prevIsDisabledRef.current && currentModelingLayer && !hasCalledRef.current) {
+      hasCalledRef.current = true;
       onModelingLayerChange(null);
+      // Réinitialiser le flag après un court délai
+      setTimeout(() => {
+        hasCalledRef.current = false;
+      }, 100);
     }
-  }, [isDisabled, currentModelingLayer, onModelingLayerChange]);
+    prevIsDisabledRef.current = isDisabled;
+    // Réinitialiser le flag si isDisabled redevient false
+    if (!isDisabled) {
+      hasCalledRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDisabled, currentModelingLayer]);
 
   return (
     <DropdownMenu>
