@@ -1,6 +1,6 @@
 /**
  * Utilitaires pour la gestion des dates UTC/Locale
- * 
+ *
  * Règle principale :
  * - Les APIs consomment et retournent des dates en UTC
  * - L'utilisateur voit toujours les dates/heures en locale
@@ -9,16 +9,16 @@
 /**
  * Crée une date UTC à partir d'une chaîne de date locale (format YYYY-MM-DD)
  * Cette fonction garantit que la date est créée en UTC, pas en locale
- * 
+ *
  * @param dateString - Chaîne de date au format YYYY-MM-DD (sans heure)
  * @param isEndDate - Si true, définit l'heure à 23:59:59.999, sinon 00:00:00.000
  * @returns Date en UTC au format ISO string
- * 
+ *
  * @example
- * createUTCDateFromLocalDateString("2025-01-15", false) 
+ * createUTCDateFromLocalDateString("2025-01-15", false)
  * // => "2025-01-15T00:00:00.000Z"
- * 
- * createUTCDateFromLocalDateString("2025-01-15", true) 
+ *
+ * createUTCDateFromLocalDateString("2025-01-15", true)
  * // => "2025-01-15T23:59:59.999Z"
  */
 export const createUTCDateFromLocalDateString = (
@@ -26,25 +26,29 @@ export const createUTCDateFromLocalDateString = (
   isEndDate: boolean = false
 ): string => {
   // Parser la date locale (YYYY-MM-DD)
-  const [year, month, day] = dateString.split('-').map(Number);
-  
+  const [year, month, day] = dateString.split("-").map(Number);
+
   if (isNaN(year) || isNaN(month) || isNaN(day)) {
-    throw new Error(`Format de date invalide: ${dateString}. Format attendu: YYYY-MM-DD`);
+    throw new Error(
+      `Format de date invalide: ${dateString}. Format attendu: YYYY-MM-DD`
+    );
   }
 
   // Créer la date en UTC explicitement
-  const date = new Date(Date.UTC(
-    year,
-    month - 1, // Les mois sont 0-indexés en JavaScript
-    day,
-    isEndDate ? 23 : 0,
-    isEndDate ? 59 : 0,
-    isEndDate ? 59 : 0,
-    isEndDate ? 999 : 0
-  ));
+  const date = new Date(
+    Date.UTC(
+      year,
+      month - 1, // Les mois sont 0-indexés en JavaScript
+      day,
+      isEndDate ? 23 : 0,
+      isEndDate ? 59 : 0,
+      isEndDate ? 59 : 0,
+      isEndDate ? 999 : 0
+    )
+  );
 
   const result = date.toISOString();
-  
+
   console.log(`🕐 [dateUtils] createUTCDateFromLocalDateString:`, {
     input: dateString,
     isEndDate,
@@ -59,7 +63,7 @@ export const createUTCDateFromLocalDateString = (
 /**
  * Formate une date pour le mode historique (requêtes API)
  * Gère les dates avec ou sans composante horaire
- * 
+ *
  * @param dateString - Date au format ISO ou YYYY-MM-DD
  * @param isEndDate - Si true, définit l'heure à 23:59:59.999 UTC, sinon 00:00:00.000 UTC
  * @returns Date en UTC au format ISO string
@@ -77,7 +81,7 @@ export const formatDateForHistoricalMode = (
     if (isNaN(date.getTime())) {
       throw new Error(`Date invalide: ${dateString}`);
     }
-    
+
     // CORRECTION : Forcer l'heure de fin à 23:59:59.999 même si la date contient déjà une heure
     // et forcer l'heure de début à 00:00:00.000
     if (isEndDate) {
@@ -86,7 +90,7 @@ export const formatDateForHistoricalMode = (
       // Pour la date de début, s'assurer qu'elle est à 00:00:00
       date.setUTCHours(0, 0, 0, 0);
     }
-    
+
     const result = date.toISOString();
     console.log(`🕐 [dateUtils] formatDateForHistoricalMode (avec heure):`, {
       input: dateString,
@@ -104,7 +108,7 @@ export const formatDateForHistoricalMode = (
 
 /**
  * Formate un timestamp pour l'affichage à l'utilisateur (en locale)
- * 
+ *
  * @param timestamp - Timestamp en format ISO string ou nombre (millisecondes)
  * @param isMobile - Si true, utilise un format plus court pour mobile
  * @returns Date formatée en locale française
@@ -114,25 +118,25 @@ export const formatTimestampForDisplay = (
   isMobile: boolean = false
 ): string => {
   let dateMs: number;
-  
+
   if (typeof timestamp === "number") {
     dateMs = timestamp;
   } else {
     // Parser le timestamp (supposé être en UTC)
     dateMs = new Date(timestamp).getTime();
   }
-  
+
   if (isNaN(dateMs)) {
     return "--";
   }
-  
+
   const date = new Date(dateMs);
-  
+
   // Format plus court sur mobile
   if (isMobile) {
     return `${date.getDate()}/${date.getMonth() + 1} ${date.getHours()}h`;
   }
-  
+
   // Format complet en locale française
   return date.toLocaleString("fr-FR", {
     month: "short",
@@ -145,7 +149,7 @@ export const formatTimestampForDisplay = (
 /**
  * Normalise un timestamp en millisecondes UTC
  * Gère différents formats de timestamps (ISO avec/sans Z, avec/sans offset, etc.)
- * 
+ *
  * @param ts - Timestamp en format string ou number
  * @returns Nombre de millisecondes depuis epoch Unix (UTC)
  */
@@ -153,7 +157,7 @@ export const normalizeTimestamp = (ts: string | number): number => {
   if (typeof ts === "number") {
     return ts;
   }
-  
+
   if (typeof ts === "string" && ts.includes("T")) {
     // Format ISO : peut contenir Z, +00:00, -05:00, etc.
     if (ts.match(/[+-]\d{2}:\d{2}$/)) {
@@ -167,14 +171,14 @@ export const normalizeTimestamp = (ts: string | number): number => {
       return new Date(ts + "Z").getTime();
     }
   }
-  
+
   return new Date(ts).getTime();
 };
 
 /**
  * Formate une date pour l'affichage dans un tooltip
  * Affiche la date et l'heure en locale française avec format relatif si récent
- * 
+ *
  * @param timestamp - Timestamp en format ISO string
  * @returns Date formatée avec indication relative si récent
  */
@@ -194,30 +198,29 @@ export const formatTooltipDate = (timestamp: string): string => {
 
     // Si moins de 1 heure, afficher en minutes
     if (diffHours < 1) {
-      return `Il y a ${diffMinutes} minute${diffMinutes > 1 ? 's' : ''}`;
+      return `Il y a ${diffMinutes} minute${diffMinutes > 1 ? "s" : ""}`;
     }
 
     // Si moins de 24 heures, afficher en heures
     if (diffDays < 1) {
-      return `Il y a ${diffHours} heure${diffHours > 1 ? 's' : ''}`;
+      return `Il y a ${diffHours} heure${diffHours > 1 ? "s" : ""}`;
     }
 
     // Si moins de 7 jours, afficher en jours
     if (diffDays < 7) {
-      return `Il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
+      return `Il y a ${diffDays} jour${diffDays > 1 ? "s" : ""}`;
     }
 
     // Sinon, afficher la date complète
-    return date.toLocaleString('fr-FR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    return date.toLocaleString("fr-FR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   } catch (error) {
-    console.error('Erreur lors du formatage de la date:', error);
-    return 'Date inconnue';
+    console.error("Erreur lors du formatage de la date:", error);
+    return "Date inconnue";
   }
 };
-

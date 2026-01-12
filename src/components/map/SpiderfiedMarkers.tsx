@@ -109,11 +109,6 @@ const SpiderfiedMarkers: React.FC<SpiderfiedMarkersProps> = ({
           icon={createCustomIcon(device)}
           eventHandlers={{
             click: (e: L.LeafletMouseEvent) => {
-              console.log(`🖱️ [SpiderfiedMarkers] Clic détecté sur marqueur: ${device.id} (source: ${device.source})`, {
-                device,
-                event: e,
-                timestamp: new Date().toISOString(),
-              });
               handleMarkerClick(device);
             },
           }}

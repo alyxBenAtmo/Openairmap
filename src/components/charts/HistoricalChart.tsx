@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 import { HistoricalDataPoint, StationInfo } from "../../types";
 import {
   exportAmChartsAsPNG,
@@ -36,7 +42,6 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   sensorTimeStep,
   modelingData,
 }) => {
-
   // État pour détecter le mode paysage sur mobile
   const [isLandscapeMobile, setIsLandscapeMobile] = useState(false);
   // État pour détecter si on est sur mobile
@@ -55,16 +60,19 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
         stations.some((station) => station.source === "nebuleair")));
 
   // Créer une clé stable basée sur les IDs des stations pour éviter les recréations inutiles
-  const prevStationsKeyRef = useRef<string>('');
+  const prevStationsKeyRef = useRef<string>("");
   const stationsKey = useMemo(() => {
     if (stations.length === 0) {
-      const emptyKey = '';
+      const emptyKey = "";
       if (prevStationsKeyRef.current !== emptyKey) {
         prevStationsKeyRef.current = emptyKey;
       }
       return prevStationsKeyRef.current;
     }
-    const newKey = stations.map(s => s.id).sort().join(',');
+    const newKey = stations
+      .map((s) => s.id)
+      .sort()
+      .join(",");
     if (newKey !== prevStationsKeyRef.current) {
       prevStationsKeyRef.current = newKey;
     }
@@ -94,17 +102,6 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
       window.removeEventListener("orientationchange", checkOrientation);
     };
   }, []);
-
-  // Log pour déboguer
-  useEffect(() => {
-    console.log(`[HistoricalChart] Props reçues:`, {
-      dataKeys: Object.keys(data),
-      dataLength: Object.keys(data).length,
-      selectedPollutants,
-      modelingDataKeys: modelingData ? Object.keys(modelingData) : [],
-      modelingDataLength: modelingData ? Object.keys(modelingData).length : 0,
-    });
-  }, [data, selectedPollutants, modelingData]);
 
   // Utiliser le hook pour gérer les données transformées
   const {
@@ -167,7 +164,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
         stations,
         stationInfo
       );
-      
+
       await exportAmChartsAsPNG(
         containerRef,
         filename,
@@ -183,7 +180,13 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
       alert("Erreur lors de l'exportation en PNG");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartData.length, source, selectedPollutants, stationsKey, stationInfoKey]);
+  }, [
+    chartData.length,
+    source,
+    selectedPollutants,
+    stationsKey,
+    stationInfoKey,
+  ]);
 
   const handleExportCSV = useCallback(() => {
     if (!chartData.length) return;

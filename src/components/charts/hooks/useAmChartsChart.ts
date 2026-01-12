@@ -8,7 +8,11 @@ import * as am5xy from "@amcharts/amcharts5/xy";
 import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
 import { QUALITY_COLORS } from "../../../constants/qualityColors";
 import { SeriesConfig } from "../utils/historicalChartConfig";
-import { createLineSeries, addThresholdZones, setupLegend } from "../utils/amChartsHelpers";
+import {
+  createLineSeries,
+  addThresholdZones,
+  setupLegend,
+} from "../utils/amChartsHelpers";
 
 interface UseAmChartsChartProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
@@ -43,7 +47,9 @@ export const useAmChartsChart = ({
 }: UseAmChartsChartProps) => {
   const chartRef = useRef<am5xy.XYChart | null>(null);
   const rootRef = useRef<am5.Root | null>(null);
-  const xAxisDateFormatRef = useRef<{ format: (date: Date) => string } | null>(null);
+  const xAxisDateFormatRef = useRef<{ format: (date: Date) => string } | null>(
+    null
+  );
 
   // Mettre à jour la ref du formatter quand xAxisDateFormat change
   useEffect(() => {
@@ -93,7 +99,10 @@ export const useAmChartsChart = ({
     // Créer l'axe X (dates)
     // IMPORTANT: baseInterval doit correspondre à la granularité des données
     // pour que les gaps fonctionnent correctement avec connect: false
-    let baseInterval: { timeUnit: "minute" | "hour" | "day" | "second"; count: number };
+    let baseInterval: {
+      timeUnit: "minute" | "hour" | "day" | "second";
+      count: number;
+    };
     if (timeStep === "quartHeure") {
       baseInterval = { timeUnit: "minute", count: 15 };
     } else if (timeStep === "heure") {
@@ -104,7 +113,7 @@ export const useAmChartsChart = ({
       // Par défaut, utiliser la seconde pour les données non agrégées
       baseInterval = { timeUnit: "second", count: 1 };
     }
-    
+
     const xAxis = chart.xAxes.push(
       am5xy.DateAxis.new(root, {
         baseInterval: baseInterval,
@@ -125,18 +134,23 @@ export const useAmChartsChart = ({
     });
 
     // Formatter personnalisé pour l'axe X
-    xAxis.get("renderer").labels.template.adapters.add("text", (text, target) => {
-      if (target.dataItem) {
-        const value = (target.dataItem as any).get("value");
-        if (value) {
-          const date = typeof value === "number" ? new Date(value) : new Date(String(value));
-          if (!isNaN(date.getTime()) && xAxisDateFormatRef.current) {
-            return xAxisDateFormatRef.current.format(date);
+    xAxis
+      .get("renderer")
+      .labels.template.adapters.add("text", (text, target) => {
+        if (target.dataItem) {
+          const value = (target.dataItem as any).get("value");
+          if (value) {
+            const date =
+              typeof value === "number"
+                ? new Date(value)
+                : new Date(String(value));
+            if (!isNaN(date.getTime()) && xAxisDateFormatRef.current) {
+              return xAxisDateFormatRef.current.format(date);
+            }
           }
         }
-      }
-      return text;
-    });
+        return text;
+      });
 
     // Configurer la taille de police et la rotation selon le mode
     xAxis.get("renderer").labels.template.setAll({
@@ -197,19 +211,32 @@ export const useAmChartsChart = ({
     seriesConfigs.forEach((seriesConfig) => {
       const yAxis = yAxisMap.get(seriesConfig.yAxisId);
       if (!yAxis) {
-        console.warn(`[HistoricalChart] Axe Y "${seriesConfig.yAxisId}" non trouvé pour la série "${seriesConfig.dataKey}"`);
+        console.warn(
+          `[HistoricalChart] Axe Y "${seriesConfig.yAxisId}" non trouvé pour la série "${seriesConfig.dataKey}"`
+        );
         return;
       }
 
-      createLineSeries(root, chart, xAxis as am5xy.DateAxis<am5xy.AxisRendererX>, yAxis, seriesConfig, amChartsData, timeStep);
+      createLineSeries(
+        root,
+        chart,
+        xAxis as am5xy.DateAxis<am5xy.AxisRendererX>,
+        yAxis,
+        seriesConfig,
+        amChartsData,
+        timeStep
+      );
     });
 
     // Créer le curseur
-    const cursor = chart.set("cursor", am5xy.XYCursor.new(root, {
-      behavior: "zoomXY",
-      xAxis: xAxis,
-    }));
-    
+    const cursor = chart.set(
+      "cursor",
+      am5xy.XYCursor.new(root, {
+        behavior: "zoomXY",
+        xAxis: xAxis,
+      })
+    );
+
     if (chart.series.length > 0) {
       cursor.set("snapToSeries", chart.series.values);
     }
@@ -237,15 +264,15 @@ export const useAmChartsChart = ({
   // Mise à jour des données sans recréer le graphique
   useEffect(() => {
     if (!chartRef.current || !rootRef.current || !amChartsData.length) return;
-    
+
     // Créer une clé de comparaison basée sur le contenu
     const dataKey = JSON.stringify(amChartsData);
-    
+
     // Si les données n'ont pas changé, ne pas mettre à jour
     if (lastAmChartsDataRef.current === dataKey) {
       return;
     }
-    
+
     // Si une mise à jour est déjà en cours, annuler le timeout précédent et programmer une nouvelle mise à jour
     if (isUpdatingRef.current) {
       if (updateTimeoutRef.current) {
@@ -262,7 +289,9 @@ export const useAmChartsChart = ({
           // En fait, on va juste mettre à jour directement
           if (chartRef.current && rootRef.current) {
             const chart = chartRef.current;
-            const xAxis = chart.xAxes.getIndex(0) as am5xy.DateAxis<am5xy.AxisRendererX>;
+            const xAxis = chart.xAxes.getIndex(
+              0
+            ) as am5xy.DateAxis<am5xy.AxisRendererX>;
             if (xAxis) {
               chart.series.values.forEach((lineSeries) => {
                 (lineSeries as am5xy.LineSeries).data.setAll(amChartsData);
@@ -273,18 +302,20 @@ export const useAmChartsChart = ({
       }, 100);
       return;
     }
-    
+
     // Annuler tout timeout précédent
     if (updateTimeoutRef.current) {
       clearTimeout(updateTimeoutRef.current);
       updateTimeoutRef.current = null;
     }
-    
+
     isUpdatingRef.current = true;
     lastAmChartsDataRef.current = dataKey;
 
     const chart = chartRef.current;
-    const xAxis = chart.xAxes.getIndex(0) as am5xy.DateAxis<am5xy.AxisRendererX>;
+    const xAxis = chart.xAxes.getIndex(
+      0
+    ) as am5xy.DateAxis<am5xy.AxisRendererX>;
     if (!xAxis) {
       isUpdatingRef.current = false;
       return;
@@ -322,7 +353,7 @@ export const useAmChartsChart = ({
     } else {
       isUpdatingRef.current = false;
     }
-    
+
     // Nettoyage au démontage
     return () => {
       if (updateTimeoutRef.current) {
@@ -342,7 +373,7 @@ export const useAmChartsChart = ({
     // Créer une clé de comparaison pour la configuration
     // IMPORTANT: Inclure timeStep car il affecte connectNulls qui change le comportement des séries
     const seriesConfigsKey = JSON.stringify({
-      configs: seriesConfigs.map(s => ({
+      configs: seriesConfigs.map((s) => ({
         dataKey: s.dataKey,
         name: s.name,
         yAxisId: s.yAxisId,
@@ -351,25 +382,20 @@ export const useAmChartsChart = ({
       })),
       timeStep, // Inclure timeStep car il affecte connectNulls
     });
-    
+
     // Si la configuration n'a pas changé, ne pas recréer les séries
     if (lastSeriesConfigsRef.current === seriesConfigsKey) {
       return;
     }
-    
-    console.log(`[useAmChartsChart] Recréation des séries:`, {
-      oldKey: lastSeriesConfigsRef.current,
-      newKey: seriesConfigsKey,
-      timeStep,
-      seriesCount: seriesConfigs.length,
-    });
-    
+
     lastSeriesConfigsRef.current = seriesConfigsKey;
 
     const chart = chartRef.current;
-    const xAxis = chart.xAxes.getIndex(0) as am5xy.DateAxis<am5xy.AxisRendererX>;
+    const xAxis = chart.xAxes.getIndex(
+      0
+    ) as am5xy.DateAxis<am5xy.AxisRendererX>;
     const yAxisMap = new Map<string, am5xy.ValueAxis<am5xy.AxisRendererY>>();
-    
+
     chart.yAxes.values.forEach((yAxis) => {
       const id = (yAxis as any).get("id");
       if (id) {
@@ -392,7 +418,15 @@ export const useAmChartsChart = ({
       const yAxis = yAxisMap.get(seriesConfig.yAxisId);
       if (!yAxis) return;
 
-      createLineSeries(rootRef.current!, chart, xAxis as am5xy.DateAxis<am5xy.AxisRendererX>, yAxis, seriesConfig, amChartsData, timeStep);
+      createLineSeries(
+        rootRef.current!,
+        chart,
+        xAxis as am5xy.DateAxis<am5xy.AxisRendererX>,
+        yAxis,
+        seriesConfig,
+        amChartsData,
+        timeStep
+      );
     });
 
     // Remettre la référence du curseur aux nouvelles séries
@@ -407,7 +441,7 @@ export const useAmChartsChart = ({
         legend.data.setAll(chart.series.values);
       }
     });
-    
+
     // Forcer une mise à jour du graphique après recréation des séries
     // Cela garantit que les données sont bien appliquées avec le bon connectNulls
     // Utiliser un petit délai pour s'assurer que les séries sont bien créées
@@ -418,7 +452,8 @@ export const useAmChartsChart = ({
         chart.series.values.forEach((lineSeries) => {
           (lineSeries as am5xy.LineSeries).data.setAll(amChartsData);
           // S'assurer que connect est bien configuré selon timeStep
-          const isAggregatedTimeStep = timeStep && ["quartHeure", "heure", "jour"].includes(timeStep);
+          const isAggregatedTimeStep =
+            timeStep && ["quartHeure", "heure", "jour"].includes(timeStep);
           const shouldConnect = !isAggregatedTimeStep;
           lineSeries.set("connect", shouldConnect);
         });
@@ -432,7 +467,7 @@ export const useAmChartsChart = ({
 
     const chart = chartRef.current;
     const yAxisMap = new Map<string, am5xy.ValueAxis<am5xy.AxisRendererY>>();
-    
+
     chart.yAxes.values.forEach((yAxis) => {
       const id = (yAxis as any).get("id");
       if (id) {
@@ -456,12 +491,17 @@ export const useAmChartsChart = ({
     if (!chartRef.current || !rootRef.current || !timeStep) return;
 
     const chart = chartRef.current;
-    const xAxis = chart.xAxes.getIndex(0) as am5xy.DateAxis<am5xy.AxisRendererX>;
-    
+    const xAxis = chart.xAxes.getIndex(
+      0
+    ) as am5xy.DateAxis<am5xy.AxisRendererX>;
+
     if (!xAxis) return;
 
     // Déterminer le nouveau baseInterval selon le pas de temps
-    let baseInterval: { timeUnit: "minute" | "hour" | "day" | "second"; count: number };
+    let baseInterval: {
+      timeUnit: "minute" | "hour" | "day" | "second";
+      count: number;
+    };
     if (timeStep === "quartHeure") {
       baseInterval = { timeUnit: "minute", count: 15 };
     } else if (timeStep === "heure") {
@@ -475,7 +515,7 @@ export const useAmChartsChart = ({
 
     // Mettre à jour le baseInterval de l'axe X
     xAxis.set("baseInterval", baseInterval);
-    
+
     // Ajuster minGridDistance selon le nombre de points attendus
     // Plus de points = distance minimale plus petite pour éviter la surcharge
     const renderer = xAxis.get("renderer") as am5xy.AxisRendererX;
@@ -489,15 +529,18 @@ export const useAmChartsChart = ({
         renderer.set("minGridDistance", isMobile ? 70 : 50);
       }
     }
-    
+
     // Forcer une mise à jour de l'axe pour appliquer les changements
     // En amCharts 5, la mise à jour se fait automatiquement quand on change les propriétés
     // Les changements de baseInterval et minGridDistance déclenchent automatiquement un redraw
-    
-    console.log(`[useAmChartsChart] Axe X mis à jour pour timeStep=${timeStep}:`, {
-      baseInterval,
-      minGridDistance: renderer?.get("minGridDistance"),
-    });
+
+    console.log(
+      `[useAmChartsChart] Axe X mis à jour pour timeStep=${timeStep}:`,
+      {
+        baseInterval,
+        minGridDistance: renderer?.get("minGridDistance"),
+      }
+    );
   }, [timeStep, isMobile]);
 
   // Mise à jour des marges et des propriétés de l'axe X lors des changements d'orientation
@@ -505,8 +548,10 @@ export const useAmChartsChart = ({
     if (!chartRef.current || !rootRef.current) return;
 
     const chart = chartRef.current;
-    const xAxis = chart.xAxes.getIndex(0) as am5xy.DateAxis<am5xy.AxisRendererX>;
-    
+    const xAxis = chart.xAxes.getIndex(
+      0
+    ) as am5xy.DateAxis<am5xy.AxisRendererX>;
+
     if (!xAxis) return;
 
     // Mettre à jour les paddings du graphique
@@ -532,4 +577,3 @@ export const useAmChartsChart = ({
     rootRef: rootRef as React.RefObject<am5.Root | null>,
   };
 };
-

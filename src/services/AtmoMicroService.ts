@@ -100,8 +100,7 @@ export class AtmoMicroService extends BaseDataService {
             // Si valeur et valeur_brute existent toutes les deux, une correction a été appliquée
             // même si les valeurs sont égales (correction appliquée mais résultat identique)
             hasCorrection =
-              measure.valeur !== null &&
-              measure.valeur_brute !== null;
+              measure.valeur !== null && measure.valeur_brute !== null;
             correctedValue =
               hasCorrection && measure.valeur !== null
                 ? measure.valeur
@@ -113,8 +112,7 @@ export class AtmoMicroService extends BaseDataService {
             // Si valeur et valeur_brute existent toutes les deux, une correction a été appliquée
             // même si les valeurs sont égales (correction appliquée mais résultat identique)
             hasCorrection =
-              measure.valeur !== null &&
-              measure.valeur_brute !== null;
+              measure.valeur !== null && measure.valeur_brute !== null;
             displayValue =
               measure.valeur !== null ? measure.valeur : measure.valeur_brute;
             correctedValue =
@@ -354,9 +352,11 @@ export class AtmoMicroService extends BaseDataService {
         // Si pas de mesures récentes, essayer avec l'API sites
         const sitesUrl = `${this.BASE_URL}/sites?format=json&download=false`;
         const sitesResponse = await this.makeRequest(sitesUrl);
-        
+
         if (sitesResponse && Array.isArray(sitesResponse)) {
-          const site = sitesResponse.find((s: AtmoMicroSite) => s.id_site.toString() === siteId);
+          const site = sitesResponse.find(
+            (s: AtmoMicroSite) => s.id_site.toString() === siteId
+          );
           if (site) {
             return {
               latitude: site.lat,
@@ -364,7 +364,7 @@ export class AtmoMicroService extends BaseDataService {
             };
           }
         }
-        
+
         console.warn(`Site ${siteId} non trouvé`);
         return null;
       }
@@ -448,8 +448,7 @@ export class AtmoMicroService extends BaseDataService {
           // Si valeur et valeur_brute existent toutes les deux, une correction a été appliquée
           // même si les valeurs sont égales (correction appliquée mais résultat identique)
           hasCorrection =
-            measure.valeur !== null &&
-            measure.valeur_brute !== null;
+            measure.valeur !== null && measure.valeur_brute !== null;
           correctedValue = hasCorrection ? measure.valeur : undefined;
           rawValue = measure.valeur_brute;
         } else {
@@ -457,8 +456,7 @@ export class AtmoMicroService extends BaseDataService {
           // Si valeur et valeur_brute existent toutes les deux, une correction a été appliquée
           // même si les valeurs sont égales (correction appliquée mais résultat identique)
           hasCorrection =
-            measure.valeur !== null &&
-            measure.valeur_brute !== null;
+            measure.valeur !== null && measure.valeur_brute !== null;
           correctedValue = hasCorrection ? measure.valeur : undefined;
           rawValue = measure.valeur_brute;
           value = hasCorrection ? measure.valeur! : measure.valeur_brute;
@@ -530,12 +528,14 @@ export class AtmoMicroService extends BaseDataService {
     if (!hasTimeComponent) {
       // Si pas d'heure, traiter comme une date locale (YYYY-MM-DD)
       // Parser la date locale
-      const [year, month, day] = dateString.split('-').map(Number);
-      
+      const [year, month, day] = dateString.split("-").map(Number);
+
       if (isNaN(year) || isNaN(month) || isNaN(day)) {
-        throw new Error(`Format de date invalide: ${dateString}. Format attendu: YYYY-MM-DD`);
+        throw new Error(
+          `Format de date invalide: ${dateString}. Format attendu: YYYY-MM-DD`
+        );
       }
-      
+
       // CORRECTION : Créer une date locale d'abord, puis convertir en UTC
       // Pour la date de début : minuit local = 23h UTC la veille (si UTC+1)
       // Pour la date de fin : minuit local du jour suivant = 23h UTC du jour sélectionné (si UTC+1)
@@ -559,7 +559,7 @@ export class AtmoMicroService extends BaseDataService {
     if (isNaN(date.getTime())) {
       throw new Error(`Date invalide: ${dateString}`);
     }
-    
+
     // Préserver l'heure existante - ne pas forcer à 00:00:00 ou 23:59:59
     // Cela permet de respecter exactement la période demandée (ex: 24h exactement)
     return date.toISOString();
@@ -580,11 +580,11 @@ export class AtmoMicroService extends BaseDataService {
     // Diviser la période en tranches pour éviter les timeouts
     const temporalDataPoints: TemporalDataPoint[] = [];
     const chunkSize = 30; // 30 jours par tranche (plus efficace que 7 jours)
-    
+
     // CORRECTION : Convertir les dates locales en UTC correctement
     const startDateISO = this.formatDateForHistoricalMode(startDate, false);
     const endDateISO = this.formatDateForHistoricalMode(endDate, true);
-    
+
     // Parser les dates ISO pour calculer les chunks
     const start = new Date(startDateISO);
     const end = new Date(endDateISO);
@@ -595,27 +595,23 @@ export class AtmoMicroService extends BaseDataService {
     );
     const chunks = Math.ceil(totalDays / chunkSize);
 
-    console.log(
-      `📊 [AtmoMicro] Division en ${chunks} tranches de ${chunkSize} jours`
-    );
 
     // Traiter chaque tranche
     for (let i = 0; i < chunks; i++) {
       // CORRECTION : Utiliser UTC pour éviter les décalages de fuseau horaire
-      const chunkStart = new Date(start.getTime() + i * chunkSize * 24 * 60 * 60 * 1000);
-      
-      const chunkEnd = new Date(chunkStart.getTime() + (chunkSize - 1) * 24 * 60 * 60 * 1000);
+      const chunkStart = new Date(
+        start.getTime() + i * chunkSize * 24 * 60 * 60 * 1000
+      );
+
+      const chunkEnd = new Date(
+        chunkStart.getTime() + (chunkSize - 1) * 24 * 60 * 60 * 1000
+      );
 
       // S'assurer qu'on ne dépasse pas la date de fin
       if (chunkEnd > end) {
         chunkEnd.setTime(end.getTime());
       }
 
-      console.log(
-        `📅 [AtmoMicro] Traitement tranche ${i + 1}/${chunks}: ${
-          chunkStart.toISOString().split("T")[0]
-        } à ${chunkEnd.toISOString().split("T")[0]}`
-      );
 
       try {
         // Les dates sont déjà en UTC et formatées correctement, utiliser directement
@@ -623,11 +619,11 @@ export class AtmoMicroService extends BaseDataService {
         // Pour la dernière tranche, utiliser la date de fin exacte
         const isFirstChunk = i === 0;
         const isLastChunk = i === chunks - 1;
-        
-        const formattedChunkStart = isFirstChunk 
+
+        const formattedChunkStart = isFirstChunk
           ? startDateISO // Utiliser la date de début formatée initialement
           : chunkStart.toISOString();
-          
+
         const formattedChunkEnd = isLastChunk
           ? endDateISO // Utiliser la date de fin formatée initialement
           : chunkEnd.toISOString();
@@ -635,7 +631,6 @@ export class AtmoMicroService extends BaseDataService {
         // Construire l'URL optimisée selon votre exemple
         const url = `${this.BASE_URL}/mesures?debut=${formattedChunkStart}&fin=${formattedChunkEnd}&format=json&download=false&nb_dec=0&variable=${variable}&valeur_brute=false&aggregation=${aggregation}&type_capteur=false`;
 
-        console.log(`🔗 [AtmoMicro] Requête optimisée: ${url}`);
 
         const response = await this.makeRequest(url);
 
@@ -685,8 +680,7 @@ export class AtmoMicroService extends BaseDataService {
               // Si valeur et valeur_brute existent toutes les deux, une correction a été appliquée
               // même si les valeurs sont égales (correction appliquée mais résultat identique)
               hasCorrection =
-                measure.valeur !== null &&
-                measure.valeur_brute !== null;
+                measure.valeur !== null && measure.valeur_brute !== null;
               correctedValue = hasCorrection ? measure.valeur : undefined;
               rawValue = measure.valeur_brute;
             } else {
@@ -695,8 +689,7 @@ export class AtmoMicroService extends BaseDataService {
               // même si les valeurs sont égales (correction appliquée mais résultat identique)
               displayValue = measure.valeur;
               hasCorrection =
-                measure.valeur !== null &&
-                measure.valeur_brute !== null;
+                measure.valeur !== null && measure.valeur_brute !== null;
               correctedValue = hasCorrection ? measure.valeur : undefined;
               rawValue = measure.valeur_brute;
             }
@@ -764,13 +757,8 @@ export class AtmoMicroService extends BaseDataService {
           });
         }
 
-        console.log(
-          `✅ [AtmoMicro] Tranche ${i + 1} traitée: ${
-            measuresByTimestamp.size
-          } timestamps`
-        );
       } catch (error) {
-        console.error(`❌ [AtmoMicro] Erreur tranche ${i + 1}:`, error);
+        // Erreur silencieuse pour cette tranche, continuer avec les autres
         // Continuer avec les autres tranches même en cas d'erreur
       }
     }

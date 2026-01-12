@@ -521,15 +521,12 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
 
   const handleMarkerClick = useCallback(
     async (device: MeasurementDevice) => {
-      // Log temporaire pour debug
-
       // Empêcher uniquement les clics multiples rapides sur le même device
       // Permettre les clics sur d'autres devices même si un traitement est en cours
       if (
         isProcessingClickRef.current &&
         lastClickedDeviceIdRef.current === device.id
       ) {
-        console.log("🔴 Clic ignoré: traitement en cours");
         return;
       }
 

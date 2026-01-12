@@ -54,14 +54,8 @@ export const useMapView = ({
           : true; // Toujours actif si autoSpiderfy est désactivé mais spiderfier activé
 
         if (shouldActivateSpiderfy && !isSpiderfyActive) {
-          console.log(
-            `🕷️ [SPIDERYFY] Activation automatique du spiderfier au zoom ${currentZoomLevel}`
-          );
           setIsSpiderfyActive(true);
         } else if (!shouldActivateSpiderfy && isSpiderfyActive) {
-          console.log(
-            `🕷️ [SPIDERYFY] Désactivation automatique du spiderfier au zoom ${currentZoomLevel}`
-          );
           setIsSpiderfyActive(false);
         }
       };
@@ -89,4 +83,3 @@ export const useMapView = ({
     isSpiderfyActive,
   };
 };
-

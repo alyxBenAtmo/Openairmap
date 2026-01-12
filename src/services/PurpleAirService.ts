@@ -203,9 +203,6 @@ export class PurpleAirService extends BaseDataService {
       );
     });
 
-    console.log(
-      `🇫🇷 PurpleAir: ${sensors.length} capteurs trouvés, ${frenchSensors.length} en France`
-    );
 
     return frenchSensors;
   }

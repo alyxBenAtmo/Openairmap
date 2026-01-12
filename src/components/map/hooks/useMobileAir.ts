@@ -62,9 +62,6 @@ export const useMobileAir = ({
 
     // Si on force un nouveau choix, ne pas créer de routes
     if (forceNewChoice) {
-      console.log(
-        "🔄 [ROUTES] Forçage d'un nouveau choix - suppression des routes existantes"
-      );
       setMobileAirRoutes([]);
       return;
     }
@@ -197,9 +194,6 @@ export const useMobileAir = ({
       !isMobileAirDetailPanelOpen &&
       !userClosedDetailPanel
     ) {
-      console.log(
-        "✅ [AUTO-OPEN] Ouverture automatique du panel de détail MobileAir"
-      );
       const timer = setTimeout(() => {
         setIsMobileAirDetailPanelOpen(true);
       }, 200);
@@ -267,22 +261,12 @@ export const useMobileAir = ({
     sensorId: string,
     period: { startDate: string; endDate: string }
   ) => {
-    console.log(
-      "📱 [MOBILEAIR] Capteur sélectionné:",
-      sensorId,
-      "Période:",
-      period
-    );
-
     // Nettoyer les routes existantes pour permettre le rechargement avec remplacement
     try {
       const mobileAirService = DataServiceFactory.getService(
         "mobileair"
       ) as MobileAirService;
       mobileAirService.clearRoutes();
-      console.log(
-        "🧹 [MOBILEAIR] Routes existantes nettoyées pour permettre le rechargement"
-      );
     } catch (error) {
       console.error("Erreur lors du nettoyage des routes MobileAir:", error);
     }
@@ -426,4 +410,3 @@ export const useMobileAir = ({
     handleOpenMobileAirDetailPanel,
   };
 };
-

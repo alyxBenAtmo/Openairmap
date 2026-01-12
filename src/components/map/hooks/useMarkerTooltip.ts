@@ -117,7 +117,10 @@ export const useMarkerTooltip = (options: UseMarkerTooltipOptions = {}) => {
       // Calculer la position du marqueur en pixels pour éviter que le tooltip soit au-dessus
       let markerPosition: { x: number; y: number } | undefined;
       if (map) {
-        const markerPoint = map.latLngToContainerPoint([device.latitude, device.longitude]);
+        const markerPoint = map.latLngToContainerPoint([
+          device.latitude,
+          device.longitude,
+        ]);
         const mapContainer = map.getContainer();
         const mapRect = mapContainer.getBoundingClientRect();
         markerPosition = {
@@ -183,7 +186,6 @@ export const useMarkerTooltip = (options: UseMarkerTooltipOptions = {}) => {
       });
     }
   }, [isMobile]);
-
 
   return {
     tooltip,

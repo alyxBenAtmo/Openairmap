@@ -617,7 +617,7 @@ export class AtmoRefService extends BaseDataService {
       return temporalDataPoints;
     } catch (error) {
       console.error(
-        "❌ [AtmoRef] Erreur lors de la récupération des données temporelles:",
+        "Erreur lors de la récupération des données temporelles:",
         error
       );
       throw error;
