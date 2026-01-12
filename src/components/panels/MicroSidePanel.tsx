@@ -26,7 +26,7 @@ interface MicroSidePanelProps {
   onSizeChange?: (size: "normal" | "fullscreen" | "hidden") => void;
   initialPollutant: string;
   panelSize?: "normal" | "fullscreen" | "hidden";
-  onComparisonModeToggle?: () => void;
+  onComparisonModeToggle?: (pollutantToPreserve?: string) => void;
   isComparisonMode?: boolean;
 }
 
@@ -737,7 +737,11 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
               {/* Bouton mode comparaison */}
               {onComparisonModeToggle && (
                 <button
-                  onClick={onComparisonModeToggle}
+                  onClick={() => {
+                    // Passer le polluant actuellement sélectionné dans le panel
+                    const currentPollutant = state.chartControls.selectedPollutants[0] || initialPollutant;
+                    onComparisonModeToggle(currentPollutant);
+                  }}
                   className={`px-3 py-1.5 rounded-md text-xs transition-all duration-200 flex items-center ${
                     isComparisonMode
                       ? "text-green-700 bg-green-50 border border-green-200"

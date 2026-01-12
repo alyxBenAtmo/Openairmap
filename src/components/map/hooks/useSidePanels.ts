@@ -51,11 +51,14 @@ export const useSidePanels = ({ initialSelectedPollutant }: UseSidePanelsProps) 
   };
 
   // Fonction pour basculer le mode comparaison
-  const handleComparisonModeToggle = () => {
+  const handleComparisonModeToggle = (pollutantToPreserve?: string) => {
     const isActivatingComparison = !comparisonState.isComparisonMode;
 
     if (isActivatingComparison) {
       setLastSelectedStationBeforeComparison(selectedStation);
+
+      // Préserver le polluant actuel du panel ou utiliser celui passé en paramètre
+      const pollutantToUse = pollutantToPreserve || comparisonState.selectedPollutant;
 
       setComparisonState((prev) => ({
         ...prev,
@@ -63,6 +66,8 @@ export const useSidePanels = ({ initialSelectedPollutant }: UseSidePanelsProps) 
         // Si on active le mode comparaison, ajouter la station actuelle comme première
         comparedStations:
           selectedStation ? [selectedStation] : prev.comparedStations,
+        // Préserver le polluant sélectionné dans le panel normal
+        selectedPollutant: pollutantToUse,
       }));
 
       // Nettoyer selectedStation quand on active le mode comparaison pour éviter les conflits
