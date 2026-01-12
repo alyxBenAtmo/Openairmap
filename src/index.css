@@ -95,6 +95,51 @@
   color: #1f2937;
 }
 
+/* Styles pour les tooltips Leaflet natifs avec effet liquid glass */
+.custom-leaflet-tooltip {
+  /* Fond semi-transparent pour l'effet glass */
+  background: rgba(255, 255, 255, 0.2) !important;
+  /* Effet de flou d'arrière-plan (liquid glass) - plus prononcé */
+  backdrop-filter: blur(12px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
+  /* Bordure subtile pour définir les contours */
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  border-radius: 0.5rem !important;
+  padding: 0.375rem !important;
+  font-size: 10px !important;
+  color: rgb(17, 24, 39) !important;
+  /* Ombres multiples pour la profondeur */
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.5) !important;
+  pointer-events: none !important;
+  /* Amélioration du rendu du texte */
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  text-rendering: optimizeLegibility !important;
+  /* Isolation pour que le backdrop-filter fonctionne correctement */
+  isolation: isolate !important;
+}
+
+/* Flèche du tooltip avec effet glass */
+.custom-leaflet-tooltip::before {
+  border-right-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Amélioration pour les navigateurs qui supportent bien backdrop-filter */
+@supports (backdrop-filter: blur(12px)) {
+  .custom-leaflet-tooltip {
+    background: rgba(255, 255, 255, 0.15) !important;
+    backdrop-filter: blur(16px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  }
+  
+  .custom-leaflet-tooltip::before {
+    border-right-color: rgba(255, 255, 255, 0.15) !important;
+  }
+}
+
 /* Styles pour l'échelle de la carte */
 .leaflet-control-scale {
   background: rgba(255, 255, 255, 0.9) !important;

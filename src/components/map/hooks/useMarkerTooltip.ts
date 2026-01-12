@@ -1,11 +1,12 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import L from 'leaflet';
-import { MeasurementDevice } from '../../../types';
-import { useIsMobile } from '../../../hooks/useIsMobile';
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import L from "leaflet";
+import { MeasurementDevice } from "../../../types";
+import { useIsMobile } from "../../../hooks/useIsMobile";
 
 interface TooltipState {
   device: MeasurementDevice | null;
   position: { x: number; y: number };
+  markerPosition?: { x: number; y: number }; // Position du marqueur en pixels
 }
 
 interface UseMarkerTooltipOptions {
@@ -25,6 +26,7 @@ export const useMarkerTooltip = (options: UseMarkerTooltipOptions = {}) => {
     position: { x: 0, y: 0 },
   });
   const [currentZoom, setCurrentZoom] = useState<number>(0);
+  const [isHidden, setIsHidden] = useState(false); // État pour masquer complètement le tooltip pendant un clic
   const isMobile = useIsMobile();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const tooltipRef = useRef<TooltipState>(tooltip);
@@ -46,7 +48,7 @@ export const useMarkerTooltip = (options: UseMarkerTooltipOptions = {}) => {
     const handleZoom = () => {
       const zoom = map.getZoom();
       setCurrentZoom(zoom);
-      
+
       // Masquer le tooltip si le zoom devient inférieur au minimum
       // Utiliser tooltipRef pour avoir la valeur actuelle
       if (zoom < minZoom && tooltipRef.current.device) {
@@ -60,7 +62,7 @@ export const useMarkerTooltip = (options: UseMarkerTooltipOptions = {}) => {
     const handleZoomEnd = () => {
       const zoom = map.getZoom();
       setCurrentZoom(zoom);
-      
+
       // Masquer le tooltip si le zoom devient inférieur au minimum
       // Utiliser tooltipRef pour avoir la valeur actuelle
       if (zoom < minZoom && tooltipRef.current.device) {
@@ -72,8 +74,8 @@ export const useMarkerTooltip = (options: UseMarkerTooltipOptions = {}) => {
     };
 
     // Écouter les événements de zoom
-    map.on('zoom', handleZoom);
-    map.on('zoomend', handleZoomEnd);
+    map.on("zoom", handleZoom);
+    map.on("zoomend", handleZoomEnd);
 
     // Initialiser le zoom actuel
     const initialZoom = map.getZoom();
@@ -82,8 +84,8 @@ export const useMarkerTooltip = (options: UseMarkerTooltipOptions = {}) => {
     }
 
     return () => {
-      map.off('zoom', handleZoom);
-      map.off('zoomend', handleZoomEnd);
+      map.off("zoom", handleZoom);
+      map.off("zoomend", handleZoomEnd);
     };
   }, [mapRef, minZoom]);
 
@@ -108,14 +110,26 @@ export const useMarkerTooltip = (options: UseMarkerTooltipOptions = {}) => {
       }
 
       // Obtenir la position du curseur dans la fenêtre
-      // Utiliser l'événement natif pour obtenir les coordonnées absolues
       const originalEvent = event.originalEvent as MouseEvent;
       const x = originalEvent.clientX;
       const y = originalEvent.clientY;
 
+      // Calculer la position du marqueur en pixels pour éviter que le tooltip soit au-dessus
+      let markerPosition: { x: number; y: number } | undefined;
+      if (map) {
+        const markerPoint = map.latLngToContainerPoint([device.latitude, device.longitude]);
+        const mapContainer = map.getContainer();
+        const mapRect = mapContainer.getBoundingClientRect();
+        markerPosition = {
+          x: mapRect.left + markerPoint.x,
+          y: mapRect.top + markerPoint.y,
+        };
+      }
+
       setTooltip({
         device,
         position: { x, y },
+        markerPosition,
       });
     },
     [isMobile, mapRef, minZoom]
@@ -130,11 +144,16 @@ export const useMarkerTooltip = (options: UseMarkerTooltipOptions = {}) => {
     }
 
     if (immediate) {
-      // Masquer immédiatement (lors d'un clic)
+      // Masquer complètement le tooltip de manière synchrone (lors d'un clic)
+      setIsHidden(true);
       setTooltip({
         device: null,
         position: { x: 0, y: 0 },
       });
+      // Réinitialiser isHidden après un court délai
+      setTimeout(() => {
+        setIsHidden(false);
+      }, 200);
     } else {
       // Ajouter un petit délai pour éviter les clignotements lors du hover
       timeoutRef.current = setTimeout(() => {
@@ -165,11 +184,12 @@ export const useMarkerTooltip = (options: UseMarkerTooltipOptions = {}) => {
     }
   }, [isMobile]);
 
+
   return {
     tooltip,
     showTooltip,
     hideTooltip,
     isMobile,
+    isHidden, // Exposer isHidden pour que le composant puisse l'utiliser
   };
 };
-
