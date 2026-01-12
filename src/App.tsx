@@ -3,6 +3,8 @@ import AirQualityMap from "./components/map/AirQualityMap";
 import { useAirQualityData } from "./hooks/useAirQualityData";
 import { useTemporalVisualization } from "./hooks/useTemporalVisualization";
 import { useDomainConfig } from "./hooks/useDomainConfig";
+import { useFavicon } from "./hooks/useFavicon";
+import { useDocumentTitle } from "./hooks/useDocumentTitle";
 import {
   pollutants,
   getDefaultPollutant,
@@ -28,6 +30,10 @@ import { ToastContainer } from "./components/ui/toast";
 const App: React.FC = () => {
   // Configuration basée sur le domaine
   const domainConfig = useDomainConfig();
+
+  // Gestion dynamique de la favicon et du titre
+  useFavicon(domainConfig.favicon);
+  useDocumentTitle(domainConfig.title);
 
   // Hook pour les notifications toast
   const { toasts, addToast, removeToast } = useToast();
