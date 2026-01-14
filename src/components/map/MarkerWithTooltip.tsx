@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Marker, MarkerProps, Tooltip, useMap } from "react-leaflet";
 import L from "leaflet";
 import { MeasurementDevice } from "../../types";
@@ -21,7 +21,8 @@ const MarkerTooltipContent: React.FC<{
   device: MeasurementDevice;
   sensorMetadata: any;
   minZoom: number;
-}> = ({ device, sensorMetadata, minZoom }) => {
+  tooltipRef?: React.MutableRefObject<L.Tooltip | null>;
+}> = ({ device, sensorMetadata, minZoom, tooltipRef: parentTooltipRef }) => {
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
 
@@ -103,11 +104,20 @@ const MarkerTooltipContent: React.FC<{
 
   return (
     <Tooltip
+      ref={(ref) => {
+        // Stocker l'instance Leaflet native du tooltip
+        if (parentTooltipRef && ref) {
+          // Dans react-leaflet, la ref du Tooltip retourne l'instance Leaflet native
+          const leafletTooltip = (ref as any).leafletElement || ref;
+          parentTooltipRef.current = leafletTooltip as L.Tooltip;
+        }
+      }}
       permanent={false}
       direction="right"
       offset={[10, 0]}
       opacity={0.95}
       className="custom-leaflet-tooltip"
+      interactive={false}
     >
       <div className="custom-tooltip-content">
         <div style={{ fontWeight: 600, marginBottom: 4, borderBottom: "1px solid rgba(0,0,0,0.1)", paddingBottom: 2, fontSize: 11 }}>
@@ -165,6 +175,8 @@ const MarkerWithTooltip: React.FC<MarkerWithTooltipProps> = ({
     sensorBrand?: string;
     measuredPollutants?: string[];
   } | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+  const tooltipInstanceRef = useRef<L.Tooltip | null>(null);
 
   // Charger les métadonnées du capteur si elles ne sont pas fournies
   useEffect(() => {
@@ -189,14 +201,65 @@ const MarkerWithTooltip: React.FC<MarkerWithTooltipProps> = ({
     loadMetadata();
   }, [device, externalSensorMetadata]);
 
+  // Gérer l'ouverture/fermeture du tooltip au survol
+  const handleMouseOver = useCallback((e: L.LeafletMouseEvent) => {
+    // Vérifier que le zoom est suffisant avant d'ouvrir le tooltip
+    const map = mapRef?.current;
+    if (!map) return;
+    
+    const currentZoom = map.getZoom();
+    if (currentZoom < minZoom) {
+      // Ne pas ouvrir le tooltip si le zoom est insuffisant
+      return;
+    }
+    
+    if (markerRef.current && tooltipInstanceRef.current) {
+      if (!tooltipInstanceRef.current.isOpen()) {
+        tooltipInstanceRef.current.openOn(map);
+      }
+    }
+  }, [mapRef, minZoom]);
+
+  const handleMouseOut = useCallback((e: L.LeafletMouseEvent) => {
+    if (tooltipInstanceRef.current && tooltipInstanceRef.current.isOpen()) {
+      tooltipInstanceRef.current.close();
+    }
+  }, []);
+
   const sensorMetadata = externalSensorMetadata || loadedSensorMetadata;
 
+  // Fusionner les eventHandlers existants avec nos handlers pour le tooltip
+  const mergedEventHandlers = {
+    ...markerProps.eventHandlers,
+    mouseover: (e: L.LeafletMouseEvent) => {
+      handleMouseOver(e);
+      markerProps.eventHandlers?.mouseover?.(e);
+    },
+    mouseout: (e: L.LeafletMouseEvent) => {
+      handleMouseOut(e);
+      markerProps.eventHandlers?.mouseout?.(e);
+    },
+  };
+
   return (
-    <Marker {...markerProps}>
+    <Marker 
+      {...markerProps}
+      eventHandlers={mergedEventHandlers}
+      ref={(ref) => {
+        markerRef.current = ref;
+        // Appeler la ref originale si elle existe
+        if (markerProps.ref && typeof markerProps.ref === 'function') {
+          markerProps.ref(ref);
+        } else if (markerProps.ref && 'current' in markerProps.ref) {
+          (markerProps.ref as React.MutableRefObject<L.Marker | null>).current = ref;
+        }
+      }}
+    >
       <MarkerTooltipContent
         device={device}
         sensorMetadata={sensorMetadata}
         minZoom={minZoom}
+        tooltipRef={tooltipInstanceRef}
       />
     </Marker>
   );
