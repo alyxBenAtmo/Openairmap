@@ -534,13 +534,6 @@ export const useAmChartsChart = ({
     // En amCharts 5, la mise à jour se fait automatiquement quand on change les propriétés
     // Les changements de baseInterval et minGridDistance déclenchent automatiquement un redraw
 
-    console.log(
-      `[useAmChartsChart] Axe X mis à jour pour timeStep=${timeStep}:`,
-      {
-        baseInterval,
-        minGridDistance: renderer?.get("minGridDistance"),
-      }
-    );
   }, [timeStep, isMobile]);
 
   // Mise à jour des marges et des propriétés de l'axe X lors des changements d'orientation

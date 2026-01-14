@@ -11,6 +11,7 @@ import { pollutants } from "../../constants/pollutants";
 import { pasDeTemps } from "../../constants/timeSteps";
 import { AtmoRefService } from "../../services/AtmoRefService";
 import { ModelingService } from "../../services/ModelingService";
+import { DataServiceFactory } from "../../services/DataServiceFactory";
 import HistoricalChart from "../charts/HistoricalChart";
 import HistoricalTimeRangeSelector, {
   TimeRange,
@@ -80,11 +81,12 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
   const currentPanelSize = externalPanelSize || internalPanelSize;
 
   // Créer les services une seule fois avec useRef pour éviter les recréations
+  // Utiliser DataServiceFactory pour obtenir une instance singleton partagée
   const atmoRefServiceRef = useRef<AtmoRefService | null>(null);
   const modelingServiceRef = useRef<ModelingService | null>(null);
 
   if (!atmoRefServiceRef.current) {
-    atmoRefServiceRef.current = new AtmoRefService();
+    atmoRefServiceRef.current = DataServiceFactory.getService('atmoRef') as AtmoRefService;
   }
   if (!modelingServiceRef.current) {
     modelingServiceRef.current = new ModelingService();

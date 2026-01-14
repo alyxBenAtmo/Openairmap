@@ -2,6 +2,7 @@ import { StationInfo, ComparisonState } from "../../../types";
 import { AtmoRefService } from "../../../services/AtmoRefService";
 import { AtmoMicroService } from "../../../services/AtmoMicroService";
 import { NebuleAirService } from "../../../services/NebuleAirService";
+import { DataServiceFactory } from "../../../services/DataServiceFactory";
 
 /**
  * Fonction utilitaire pour calculer les dates (réutilisée depuis les autres panels)
@@ -74,7 +75,7 @@ export const createLoadComparisonDataHandler = (
         let stationData: any[] = [];
 
         if (station.source === "atmoRef") {
-          const atmoRefService = new AtmoRefService();
+          const atmoRefService = DataServiceFactory.getService('atmoRef') as AtmoRefService;
           stationData = await atmoRefService.fetchHistoricalData({
             stationId: station.id,
             pollutant,
@@ -83,7 +84,7 @@ export const createLoadComparisonDataHandler = (
             endDate,
           });
         } else if (station.source === "atmoMicro") {
-          const atmoMicroService = new AtmoMicroService();
+          const atmoMicroService = DataServiceFactory.getService('atmoMicro') as AtmoMicroService;
           stationData = await atmoMicroService.fetchHistoricalData({
             siteId: station.id,
             pollutant,
@@ -92,7 +93,7 @@ export const createLoadComparisonDataHandler = (
             endDate,
           });
         } else if (station.source === "nebuleair") {
-          const nebuleAirService = new NebuleAirService();
+          const nebuleAirService = DataServiceFactory.getService('nebuleair') as NebuleAirService;
           stationData = await nebuleAirService.fetchHistoricalData({
             sensorId: station.id,
             pollutant,

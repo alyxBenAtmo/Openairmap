@@ -13,9 +13,13 @@ import { pollutants } from "../constants/pollutants";
 
 export class NebuleAirService extends BaseDataService {
   private readonly BASE_URL = this.getApiBaseUrl();
-  private sensorsMetadataCache: NebuleAirSensor[] | null = null;
-  private lastMetadataFetch: number = 0;
-  private readonly METADATA_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  // Cache STATIQUE partagé entre toutes les instances pour éviter les requêtes multiples
+  // Les métadonnées (capteurs) changent rarement, donc cache long (30 minutes)
+  private static sensorsMetadataCache: NebuleAirSensor[] | null = null;
+  private static lastMetadataFetch: number = 0;
+  private static readonly METADATA_CACHE_DURATION = 30 * 60 * 1000; // 30 minutes - métadonnées changent rarement
+  // Verrou pour éviter les appels API parallèles simultanés
+  private static metadataFetchPromise: Promise<NebuleAirSensor[]> | null = null;
 
   constructor() {
     super("nebuleair");
@@ -60,8 +64,9 @@ export class NebuleAirService extends BaseDataService {
 
       const pollutantConfig = pollutants[params.pollutant];
 
-      // Récupérer les données des capteurs
-      const sensorsData = await this.fetchSensorsData();
+      // OPTIMISATION: Utiliser le cache au lieu de faire un appel API direct
+      // Le cache contient déjà toutes les métadonnées des capteurs 
+      const sensorsData = await this.getCachedSensorsMetadata();
 
       // Transformer les données en MeasurementDevice
       const devices: MeasurementDevice[] = [];
@@ -420,85 +425,12 @@ export class NebuleAirService extends BaseDataService {
     Record<string, { label: string; code_iso: string; en_service: boolean }>
   > {
     try {
-      const variables: Record<
-        string,
-        { label: string; code_iso: string; en_service: boolean }
-      > = {};
-
-      // Polluants toujours supportés par NebuleAir
-      const alwaysSupportedPollutants = ["PM1", "PM25", "PM10"];
-
-      alwaysSupportedPollutants.forEach((nebuleAirPollutant) => {
-        // Convertir le code NebuleAir vers notre code interne
-        const ourPollutantCode =
-          NEBULEAIR_POLLUTANT_MAPPING[nebuleAirPollutant];
-        if (ourPollutantCode) {
-          variables[ourPollutantCode] = {
-            label: this.getPollutantLabel(nebuleAirPollutant),
-            code_iso: this.getPollutantCodeISO(nebuleAirPollutant),
-            en_service: true,
-          };
-        }
-      });
-
-      // Vérifier si le capteur mesure vraiment le bruit et/ou NO2
-      // Récupérer les métadonnées du capteur pour vérifier les valeurs
-      try {
-        const sensorsMetadata = await this.getCachedSensorsMetadata();
-        const sensor = sensorsMetadata.find((s) => s.sensorId === sensorId);
-
-        if (sensor) {
-          // Vérifier si NOISE a une valeur valide (pas null, pas "-1")
-          const noiseValue = sensor.NOISE;
-          // Vérifier que noiseValue est une chaîne avant d'appeler trim()
-          const noiseValueStr =
-            typeof noiseValue === "string"
-              ? noiseValue
-              : String(noiseValue || "");
-          const hasValidNoise =
-            noiseValue !== null &&
-            noiseValue !== undefined &&
-            noiseValue !== "-1" &&
-            noiseValueStr.trim() !== "";
-
-          if (hasValidNoise) {
-            const ourPollutantCode = NEBULEAIR_POLLUTANT_MAPPING["NOISE"];
-            if (ourPollutantCode) {
-              variables[ourPollutantCode] = {
-                label: this.getPollutantLabel("NOISE"),
-                code_iso: this.getPollutantCodeISO("NOISE"),
-                en_service: true,
-              };
-            }
-          }
-
-          // Vérifier si NO2 a une valeur valide (pas null, pas "-1")
-          const no2Value = sensor.NO2;
-          // Vérifier que no2Value est une chaîne avant d'appeler trim()
-          const no2ValueStr =
-            typeof no2Value === "string" ? no2Value : String(no2Value || "");
-          const hasValidNo2 =
-            no2Value !== null &&
-            no2Value !== undefined &&
-            no2Value !== "-1" &&
-            no2ValueStr.trim() !== "";
-
-          if (hasValidNo2) {
-            const ourPollutantCode = NEBULEAIR_POLLUTANT_MAPPING["NO2"];
-            if (ourPollutantCode) {
-              variables[ourPollutantCode] = {
-                label: this.getPollutantLabel("NO2"),
-                code_iso: this.getPollutantCodeISO("NO2"),
-                en_service: true,
-              };
-            }
-          }
-        }
-      } catch (metadataError) {
-        // En cas d'erreur, ne pas inclure NOISE/NO2 par défaut
-      }
-
-      return variables;
+      // Récupérer les métadonnées du capteur
+      const sensorsMetadata = await this.getCachedSensorsMetadata();
+      const sensor = sensorsMetadata.find((s) => s.sensorId === sensorId);
+      
+      // Utiliser la méthode optimisée qui accepte les métadonnées
+      return await this.fetchSiteVariablesWithMetadata(sensorId, sensor);
     } catch (error) {
       console.error(
         `Erreur lors de la récupération des variables pour ${sensorId}:`,
@@ -516,23 +448,19 @@ export class NebuleAirService extends BaseDataService {
     >;
     lastSeenSec?: number;
   }> {
+    
     try {
-      // Récupérer les variables
-      const variables = await this.fetchSiteVariables(sensorId);
+      // OPTIMISATION: Récupérer les métadonnées une seule fois et les réutiliser
+      // pour éviter deux appels au cache (un dans fetchSiteVariables, un ici)
+      const sensorsMetadata = await this.getCachedSensorsMetadata();
+      const sensor = sensorsMetadata.find((s) => s.sensorId === sensorId);
 
-      // Récupérer les métadonnées du capteur pour obtenir last_seen_sec
-      let lastSeenSec: number | undefined;
-      try {
-        const sensorsMetadata = await this.getCachedSensorsMetadata();
-        const sensor = sensorsMetadata.find((s) => s.sensorId === sensorId);
-        lastSeenSec = sensor?.last_seen_sec;
-      } catch (metadataError) {
-        // Continuer sans lastSeenSec
-      }
+      // Récupérer les variables en passant les métadonnées pour éviter un deuxième appel
+      const variables = await this.fetchSiteVariablesWithMetadata(sensorId, sensor);
 
       return {
         variables,
-        lastSeenSec,
+        lastSeenSec: sensor?.last_seen_sec,
       };
     } catch (error) {
       console.error(
@@ -543,6 +471,84 @@ export class NebuleAirService extends BaseDataService {
       // pour éviter les boucles infinies
       return { variables: {} };
     }
+  }
+  
+  // Version optimisée de fetchSiteVariables qui accepte les métadonnées en paramètre
+  private async fetchSiteVariablesWithMetadata(
+    sensorId: string,
+    sensor?: NebuleAirSensor
+  ): Promise<
+    Record<string, { label: string; code_iso: string; en_service: boolean }>
+  > {
+    const variables: Record<
+      string,
+      { label: string; code_iso: string; en_service: boolean }
+    > = {};
+
+    // Polluants toujours supportés par NebuleAir
+    const alwaysSupportedPollutants = ["PM1", "PM25", "PM10"];
+
+    alwaysSupportedPollutants.forEach((nebuleAirPollutant) => {
+      // Convertir le code NebuleAir vers notre code interne
+      const ourPollutantCode =
+        NEBULEAIR_POLLUTANT_MAPPING[nebuleAirPollutant];
+      if (ourPollutantCode) {
+        variables[ourPollutantCode] = {
+          label: this.getPollutantLabel(nebuleAirPollutant),
+          code_iso: this.getPollutantCodeISO(nebuleAirPollutant),
+          en_service: true,
+        };
+      }
+    });
+
+    // Vérifier si le capteur mesure vraiment le bruit et/ou NO2
+    if (sensor) {
+      // Vérifier si NOISE a une valeur valide (pas null, pas "-1")
+      const noiseValue = sensor.NOISE;
+      const noiseValueStr =
+        typeof noiseValue === "string"
+          ? noiseValue
+          : String(noiseValue || "");
+      const hasValidNoise =
+        noiseValue !== null &&
+        noiseValue !== undefined &&
+        noiseValue !== "-1" &&
+        noiseValueStr.trim() !== "";
+
+      if (hasValidNoise) {
+        const ourPollutantCode = NEBULEAIR_POLLUTANT_MAPPING["NOISE"];
+        if (ourPollutantCode) {
+          variables[ourPollutantCode] = {
+            label: this.getPollutantLabel("NOISE"),
+            code_iso: this.getPollutantCodeISO("NOISE"),
+            en_service: true,
+          };
+        }
+      }
+
+      // Vérifier si NO2 a une valeur valide (pas null, pas "-1")
+      const no2Value = sensor.NO2;
+      const no2ValueStr =
+        typeof no2Value === "string" ? no2Value : String(no2Value || "");
+      const hasValidNo2 =
+        no2Value !== null &&
+        no2Value !== undefined &&
+        no2Value !== "-1" &&
+        no2ValueStr.trim() !== "";
+
+      if (hasValidNo2) {
+        const ourPollutantCode = NEBULEAIR_POLLUTANT_MAPPING["NO2"];
+        if (ourPollutantCode) {
+          variables[ourPollutantCode] = {
+            label: this.getPollutantLabel("NO2"),
+            code_iso: this.getPollutantCodeISO("NO2"),
+            en_service: true,
+          };
+        }
+      }
+    }
+
+    return variables;
   }
 
   private getPollutantLabel(pollutant: string): string {
@@ -962,23 +968,40 @@ export class NebuleAirService extends BaseDataService {
     return "extrMauvais";
   }
 
-  // Méthode pour récupérer les métadonnées avec cache
+  // Méthode pour récupérer les métadonnées avec cache STATIQUE partagé et verrou
   private async getCachedSensorsMetadata(): Promise<NebuleAirSensor[]> {
     const now = Date.now();
+    const cacheAge = NebuleAirService.lastMetadataFetch ? 
+      Math.round((now - NebuleAirService.lastMetadataFetch) / 1000) : null;
+    const cacheValid = NebuleAirService.sensorsMetadataCache &&
+      now - NebuleAirService.lastMetadataFetch < NebuleAirService.METADATA_CACHE_DURATION;
 
-    // Vérifier si le cache est valide
-    if (
-      this.sensorsMetadataCache &&
-      now - this.lastMetadataFetch < this.METADATA_CACHE_DURATION
-    ) {
-      return this.sensorsMetadataCache;
+    // Vérifier si le cache STATIQUE est valide
+    if (cacheValid && NebuleAirService.sensorsMetadataCache) {
+      return NebuleAirService.sensorsMetadataCache;
     }
 
-    // Récupérer les métadonnées et mettre à jour le cache
-    this.sensorsMetadataCache = await this.fetchSensorsData();
-    this.lastMetadataFetch = now;
+    // Si un fetch est déjà en cours, attendre sa completion au lieu d'en lancer un nouveau
+    if (NebuleAirService.metadataFetchPromise) {
+      return await NebuleAirService.metadataFetchPromise;
+    }
 
-    return this.sensorsMetadataCache;
+    // Récupérer les métadonnées et mettre à jour le cache STATIQUE
+    
+    // Créer une promesse partagée pour éviter les appels parallèles
+    NebuleAirService.metadataFetchPromise = (async (): Promise<NebuleAirSensor[]> => {
+      try {
+        const sensors = await this.fetchSensorsData();
+        NebuleAirService.sensorsMetadataCache = sensors;
+        NebuleAirService.lastMetadataFetch = Date.now();
+        return sensors;
+      } finally {
+        // Libérer le verrou une fois terminé
+        NebuleAirService.metadataFetchPromise = null;
+      }
+    })();
+
+    return await NebuleAirService.metadataFetchPromise;
   }
 
   // Méthode pour récupérer les coordonnées d'un capteur

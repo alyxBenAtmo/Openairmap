@@ -13,6 +13,14 @@ import { pollutants } from "../constants/pollutants";
 
 export class AtmoMicroService extends BaseDataService {
   private readonly BASE_URL = "https://api.atmosud.org/observations/capteurs";
+  
+  // Cache STATIQUE partagé entre toutes les instances pour éviter les requêtes multiples
+  // Les métadonnées (sites) changent rarement, donc cache long (30 minutes)
+  private static sitesCache: AtmoMicroSite[] | null = null;
+  private static lastSitesFetch: number = 0;
+  private static readonly SITES_CACHE_DURATION = 30 * 60 * 1000; // 30 minutes - métadonnées changent rarement
+  // Verrou pour éviter les appels API parallèles simultanés
+  private static sitesFetchPromise: Promise<AtmoMicroSite[]> | null = null;
 
   constructor() {
     super("atmoMicro");
@@ -196,9 +204,23 @@ export class AtmoMicroService extends BaseDataService {
   }
 
   private async fetchSites(variable: string): Promise<AtmoMicroSite[]> {
-    const url = `${this.BASE_URL}/sites?format=json&variable=${variable}&actifs=2880`;
-    const response = await this.makeRequest(url);
-    return response || [];
+    // OPTIMISATION: Utiliser le cache au lieu de faire un appel API direct
+    // Le cache contient déjà tous les sites avec métadonnées
+    const allSites = await this.getCachedAllSites();
+    
+    // Filtrer les sites pour ne garder que ceux qui mesurent cette variable
+    const filteredSites = allSites.filter((site) => {
+      if (!site.variables) {
+        return false;
+      }
+      
+      // Vérifier si la variable est présente dans la liste des variables du site
+      // Les variables sont stockées comme une chaîne séparée par des virgules (ex: "PM10, PM2.5, PM1")
+      const variablesList = site.variables.split(",").map((v) => v.trim());
+      return variablesList.includes(variable.toUpperCase());
+    });
+    
+    return filteredSites;
   }
 
   private async fetchMeasures(
@@ -243,6 +265,45 @@ export class AtmoMicroService extends BaseDataService {
     return timeStepConfigs[timeStep] || null;
   }
 
+  // Méthode pour récupérer tous les sites avec cache STATIQUE partagé et verrou
+  private async getCachedAllSites(): Promise<AtmoMicroSite[]> {
+    const now = Date.now();
+    const cacheAge = AtmoMicroService.lastSitesFetch ? 
+      Math.round((now - AtmoMicroService.lastSitesFetch) / 1000) : null;
+    const cacheValid = AtmoMicroService.sitesCache &&
+      now - AtmoMicroService.lastSitesFetch < AtmoMicroService.SITES_CACHE_DURATION;
+
+    // Vérifier si le cache STATIQUE est valide
+    if (cacheValid && AtmoMicroService.sitesCache) {
+      return AtmoMicroService.sitesCache;
+    }
+
+    // Si un fetch est déjà en cours, attendre sa completion au lieu d'en lancer un nouveau
+    if (AtmoMicroService.sitesFetchPromise) {
+      return await AtmoMicroService.sitesFetchPromise;
+    }
+
+    // Récupérer tous les sites et mettre à jour le cache STATIQUE
+    
+    // Créer une promesse partagée pour éviter les appels parallèles
+    AtmoMicroService.sitesFetchPromise = (async () => {
+      try {
+        // Récupérer tous les sites actifs (sans filtre de variable)
+        const url = `${this.BASE_URL}/sites?format=json&actifs=2880`;
+        const sites = await this.makeRequest(url);
+        const sitesArray = Array.isArray(sites) ? sites : [];
+        AtmoMicroService.sitesCache = sitesArray;
+        AtmoMicroService.lastSitesFetch = Date.now();
+        return sitesArray;
+      } finally {
+        // Libérer le verrou une fois terminé
+        AtmoMicroService.sitesFetchPromise = null;
+      }
+    })();
+
+    return await AtmoMicroService.sitesFetchPromise;
+  }
+
   // Méthode pour récupérer les variables disponibles d'un site
   async fetchSiteVariables(siteId: string): Promise<{
     variables: Record<
@@ -252,14 +313,12 @@ export class AtmoMicroService extends BaseDataService {
     sensorModel?: string;
   }> {
     try {
-      // Récupérer uniquement le site demandé avec le paramètre id_site
-      const url = `${this.BASE_URL}/sites?format=json&actifs=2880&id_site=${siteId}`;
-      const sites = await this.makeRequest(url);
+      // Utiliser le cache au lieu de faire un appel API par site
+      const allSites = await this.getCachedAllSites();
+      const site = allSites.find((s) => s.id_site.toString() === siteId);
 
-      // L'API devrait retourner un tableau avec un seul élément
-      const site = Array.isArray(sites) && sites.length > 0 ? sites[0] : null;
       if (!site) {
-        console.warn(`Site ${siteId} non trouvé`);
+        console.warn(`Site ${siteId} non trouvé dans le cache`);
         return { variables: {} };
       }
 

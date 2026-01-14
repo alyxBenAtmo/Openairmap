@@ -16,6 +16,7 @@ import {
 import { pollutants } from "../../constants/pollutants";
 import { NebuleAirService } from "../../services/NebuleAirService";
 import { ModelingService } from "../../services/ModelingService";
+import { DataServiceFactory } from "../../services/DataServiceFactory";
 import HistoricalChart from "../charts/HistoricalChart";
 import HistoricalTimeRangeSelector, {
   TimeRange,
@@ -137,7 +138,8 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
   const currentPanelSize = externalPanelSize || internalPanelSize;
 
   // Créer les services une seule fois avec useMemo pour éviter les re-renders
-  const nebuleAirService = useMemo(() => new NebuleAirService(), []);
+  // Utiliser DataServiceFactory pour obtenir une instance singleton partagée
+  const nebuleAirService = useMemo(() => DataServiceFactory.getService('nebuleair') as NebuleAirService, []);
   const modelingService = useMemo(() => new ModelingService(), []);
 
   // Fonction utilitaire pour vérifier si un polluant est disponible dans la station

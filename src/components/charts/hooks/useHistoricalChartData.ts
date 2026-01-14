@@ -245,14 +245,6 @@ export const useHistoricalChartData = ({
       return lastSeriesConfigsRef.current.result;
     }
 
-    console.log(`[useHistoricalChartData] Recalcul de seriesConfigs:`, {
-      modelingSeriesPresent,
-      chartDataLength: chartData.length,
-      configKeyChanged:
-        !lastSeriesConfigsRef.current ||
-        lastSeriesConfigsRef.current.configKey !== configKey,
-    });
-
     const configs = generateSeriesConfigs(
       source,
       stations,

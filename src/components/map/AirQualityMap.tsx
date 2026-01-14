@@ -52,6 +52,7 @@ import DeviceStatistics from "./DeviceStatistics";
 import { AtmoRefService } from "../../services/AtmoRefService";
 import { AtmoMicroService } from "../../services/AtmoMicroService";
 import { NebuleAirService } from "../../services/NebuleAirService";
+import { DataServiceFactory } from "../../services/DataServiceFactory";
 import MarkerClusterGroup from "react-leaflet-cluster";
 
 // Hooks personnalisés
@@ -429,10 +430,10 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       let lastSeenSec: number | undefined;
 
       if (device.source === "atmoRef") {
-        const atmoRefService = new AtmoRefService();
+        const atmoRefService = DataServiceFactory.getService('atmoRef') as AtmoRefService;
         variables = await atmoRefService.fetchStationVariables(device.id);
       } else if (device.source === "atmoMicro") {
-        const atmoMicroService = new AtmoMicroService();
+        const atmoMicroService = DataServiceFactory.getService('atmoMicro') as AtmoMicroService;
         const siteInfo = await atmoMicroService.fetchSiteVariables(device.id);
         variables = siteInfo.variables;
         sensorModel = siteInfo.sensorModel;
@@ -659,17 +660,17 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
         try {
           // Récupérer les informations détaillées selon la source
           if (device.source === "atmoRef") {
-            const atmoRefService = new AtmoRefService();
+            const atmoRefService = DataServiceFactory.getService('atmoRef') as AtmoRefService;
             variables = await atmoRefService.fetchStationVariables(device.id);
           } else if (device.source === "atmoMicro") {
-            const atmoMicroService = new AtmoMicroService();
+            const atmoMicroService = DataServiceFactory.getService('atmoMicro') as AtmoMicroService;
             const siteInfo = await atmoMicroService.fetchSiteVariables(
               device.id
             );
             variables = siteInfo.variables;
             sensorModel = siteInfo.sensorModel;
           } else if (device.source === "nebuleair") {
-            const nebuleAirService = new NebuleAirService();
+            const nebuleAirService = DataServiceFactory.getService('nebuleair') as NebuleAirService;
             const siteInfo = await nebuleAirService.fetchSiteInfo(device.id);
             variables = siteInfo.variables;
             lastSeenSec = siteInfo.lastSeenSec;

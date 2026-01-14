@@ -10,6 +10,7 @@ import {
 import { pollutants } from "../../constants/pollutants";
 import { AtmoMicroService } from "../../services/AtmoMicroService";
 import { ModelingService } from "../../services/ModelingService";
+import { DataServiceFactory } from "../../services/DataServiceFactory";
 import { getSensorModelImage } from "../../constants/sensorModels";
 import HistoricalChart from "../charts/HistoricalChart";
 import HistoricalTimeRangeSelector, {
@@ -85,7 +86,8 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
 
-  const atmoMicroService = useRef(new AtmoMicroService()).current;
+  // Utiliser DataServiceFactory pour obtenir une instance singleton partagée
+  const atmoMicroService = useRef(DataServiceFactory.getService('atmoMicro') as AtmoMicroService).current;
   const modelingService = useRef(new ModelingService()).current;
 
   // Fonction utilitaire pour vérifier si un polluant est disponible dans la station
