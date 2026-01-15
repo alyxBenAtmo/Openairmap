@@ -56,6 +56,11 @@ export const useAirQualityData = ({
   // Référence pour stocker l'intervalle
   const intervalRef = useRef<number | null>(null);
   const signalAirLastTriggerRef = useRef(0);
+  // Référence pour éviter les appels multiples au montage initial
+  const hasMountedRef = useRef(false);
+  const lastFetchParamsRef = useRef<string>("");
+  // Référence pour stocker fetchData et éviter les dépendances circulaires
+  const fetchDataRef = useRef<() => Promise<void>>();
 
   const fetchData = useCallback(async () => {
     const now = new Date();
@@ -309,6 +314,11 @@ export const useAirQualityData = ({
     signalAirOptions,
   ]);
 
+  // Mettre à jour la référence quand fetchData change
+  useEffect(() => {
+    fetchDataRef.current = fetchData;
+  }, [fetchData]);
+
   // Effet pour gérer l'auto-refresh
   useEffect(() => {
     // Nettoyer l'intervalle précédent s'il existe
@@ -340,9 +350,45 @@ export const useAirQualityData = ({
   }, [selectedTimeStep, selectedSources, autoRefreshEnabled, fetchData]);
 
   // Effet pour le chargement initial
+  // Utiliser un ref pour éviter les appels multiples causés par la recréation de fetchData
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    // Créer une signature des paramètres qui déclenchent vraiment un rechargement
+    const fetchParams = JSON.stringify({
+      selectedPollutant,
+      selectedSources,
+      selectedTimeStep,
+      signalAirPeriod,
+      mobileAirPeriod,
+      selectedMobileAirSensor,
+      signalAirLoadTrigger: signalAirOptions?.loadTrigger,
+      signalAirIsSelected: signalAirOptions?.isSourceSelected,
+    });
+
+    // Si c'est le premier montage ou si les paramètres ont vraiment changé
+    if (!hasMountedRef.current || lastFetchParamsRef.current !== fetchParams) {
+      hasMountedRef.current = true;
+      lastFetchParamsRef.current = fetchParams;
+      // Utiliser fetchDataRef.current pour éviter la dépendance à fetchData
+      fetchDataRef.current?.();
+    }
+
+    // Cleanup: réinitialiser le flag au démontage pour le mode StrictMode
+    return () => {
+      // Ne pas réinitialiser hasMountedRef ici car on veut éviter les appels multiples
+      // même lors du remontage en StrictMode si les paramètres n'ont pas changé
+    };
+  }, [
+    selectedPollutant,
+    selectedSources,
+    selectedTimeStep,
+    signalAirPeriod,
+    mobileAirPeriod,
+    selectedMobileAirSensor,
+    signalAirOptions?.loadTrigger,
+    signalAirOptions?.isSourceSelected,
+    // Note: on utilise les dépendances réelles au lieu de fetchData
+    // pour éviter les appels multiples quand fetchData est recréé avec les mêmes paramètres
+  ]);
 
   return {
     devices,
