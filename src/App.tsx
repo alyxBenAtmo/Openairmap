@@ -1,8 +1,16 @@
-import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
 import AirQualityMap from "./components/map/AirQualityMap";
 import { useAirQualityData } from "./hooks/useAirQualityData";
 import { useTemporalVisualization } from "./hooks/useTemporalVisualization";
 import { useDomainConfig } from "./hooks/useDomainConfig";
+import { useFavicon } from "./hooks/useFavicon";
+import { useDocumentTitle } from "./hooks/useDocumentTitle";
 import {
   pollutants,
   getDefaultPollutant,
@@ -28,6 +36,10 @@ import { ToastContainer } from "./components/ui/toast";
 const App: React.FC = () => {
   // Configuration basée sur le domaine
   const domainConfig = useDomainConfig();
+
+  // Gestion dynamique de la favicon et du titre
+  useFavicon(domainConfig.favicon);
+  useDocumentTitle(domainConfig.title);
 
   // Hook pour les notifications toast
   const { toasts, addToast, removeToast } = useToast();
@@ -72,9 +84,9 @@ const App: React.FC = () => {
   const [signalAirDraftPeriod, setSignalAirDraftPeriod] = useState(
     defaultSignalAirPeriod
   );
-  const [signalAirSelectedTypes, setSignalAirSelectedTypes] = useState<string[]>(
-    SIGNAL_AIR_DEFAULT_TYPES
-  );
+  const [signalAirSelectedTypes, setSignalAirSelectedTypes] = useState<
+    string[]
+  >(SIGNAL_AIR_DEFAULT_TYPES);
   const [signalAirLoadTrigger, setSignalAirLoadTrigger] = useState(0);
   const [currentModelingLayer, setCurrentModelingLayer] =
     useState<ModelingLayerType | null>(null);
@@ -132,7 +144,7 @@ const App: React.FC = () => {
     setSelectedMobileAirSensor(sensorId);
     setMobileAirPeriod(period);
     
-    // Ajouter mobileair aux sources sélectionnées si pas déjà présent
+    // Ajouter capteurEnMobilite.mobileair aux sources sélectionnées si pas déjà présent
     if (!selectedSources.some(s => s.includes("mobileair"))) {
       setSelectedSources([...selectedSources, "capteurEnMobilite.mobileair"]);
     }
@@ -140,7 +152,7 @@ const App: React.FC = () => {
 
   // Fonction pour désélectionner la source MobileAir
   const handleMobileAirSourceDeselected = () => {
-    // Retirer mobileair des sources sélectionnées
+    // Retirer toutes les sources MobileAir des sources sélectionnées
     setSelectedSources(selectedSources.filter(source => !source.includes("mobileair")));
     // Réinitialiser les états MobileAir
     setSelectedMobileAirSensor(null);
@@ -186,9 +198,7 @@ const App: React.FC = () => {
   );
 
   useEffect(() => {
-    if (
-      !isPollutantSupportedForTimeStep(selectedPollutant, selectedTimeStep)
-    ) {
+    if (!isPollutantSupportedForTimeStep(selectedPollutant, selectedTimeStep)) {
       const supportedPollutants =
         getSupportedPollutantsForTimeStep(selectedTimeStep);
       if (supportedPollutants.length > 0) {
@@ -332,7 +342,7 @@ const App: React.FC = () => {
 
           {/* Contrôles intégrés dans l'en-tête - Desktop uniquement */}
           <div className="hidden lg:flex items-center space-x-2">
-            <div className="flex items-center space-x-3">              
+            <div className="flex items-center space-x-3">
               <PollutantDropdown
                 selectedPollutant={selectedPollutant}
                 onPollutantChange={setSelectedPollutant}
@@ -364,16 +374,14 @@ const App: React.FC = () => {
               />
             </div>
             <div className="flex items-center space-x-4 border-gray-300 pl-2 border-l">
-
               <ModelingLayerControl
-                  currentModelingLayer={currentModelingLayer}
-                  onModelingLayerChange={setCurrentModelingLayer}
-                  selectedPollutant={selectedPollutant}
-                  selectedTimeStep={selectedTimeStep}
-                />
+                currentModelingLayer={currentModelingLayer}
+                onModelingLayerChange={setCurrentModelingLayer}
+                selectedPollutant={selectedPollutant}
+                selectedTimeStep={selectedTimeStep}
+              />
             </div>
             <div className="flex items-center space-x-3 border-l border-r border-gray-300 pl-2 pr-2">
-              
               <HistoricalModeButton
                 isActive={isHistoricalModeActive}
                 onToggle={toggleHistoricalMode}

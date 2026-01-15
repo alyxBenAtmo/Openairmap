@@ -36,8 +36,9 @@ export const useMapLayers = ({
   const [currentModelingLegendUrl, setCurrentModelingLegendUrl] = useState<
     string | null
   >(null);
-  const [currentModelingLegendTitle, setCurrentModelingLegendTitle] =
-    useState<string | null>(null);
+  const [currentModelingLegendTitle, setCurrentModelingLegendTitle] = useState<
+    string | null
+  >(null);
 
   const modelingLayerRef = useRef<L.TileLayer | null>(null);
   const windLayerRef = useRef<L.Layer | null>(null);
@@ -68,7 +69,6 @@ export const useMapLayers = ({
 
       // Charger les données de vent depuis AtmoSud
       const data = await loadWindFromAtmoSud(dateStr, HH);
-      console.log("✅ [WIND-AtmoSud] Données chargées avec succès");
 
       // Créer le LayerGroup pour le vent
       const windLayerGroup = L.layerGroup();
@@ -96,7 +96,6 @@ export const useMapLayers = ({
       if (mapRef.current) {
         windLayerGroup.addTo(mapRef.current);
         windLayerGroupRef.current = windLayerGroup;
-        console.log(`✅ [WIND] Layer de vent ajouté à la carte`);
       }
     } catch (error) {
       console.error(
@@ -138,7 +137,6 @@ export const useMapLayers = ({
 
     // Cleanup: retirer l'ancien layer de modélisation s'il existe
     if (modelingLayerRef.current && mapRef.current) {
-      console.log("🗺️ [MODELING] Retrait de l'ancien layer WMTS");
       mapRef.current.removeLayer(modelingLayerRef.current);
       modelingLayerRef.current = null;
       setCurrentModelingWMTSLayer(null);
@@ -150,7 +148,6 @@ export const useMapLayers = ({
 
     // Cleanup: retirer l'ancien layer de vent s'il existe
     if (windLayerGroupRef.current && mapRef.current) {
-      console.log("🗺️ [MODELING] Retrait de l'ancien layer de vent");
       mapRef.current.removeLayer(windLayerGroupRef.current);
       windLayerGroupRef.current = null;
       windLayerRef.current = null;
@@ -164,9 +161,6 @@ export const useMapLayers = ({
 
     // Vérifier si les modélisations sont disponibles pour ce pas de temps (pour icaireh et pollutant)
     if (!isModelingAvailable(selectedTimeStep)) {
-      console.log(
-        "🗺️ [MODELING] Modélisations non disponibles pour ce pas de temps"
-      );
       return;
     }
 
@@ -178,11 +172,9 @@ export const useMapLayers = ({
       try {
         // Calculer l'heure à afficher
         const hour = getModelingLayerHour(selectedTimeStep);
-        console.log("🗺️ [MODELING] Heure calculée:", hour);
 
         // Si l'heure est invalide (scan), ne pas charger
         if (hour < 0) {
-          console.log("🗺️ [MODELING] Heure invalide, arrêt");
           return;
         }
 
@@ -195,7 +187,6 @@ export const useMapLayers = ({
           layerName = getIcairehLayerName(hourFormatted);
         } else if (currentModelingLayer === "pollutant") {
           if (!selectedPollutant) {
-            console.log("🗺️ [MODELING] Aucun polluant sélectionné");
             return;
           }
           layerName = getPollutantLayerName(selectedPollutant, hourFormatted);
@@ -203,8 +194,6 @@ export const useMapLayers = ({
           // Ce cas ne devrait jamais se produire, mais TypeScript le requiert
           return;
         }
-
-        console.log("🗺️ [MODELING] Création du layer WMTS:", layerName);
 
         // Créer et ajouter le layer WMTS
         const wmtsLayer = createModelingWMTSLayer(layerName);
@@ -214,7 +203,6 @@ export const useMapLayers = ({
           setCurrentModelingWMTSLayer(wmtsLayer);
           setCurrentModelingLegendUrl(getModelingLegendUrl(layerName));
           setCurrentModelingLegendTitle(getModelingLegendTitle(layerName));
-          console.log("✅ [MODELING] Layer WMTS ajouté à la carte:", layerName);
         }
       } catch (error) {
         console.error(
@@ -228,12 +216,10 @@ export const useMapLayers = ({
     return () => {
       if (mapRef.current) {
         if (modelingLayerRef.current) {
-          console.log("🗺️ [MODELING] Cleanup: retrait du layer WMTS");
           mapRef.current.removeLayer(modelingLayerRef.current);
           modelingLayerRef.current = null;
         }
         if (windLayerGroupRef.current) {
-          console.log("🗺️ [MODELING] Cleanup: retrait du layer de vent");
           mapRef.current.removeLayer(windLayerGroupRef.current);
           windLayerGroupRef.current = null;
           windLayerRef.current = null;
@@ -258,4 +244,3 @@ export const useMapLayers = ({
     currentModelingLegendTitle,
   };
 };
-

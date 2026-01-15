@@ -30,15 +30,18 @@ export const normalizeTimestamp = (ts: string | number): number => {
 /**
  * Formate un timestamp pour l'affichage
  */
-export const formatTimestamp = (timestamp: string | number, isMobile: boolean): string => {
+export const formatTimestamp = (
+  timestamp: string | number,
+  isMobile: boolean
+): string => {
   let dateMs: number;
-  
+
   if (typeof timestamp === "number") {
     dateMs = timestamp;
   } else {
     dateMs = normalizeTimestamp(timestamp);
   }
-  
+
   const date = new Date(dateMs);
   // Format plus court sur mobile uniquement
   return isMobile
@@ -81,28 +84,25 @@ const generateExpectedTimestamps = (
   const timestamps: number[] = [];
   let current = roundToTimeStep(firstTimestamp, interval);
   const last = roundToTimeStep(lastTimestamp, interval);
-  
+
   while (current <= last) {
     timestamps.push(current);
     current += interval;
   }
-  
+
   return timestamps;
 };
 
 /**
  * Détecte les gaps dans les données et insère des valeurs null pour les timestamps manquants
  * Uniquement pour les pas de temps agrégés (15min, 1h, 1j)
- * 
+ *
  * Selon la doc amCharts 5:
  * - Les données doivent contenir des valeurs null aux emplacements où les gaps doivent apparaître
  * - Avec connect: false, amCharts ne connectera pas les points null, créant des gaps visuels
  * - Les timestamps doivent être des nombres (millisecondes depuis epoch)
  */
-export const fillGapsInData = (
-  data: any[],
-  timeStep?: string
-): any[] => {
+export const fillGapsInData = (data: any[], timeStep?: string): any[] => {
   // Ne traiter que les pas de temps agrégés
   if (!timeStep || !["quartHeure", "heure", "jour"].includes(timeStep)) {
     return data;
@@ -115,17 +115,25 @@ export const fillGapsInData = (
 
   // S'assurer que les données sont triées par timestamp
   const sortedData = [...data].sort((a, b) => {
-    const tsA = a.timestampValue !== undefined ? a.timestampValue : normalizeTimestamp(a.rawTimestamp);
-    const tsB = b.timestampValue !== undefined ? b.timestampValue : normalizeTimestamp(b.rawTimestamp);
+    const tsA =
+      a.timestampValue !== undefined
+        ? a.timestampValue
+        : normalizeTimestamp(a.rawTimestamp);
+    const tsB =
+      b.timestampValue !== undefined
+        ? b.timestampValue
+        : normalizeTimestamp(b.rawTimestamp);
     return tsA - tsB;
   });
 
-  const firstTimestamp = sortedData[0].timestampValue !== undefined 
-    ? sortedData[0].timestampValue 
-    : normalizeTimestamp(sortedData[0].rawTimestamp);
-  const lastTimestamp = sortedData[sortedData.length - 1].timestampValue !== undefined
-    ? sortedData[sortedData.length - 1].timestampValue
-    : normalizeTimestamp(sortedData[sortedData.length - 1].rawTimestamp);
+  const firstTimestamp =
+    sortedData[0].timestampValue !== undefined
+      ? sortedData[0].timestampValue
+      : normalizeTimestamp(sortedData[0].rawTimestamp);
+  const lastTimestamp =
+    sortedData[sortedData.length - 1].timestampValue !== undefined
+      ? sortedData[sortedData.length - 1].timestampValue
+      : normalizeTimestamp(sortedData[sortedData.length - 1].rawTimestamp);
 
   // Générer tous les timestamps attendus
   const expectedTimestamps = generateExpectedTimestamps(
@@ -135,22 +143,55 @@ export const fillGapsInData = (
   );
 
   // Créer une map des données existantes par timestamp arrondi
+  // IMPORTANT: Utiliser le timestamp arrondi comme clé, mais préserver le timestampValue original du point
   const dataMap = new Map<number, any>();
   sortedData.forEach((point) => {
-    const ts = point.timestampValue !== undefined 
-      ? point.timestampValue 
-      : normalizeTimestamp(point.rawTimestamp);
+    const ts =
+      point.timestampValue !== undefined
+        ? point.timestampValue
+        : normalizeTimestamp(point.rawTimestamp);
     const roundedTs = roundToTimeStep(ts, interval);
+
+    // Si on a déjà un point pour ce timestamp arrondi, garder celui qui est le plus proche
     if (!dataMap.has(roundedTs)) {
-      dataMap.set(roundedTs, point);
+      // Créer une copie du point avec le timestamp arrondi pour timestampValue
+      // mais garder les autres propriétés intactes
+      const mappedPoint = {
+        ...point,
+        timestampValue: roundedTs, // Utiliser le timestamp arrondi pour l'alignement
+      };
+      dataMap.set(roundedTs, mappedPoint);
+    } else {
+      // Si on a déjà un point, vérifier lequel est le plus proche du timestamp arrondi
+      const existingPoint = dataMap.get(roundedTs);
+      const existingTs =
+        existingPoint.timestampValue !== undefined
+          ? existingPoint.timestampValue
+          : normalizeTimestamp(existingPoint.rawTimestamp);
+      const existingDiff = Math.abs(existingTs - roundedTs);
+      const currentDiff = Math.abs(ts - roundedTs);
+
+      // Garder le point le plus proche
+      if (currentDiff < existingDiff) {
+        const mappedPoint = {
+          ...point,
+          timestampValue: roundedTs,
+        };
+        dataMap.set(roundedTs, mappedPoint);
+      }
     }
   });
 
-  // Identifier toutes les clés de données (polluants, stations, etc.) présentes dans les données
+  // Identifier toutes les clés de données (polluants, stations, modélisation, etc.) présentes dans les données
   const allDataKeys = new Set<string>();
   sortedData.forEach((point) => {
     Object.keys(point).forEach((key) => {
-      if (!["timestamp", "rawTimestamp", "timestampValue"].includes(key) && !key.endsWith("_unit")) {
+      // Inclure toutes les clés sauf les métadonnées de timestamp et les unités
+      // Cela inclut les polluants, les données corrigées/brutes, et les données de modélisation
+      if (
+        !["timestamp", "rawTimestamp", "timestampValue"].includes(key) &&
+        !key.endsWith("_unit")
+      ) {
         allDataKeys.add(key);
       }
     });
@@ -159,19 +200,31 @@ export const fillGapsInData = (
   // Construire le tableau final avec les gaps remplis
   // Selon la doc amCharts: insérer des valeurs null pour créer des gaps avec connect: false
   const filledData: any[] = [];
+  let gapCount = 0;
+  let dataPointCount = 0;
+
   expectedTimestamps.forEach((expectedTs) => {
     const existingPoint = dataMap.get(expectedTs);
-    
+
     if (existingPoint) {
-      filledData.push(existingPoint);
+      // Créer une copie du point avec le timestampValue correct (arrondi)
+      // pour s'assurer que les timestamps sont bien alignés
+      const point = {
+        ...existingPoint,
+        timestampValue: expectedTs, // Utiliser le timestamp arrondi attendu
+      };
+      filledData.push(point);
+      dataPointCount++;
     } else {
       // Gap détecté : créer un point avec des valeurs null
       // Selon la doc amCharts, les valeurs null créent des gaps avec connect: false
       const date = new Date(expectedTs);
+      // Formater le timestamp pour l'affichage (utiliser le même format que les autres points)
+      const timestampFormatted = formatTimestamp(date.toISOString(), false);
       const gapPoint: any = {
-        timestamp: expectedTs, // Timestamp en nombre (millisecondes) pour amCharts DateAxis
+        timestamp: timestampFormatted, // Formaté pour l'affichage
         rawTimestamp: date.toISOString(),
-        timestampValue: expectedTs,
+        timestampValue: expectedTs, // Timestamp en nombre (millisecondes) pour amCharts DateAxis
       };
 
       // Ajouter null pour chaque série
@@ -192,6 +245,7 @@ export const fillGapsInData = (
       }
 
       filledData.push(gapPoint);
+      gapCount++;
     }
   });
 
@@ -229,57 +283,65 @@ export const transformComparisonData = (
   );
 
   // Créer les points de données
-  const transformedData = sortedTimestamps.map(([timestampMs, originalTimestamp]) => {
-    const date = new Date(timestampMs);
-    const timestamp = formatTimestamp(originalTimestamp, isMobile);
-    
-    const point: any = {
-      timestamp,
-      rawTimestamp: originalTimestamp,
-      timestampValue: timestampMs,
-    };
+  const transformedData = sortedTimestamps.map(
+    ([timestampMs, originalTimestamp]) => {
+      const date = new Date(timestampMs);
+      const timestamp = formatTimestamp(originalTimestamp, isMobile);
 
-    // Ajouter les valeurs pour chaque station
-    stations.forEach((station) => {
-      if (data[station.id]) {
-        const dataPoint = data[station.id].find(
-          (p) => normalizeTimestamp(p.timestamp) === timestampMs
-        );
-        if (dataPoint) {
-          // Pour les stations atmoMicro, gérer les données corrigées et brutes
-          if (station.source === "atmoMicro") {
-            // Valeur corrigée si disponible
-            if (dataPoint.corrected_value !== undefined) {
-              point[`${station.id}_corrected`] = ensureNonNegativeValue(dataPoint.corrected_value);
-            }
-            // Valeur brute
-            if (dataPoint.raw_value !== undefined) {
-              point[`${station.id}_raw`] = ensureNonNegativeValue(dataPoint.raw_value);
-            }
-            // Valeur principale : utiliser corrigée si disponible, sinon brute
-            if (dataPoint.corrected_value !== undefined) {
-              point[station.id] = ensureNonNegativeValue(dataPoint.corrected_value);
-            } else if (dataPoint.raw_value !== undefined) {
-              point[station.id] = ensureNonNegativeValue(dataPoint.raw_value);
+      const point: any = {
+        timestamp,
+        rawTimestamp: originalTimestamp,
+        timestampValue: timestampMs,
+      };
+
+      // Ajouter les valeurs pour chaque station
+      stations.forEach((station) => {
+        if (data[station.id]) {
+          const dataPoint = data[station.id].find(
+            (p) => normalizeTimestamp(p.timestamp) === timestampMs
+          );
+          if (dataPoint) {
+            // Pour les stations atmoMicro, gérer les données corrigées et brutes
+            if (station.source === "atmoMicro") {
+              // Valeur corrigée si disponible
+              if (dataPoint.corrected_value !== undefined) {
+                point[`${station.id}_corrected`] = ensureNonNegativeValue(
+                  dataPoint.corrected_value
+                );
+              }
+              // Valeur brute
+              if (dataPoint.raw_value !== undefined) {
+                point[`${station.id}_raw`] = ensureNonNegativeValue(
+                  dataPoint.raw_value
+                );
+              }
+              // Valeur principale : utiliser corrigée si disponible, sinon brute
+              if (dataPoint.corrected_value !== undefined) {
+                point[station.id] = ensureNonNegativeValue(
+                  dataPoint.corrected_value
+                );
+              } else if (dataPoint.raw_value !== undefined) {
+                point[station.id] = ensureNonNegativeValue(dataPoint.raw_value);
+              } else {
+                point[station.id] = ensureNonNegativeValue(dataPoint.value);
+              }
             } else {
+              // Pour les autres sources (atmoRef, etc.), utiliser simplement value
               point[station.id] = ensureNonNegativeValue(dataPoint.value);
             }
-          } else {
-            // Pour les autres sources (atmoRef, etc.), utiliser simplement value
-            point[station.id] = ensureNonNegativeValue(dataPoint.value);
-          }
-          
-          let unit = dataPoint.unit;
-          if (!unit && pollutants[pollutant]) {
-            unit = pollutants[pollutant].unit;
-          }
-          point[`${station.id}_unit`] = unit;
-        }
-      }
-    });
 
-    return point;
-  });
+            let unit = dataPoint.unit;
+            if (!unit && pollutants[pollutant]) {
+              unit = pollutants[pollutant].unit;
+            }
+            point[`${station.id}_unit`] = unit;
+          }
+        }
+      });
+
+      return point;
+    }
+  );
 
   // Remplir les gaps pour les pas de temps agrégés
   return fillGapsInData(transformedData, timeStep);
@@ -295,11 +357,18 @@ export const transformNormalData = (
   isMobile: boolean,
   timeStep?: string
 ): any[] => {
-  // Récupérer tous les timestamps uniques
+  // Récupérer tous les timestamps uniques (y compris ceux de la modélisation)
   const allTimestamps = new Set<string>();
   selectedPollutants.forEach((pollutant) => {
     if (data[pollutant]) {
       data[pollutant].forEach((point) => {
+        allTimestamps.add(point.timestamp);
+      });
+    }
+    // Ajouter aussi les timestamps de la modélisation
+    const modelingKey = `${pollutant}_modeling`;
+    if (data[modelingKey]) {
+      data[modelingKey].forEach((point) => {
         allTimestamps.add(point.timestamp);
       });
     }
@@ -310,11 +379,29 @@ export const transformNormalData = (
     return normalizeTimestamp(a) - normalizeTimestamp(b);
   });
 
+  // Log pour déboguer les problèmes de pas de temps
+  if (selectedPollutants.includes("pm25") && sortedTimestamps.length > 0) {
+    const firstTs = normalizeTimestamp(sortedTimestamps[0]);
+    const lastTs = normalizeTimestamp(
+      sortedTimestamps[sortedTimestamps.length - 1]
+    );
+    const timeDiff = lastTs - firstTs;
+    const hours = timeDiff / (60 * 60 * 1000);
+    const expectedPoints =
+      timeStep === "quartHeure"
+        ? hours * 4
+        : timeStep === "heure"
+        ? hours
+        : timeStep === "jour"
+        ? hours / 24
+        : sortedTimestamps.length;
+  }
+
   // Créer les points de données
   const transformedData = sortedTimestamps.map((timestamp) => {
     const dateMs = normalizeTimestamp(timestamp);
     const timestampFormatted = formatTimestamp(timestamp, isMobile);
-    
+
     const point: any = {
       timestamp: timestampFormatted,
       rawTimestamp: timestamp,
@@ -323,30 +410,49 @@ export const transformNormalData = (
 
     // Ajouter les valeurs pour chaque polluant (corrigées et brutes)
     selectedPollutants.forEach((pollutant) => {
+      const timestampMs = normalizeTimestamp(timestamp);
+
+      // Pour les pas de temps agrégés, utiliser une tolérance plus large
+      // car les données peuvent être arrondies différemment
+      const isAggregatedTimeStep =
+        timeStep && ["quartHeure", "heure", "jour"].includes(timeStep);
+      const tolerance = isAggregatedTimeStep
+        ? (timeStep === "quartHeure"
+            ? 15 * 60 * 1000
+            : timeStep === "heure"
+            ? 60 * 60 * 1000
+            : 24 * 60 * 60 * 1000) / 2
+        : 1000; // 1 seconde pour les pas de temps non agrégés
+
+      // Chercher les données mesurées pour ce polluant
       if (data[pollutant]) {
-        const timestampMs = normalizeTimestamp(timestamp);
-        
         const dataPoint = data[pollutant].find((p) => {
           const pTimestampMs = normalizeTimestamp(p.timestamp);
-          // Comparer en millisecondes pour éviter les problèmes de format
-          return Math.abs(pTimestampMs - timestampMs) < 1000; // Tolérance de 1 seconde
+          // Comparer en millisecondes avec une tolérance adaptée au pas de temps
+          return Math.abs(pTimestampMs - timestampMs) < tolerance;
         });
-        
+
         if (dataPoint) {
           // Valeur corrigée si disponible
           if (dataPoint.corrected_value !== undefined) {
-            point[`${pollutant}_corrected`] = ensureNonNegativeValue(dataPoint.corrected_value);
+            point[`${pollutant}_corrected`] = ensureNonNegativeValue(
+              dataPoint.corrected_value
+            );
           }
 
           // Valeur brute
           if (dataPoint.raw_value !== undefined) {
-            point[`${pollutant}_raw`] = ensureNonNegativeValue(dataPoint.raw_value);
+            point[`${pollutant}_raw`] = ensureNonNegativeValue(
+              dataPoint.raw_value
+            );
           }
 
           // Valeur principale : pour AtmoMicro avec données corrigées, utiliser _corrected
           if (source === "atmoMicro") {
             if (dataPoint.corrected_value === undefined) {
-              point[`${pollutant}_raw`] = ensureNonNegativeValue(dataPoint.value);
+              point[`${pollutant}_raw`] = ensureNonNegativeValue(
+                dataPoint.value
+              );
             }
           } else {
             point[pollutant] = ensureNonNegativeValue(dataPoint.value);
@@ -360,13 +466,47 @@ export const transformNormalData = (
           point[`${pollutant}_unit`] = unit;
         }
       }
+
+      // Ajouter les données de modélisation si disponibles (même si pas de données mesurées)
+      const modelingKey = `${pollutant}_modeling`;
+      if (data[modelingKey]) {
+        // Chercher le point de modélisation le plus proche (tolérance de 30 minutes pour les données horaires)
+        const modelingPoint = data[modelingKey].reduce(
+          (closest: any, p: any) => {
+            const pTimestampMs = normalizeTimestamp(p.timestamp);
+            const diff = Math.abs(pTimestampMs - timestampMs);
+            // Tolérance de 30 minutes (1800000 ms) pour les données horaires
+            if (diff < 1800000) {
+              if (
+                !closest ||
+                diff <
+                  Math.abs(normalizeTimestamp(closest.timestamp) - timestampMs)
+              ) {
+                return p;
+              }
+            }
+            return closest;
+          },
+          null
+        );
+
+        if (modelingPoint) {
+          const value = ensureNonNegativeValue(modelingPoint.value);
+          point[modelingKey] = value;
+        } else {
+          // Si pas de point correspondant, mettre null pour créer un gap
+          point[modelingKey] = null;
+        }
+      }
     });
 
     return point;
   });
 
   // Remplir les gaps pour les pas de temps agrégés
-  return fillGapsInData(transformedData, timeStep);
+  const filledData = fillGapsInData(transformedData, timeStep);
+
+  return filledData;
 };
 
 /**
@@ -384,11 +524,23 @@ export const transformData = (
 
   // Mode comparaison : données par station
   if (source === "comparison" && stations.length > 0) {
-    return transformComparisonData(data, stations, selectedPollutants, isMobile, timeStep);
+    return transformComparisonData(
+      data,
+      stations,
+      selectedPollutants,
+      isMobile,
+      timeStep
+    );
   }
 
   // Mode normal : données par polluant
-  return transformNormalData(data, selectedPollutants, source, isMobile, timeStep);
+  return transformNormalData(
+    data,
+    selectedPollutants,
+    source,
+    isMobile,
+    timeStep
+  );
 };
 
 /**
@@ -432,4 +584,3 @@ export const groupPollutantsByUnit = (
 
   return unitGroups;
 };
-

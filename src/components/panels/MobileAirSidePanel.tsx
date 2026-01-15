@@ -233,7 +233,7 @@ const MobileAirSidePanel: React.FC<MobileAirSidePanelProps> = ({
         return `${baseClasses} w-full sm:w-[300px] md:w-[350px] lg:w-[400px] xl:w-[450px]`;
     }
   };
- console.log("GROSSPATATATE");
+
   return (
     <div className={getPanelClasses()}>
       {/* Header */}

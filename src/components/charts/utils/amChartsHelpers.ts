@@ -56,10 +56,15 @@ export const createSeriesTooltip = (
     }
     
     // Obtenir le nom du polluant
-    const pollutantKey = seriesConfig.dataKey.replace(/_corrected$|_raw$/, "");
+    // Extraire le polluant de base en retirant les suffixes _corrected, _raw, _modeling
+    const isModeling = seriesConfig.dataKey.endsWith("_modeling");
+    const isRaw = seriesConfig.dataKey.endsWith("_raw");
+    const isCorrected = seriesConfig.dataKey.endsWith("_corrected");
+    const pollutantKey = seriesConfig.dataKey.replace(/_corrected$|_raw$|_modeling$/, "");
     const pollutantName = pollutants[pollutantKey]?.name || seriesConfig.name;
     
     // Obtenir l'unité
+    // Pour les données de modélisation, utiliser l'unité du polluant de base (même que les mesures)
     let unit = data?.[`${pollutantKey}_unit`] || "";
     if (!unit && pollutants[pollutantKey]) {
       unit = pollutants[pollutantKey].unit;
@@ -71,7 +76,18 @@ export const createSeriesTooltip = (
     if (dateStr) {
       tooltipText += `${dateStr}\n`;
     }
-    tooltipText += `${pollutantName}: ${typeof value === "number" ? value.toFixed(1) : value} ${encodedUnit}`;
+    
+    // Construire le label avec les indications appropriées
+    let label = pollutantName;
+    if (isModeling) {
+      label += " (modélisation)";
+    } else if (isRaw) {
+      label += " (brute)";
+    } else if (isCorrected) {
+      label += " (corrigé)";
+    }
+    
+    tooltipText += `${label}: ${typeof value === "number" ? value.toFixed(1) : value} ${encodedUnit}`;
     
     return tooltipText;
   });
@@ -129,8 +145,11 @@ export const createLineSeries = (
   // 1. Insérer des valeurs null dans les données pour les gaps (fait par fillGapsInData)
   // 2. Utiliser connect: false pour ne pas connecter les points null
   // 3. Les timestamps doivent être des nombres (millisecondes) - déjà fait
-  const isAggregatedTimeStep = timeStep && ["quartHeure", "heure", "jour"].includes(timeStep);
-  const shouldConnect = !isAggregatedTimeStep; // false pour les pas de temps agrégés (avec valeurs null)
+  // 
+  // Utiliser connectNulls de la configuration si disponible, sinon calculer selon timeStep
+  const shouldConnect = seriesConfig.connectNulls !== undefined 
+    ? seriesConfig.connectNulls 
+    : !(timeStep && ["quartHeure", "heure", "jour"].includes(timeStep));
   lineSeries.set("connect", shouldConnect);
 
   // Configurer le tooltip

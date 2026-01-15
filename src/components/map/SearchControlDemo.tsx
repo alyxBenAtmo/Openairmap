@@ -18,7 +18,10 @@ interface SearchControlDemoProps {
   zoom: number;
 }
 
-const SearchControlDemo: React.FC<SearchControlDemoProps> = ({ center, zoom }) => {
+const SearchControlDemo: React.FC<SearchControlDemoProps> = ({
+  center,
+  zoom,
+}) => {
   const mapRef = useRef<L.Map | null>(null);
 
   useEffect(() => {
@@ -33,53 +36,66 @@ const SearchControlDemo: React.FC<SearchControlDemoProps> = ({ center, zoom }) =
           style: {
             width: "300px",
             height: "40px",
-          }
+          },
         });
-        
+
         // Ajouter le contrôle à la carte
         searchCtrl.addTo(mapRef.current);
-        
+
         // Fonction utilitaire pour déterminer le niveau de zoom optimal
         const getOptimalZoomLevel = (result: any): number => {
-          const address = result.address || '';
-          const name = result.name || '';
-          const type = result.type || '';
-          
+          const address = result.address || "";
+          const name = result.name || "";
+          const type = result.type || "";
+
           switch (type.toLowerCase()) {
-            case 'house':
-            case 'building':
-            case 'address':
+            case "house":
+            case "building":
+            case "address":
               return 18;
-            case 'street':
-            case 'road':
+            case "street":
+            case "road":
               return 16;
-            case 'neighbourhood':
-            case 'suburb':
-            case 'district':
+            case "neighbourhood":
+            case "suburb":
+            case "district":
               return 14;
-            case 'city':
-            case 'town':
-            case 'village':
+            case "city":
+            case "town":
+            case "village":
               return 12;
-            case 'county':
-            case 'state':
-            case 'department':
+            case "county":
+            case "state":
+            case "department":
               return 10;
-            case 'country':
-            case 'region':
+            case "country":
+            case "region":
               return 6;
             default:
               if (address.match(/\d+/) || name.match(/\d+/)) {
                 return 18;
-              } else if (address.includes('rue') || address.includes('avenue') || 
-                         address.includes('boulevard') || address.includes('place') ||
-                         name.includes('rue') || name.includes('avenue') || 
-                         name.includes('boulevard') || name.includes('place')) {
+              } else if (
+                address.includes("rue") ||
+                address.includes("avenue") ||
+                address.includes("boulevard") ||
+                address.includes("place") ||
+                name.includes("rue") ||
+                name.includes("avenue") ||
+                name.includes("boulevard") ||
+                name.includes("place")
+              ) {
                 return 16;
-              } else if (address.includes('arrondissement') || address.includes('quartier') ||
-                         name.includes('arrondissement') || name.includes('quartier')) {
+              } else if (
+                address.includes("arrondissement") ||
+                address.includes("quartier") ||
+                name.includes("arrondissement") ||
+                name.includes("quartier")
+              ) {
                 return 14;
-              } else if (address.includes('commune') || name.includes('commune')) {
+              } else if (
+                address.includes("commune") ||
+                name.includes("commune")
+              ) {
                 return 12;
               } else {
                 return 15;
@@ -88,28 +104,27 @@ const SearchControlDemo: React.FC<SearchControlDemoProps> = ({ center, zoom }) =
         };
 
         // Écouter les résultats de recherche
-        searchCtrl.on('search:locationfound', (e: any) => {
-          console.log('Localisation trouvée:', e.location);
+        searchCtrl.on("search:locationfound", (e: any) => {
           if (mapRef.current) {
             const result = e.location;
             const zoomLevel = getOptimalZoomLevel(result);
-            
-            console.log(`Zoom adaptatif: niveau ${zoomLevel} pour "${result.name || result.address}" (type: ${result.type || 'non spécifié'})`);
-            
+
             mapRef.current.setView([result.lat, result.lng], zoomLevel, {
               animate: true,
-              duration: 1.5
+              duration: 1.5,
             });
           }
         });
 
         // Gérer les erreurs de recherche
-        searchCtrl.on('search:error', (e: any) => {
-          console.warn('Erreur lors de la recherche:', e.error);
+        searchCtrl.on("search:error", (e: any) => {
+          console.warn("Erreur lors de la recherche:", e.error);
         });
-        
       } catch (error) {
-        console.error('Erreur lors de l\'initialisation du contrôle de recherche IGN:', error);
+        console.error(
+          "Erreur lors de l'initialisation du contrôle de recherche IGN:",
+          error
+        );
       }
     }
   }, []);

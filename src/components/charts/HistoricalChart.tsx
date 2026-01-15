@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 import { HistoricalDataPoint, StationInfo } from "../../types";
 import {
   exportAmChartsAsPNG,
@@ -21,6 +27,7 @@ interface HistoricalChartProps {
   stationInfo?: StationInfo | null; // Informations de la station pour les exports
   timeStep?: string; // Pas de temps sélectionné (pour les métadonnées d'export)
   sensorTimeStep?: number | null; // Pas de temps du capteur en secondes (pour le mode instantane)
+  modelingData?: Record<string, HistoricalDataPoint[]>; // Données de modélisation
 }
 
 const HistoricalChart: React.FC<HistoricalChartProps> = ({
@@ -33,8 +40,8 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   stationInfo = null,
   timeStep,
   sensorTimeStep,
+  modelingData,
 }) => {
-
   // État pour détecter le mode paysage sur mobile
   const [isLandscapeMobile, setIsLandscapeMobile] = useState(false);
   // État pour détecter si on est sur mobile
@@ -48,19 +55,24 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
 
   const useSolidNebuleAirLines =
     featureFlags.solidLineNebuleAir &&
-    (source?.toLowerCase() === "nebuleair");
+    (source?.toLowerCase() === "nebuleair" ||
+      (source === "comparison" &&
+        stations.some((station) => station.source === "nebuleair")));
 
   // Créer une clé stable basée sur les IDs des stations pour éviter les recréations inutiles
-  const prevStationsKeyRef = useRef<string>('');
+  const prevStationsKeyRef = useRef<string>("");
   const stationsKey = useMemo(() => {
     if (stations.length === 0) {
-      const emptyKey = '';
+      const emptyKey = "";
       if (prevStationsKeyRef.current !== emptyKey) {
         prevStationsKeyRef.current = emptyKey;
       }
       return prevStationsKeyRef.current;
     }
-    const newKey = stations.map(s => s.id).sort().join(',');
+    const newKey = stations
+      .map((s) => s.id)
+      .sort()
+      .join(",");
     if (newKey !== prevStationsKeyRef.current) {
       prevStationsKeyRef.current = newKey;
     }
@@ -109,6 +121,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     showRawData,
     useSolidNebuleAirLines,
     timeStep,
+    modelingData,
   });
 
   // Calculer les marges du graphique
@@ -151,7 +164,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
         stations,
         stationInfo
       );
-      
+
       await exportAmChartsAsPNG(
         containerRef,
         filename,
@@ -167,7 +180,13 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
       alert("Erreur lors de l'exportation en PNG");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartData.length, source, selectedPollutants, stationsKey, stationInfoKey]);
+  }, [
+    chartData.length,
+    source,
+    selectedPollutants,
+    stationsKey,
+    stationInfoKey,
+  ]);
 
   const handleExportCSV = useCallback(() => {
     if (!chartData.length) return;

@@ -253,7 +253,6 @@ export async function loadWindFromAtmoSud(
   hourStr: string
 ): Promise<any> {
   const windUrl = `https://meteo.atmosud.org/${dateStr}/wind_field_${hourStr}.json`;
-  console.log("🌬️ [WIND-AtmoSud] Chargement des données de vent:", windUrl);
 
   const response = await fetch(windUrl);
   if (!response.ok) {

@@ -145,10 +145,7 @@ export class SignalAirService extends BaseDataService {
           } else {
           }
         } catch (error) {
-          console.warn(
-            `⚠️ SignalAir - Erreur pour le type ${signalTypeKey}:`,
-            error
-          );
+          // Erreur silencieuse pour ce type, continuer avec les autres
           // Continuer avec les autres types même si un échoue
         }
       }
@@ -278,7 +275,7 @@ export class SignalAirService extends BaseDataService {
       }
     } catch (error) {
       console.error(
-        `❌ SignalAir - Erreur lors de la récupération des données pour ${signalType}:`,
+        `Erreur lors de la récupération des données pour ${signalType}:`,
         error
       );
       throw error;

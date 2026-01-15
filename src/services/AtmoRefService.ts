@@ -13,6 +13,14 @@ import { pollutants } from "../constants/pollutants";
 
 export class AtmoRefService extends BaseDataService {
   private readonly BASE_URL = "https://api.atmosud.org/observations";
+  
+  // Cache STATIQUE partagé entre toutes les instances pour éviter les requêtes multiples
+  // Les métadonnées (stations) changent rarement, donc cache long (30 minutes)
+  private static stationsCache: AtmoRefStation[] | null = null;
+  private static lastStationsFetch: number = 0;
+  private static readonly STATIONS_CACHE_DURATION = 30 * 60 * 1000; // 30 minutes - métadonnées changent rarement
+  // Verrou pour éviter les appels API parallèles simultanés
+  private static stationsFetchPromise: Promise<AtmoRefStation[]> | null = null;
 
   constructor() {
     super("atmoRef");
@@ -146,8 +154,40 @@ export class AtmoRefService extends BaseDataService {
   private async fetchStations(
     pollutantName: string
   ): Promise<AtmoRefStationsResponse> {
-    const url = `${this.BASE_URL}/stations?format=json&nom_polluant=${pollutantName}&station_en_service=true&polluant_en_service=true&download=false&metadata=true`;
-    return await this.makeRequest(url);
+    // OPTIMISATION: Utiliser le cache au lieu de faire un appel API direct
+    // Le cache contient déjà toutes les stations avec métadonnées
+    const allStations = await this.getCachedAllStations();
+    
+    // Obtenir le code ISO correspondant au polluant pour filtrer les stations
+    const pollutantIsoCode = this.getPollutantIsoCodeFromName(pollutantName);
+    
+    // Filtrer les stations pour ne garder que celles où le polluant est en service
+    const filteredStations = allStations.filter((station) => {
+      if (!station.variables || !pollutantIsoCode) {
+        return false;
+      }
+      
+      // Vérifier si le polluant est présent dans variables avec en_service = true
+      const variable = station.variables[pollutantIsoCode];
+      return variable && variable.en_service === true;
+    });
+    
+    return { stations: filteredStations };
+  }
+  
+  // Méthode helper pour obtenir le code ISO depuis le nom du polluant AtmoSud
+  private getPollutantIsoCodeFromName(pollutantName: string): string | null {
+    // Mapping des noms AtmoSud vers les codes ISO
+    const nameToIsoCode: Record<string, string> = {
+      "pm2.5": "39", // PM2.5
+      "pm10": "40",  // PM10
+      "pm1": "41",   // PM1
+      "no2": "03",   // NO2
+      "o3": "07",    // O3
+      "so2": "01",   // SO2
+    };
+    
+    return nameToIsoCode[pollutantName.toLowerCase()] || null;
   }
 
   private async fetchMeasures(
@@ -269,6 +309,45 @@ export class AtmoRefService extends BaseDataService {
     }
   }
 
+  // Méthode pour récupérer toutes les stations avec cache STATIQUE partagé et verrou
+  private async getCachedAllStations(): Promise<AtmoRefStation[]> {
+    const now = Date.now();
+    const cacheAge = AtmoRefService.lastStationsFetch ? 
+      Math.round((now - AtmoRefService.lastStationsFetch) / 1000) : null;
+    const cacheValid = AtmoRefService.stationsCache &&
+      now - AtmoRefService.lastStationsFetch < AtmoRefService.STATIONS_CACHE_DURATION;
+
+    // Vérifier si le cache STATIQUE est valide
+    if (cacheValid && AtmoRefService.stationsCache) {
+      return AtmoRefService.stationsCache;
+    }
+
+    // Si un fetch est déjà en cours, attendre sa completion au lieu d'en lancer un nouveau
+    if (AtmoRefService.stationsFetchPromise) {
+      return await AtmoRefService.stationsFetchPromise;
+    }
+
+    // Récupérer toutes les stations et mettre à jour le cache STATIQUE
+    
+    // Créer une promesse partagée pour éviter les appels parallèles
+    AtmoRefService.stationsFetchPromise = (async (): Promise<AtmoRefStation[]> => {
+      try {
+        // Récupérer toutes les stations actives (sans filtre de polluant pour avoir toutes les métadonnées)
+        const url = `${this.BASE_URL}/stations?format=json&station_en_service=true&polluant_en_service=true&download=false&metadata=true`;
+        const response = await this.makeRequest(url);
+        const stations = response.stations || [];
+        AtmoRefService.stationsCache = stations;
+        AtmoRefService.lastStationsFetch = Date.now();
+        return stations;
+      } finally {
+        // Libérer le verrou une fois terminé
+        AtmoRefService.stationsFetchPromise = null;
+      }
+    })();
+
+    return await AtmoRefService.stationsFetchPromise;
+  }
+
   // Méthode pour récupérer les variables disponibles d'une station
   async fetchStationVariables(
     stationId: string
@@ -276,24 +355,51 @@ export class AtmoRefService extends BaseDataService {
     Record<string, { label: string; code_iso: string; en_service: boolean }>
   > {
     try {
-      const url = `${this.BASE_URL}/stations?format=json&station_en_service=true&polluant_en_service=true&download=false&metadata=true`;
-      const response = await this.makeRequest(url);
-
-      const station = response.stations.find(
+      // Utiliser le cache au lieu de faire un appel API par station
+      const allStations = await this.getCachedAllStations();
+      const station = allStations.find(
         (s: AtmoRefStation) => s.id_station === stationId
       );
       if (!station) {
-        console.warn(`Station ${stationId} non trouvée`);
+        console.warn(`Station ${stationId} non trouvée dans le cache`);
         return {};
       }
 
-      return station.variables;
+      return station.variables || {};
     } catch (error) {
       console.error(
         "Erreur lors de la récupération des variables de la station:",
         error
       );
       throw error;
+    }
+  }
+
+  // Méthode pour récupérer les coordonnées d'une station
+  async fetchStationCoordinates(
+    stationId: string
+  ): Promise<{ latitude: number; longitude: number } | null> {
+    try {
+      // Utiliser le cache au lieu de faire un appel API par station
+      const allStations = await this.getCachedAllStations();
+      const station = allStations.find(
+        (s: AtmoRefStation) => s.id_station === stationId
+      );
+      if (!station) {
+        console.warn(`Station ${stationId} non trouvée dans le cache`);
+        return null;
+      }
+
+      return {
+        latitude: station.latitude,
+        longitude: station.longitude,
+      };
+    } catch (error) {
+      console.error(
+        "Erreur lors de la récupération des coordonnées de la station:",
+        error
+      );
+      return null;
     }
   }
 
@@ -325,25 +431,15 @@ export class AtmoRefService extends BaseDataService {
       }
 
       // Récupérer les stations d'abord pour avoir les coordonnées
+      // fetchStations() utilise maintenant le cache et filtre déjà par polluant
       const stationsResponse = await this.fetchStations(atmoRefPollutantName);
-      if (!stationsResponse.stations) {
+      if (!stationsResponse.stations || stationsResponse.stations.length === 0) {
         console.warn("Aucune station trouvée pour AtmoRef");
         return [];
       }
 
-      // Obtenir le code ISO correspondant au polluant pour filtrer les stations
-      const pollutantIsoCode = this.getPollutantIsoCode(params.pollutant);
-      
-      // Filtrer les stations pour ne garder que celles où le polluant est en service
-      const filteredStations = stationsResponse.stations.filter((station) => {
-        if (!station.variables || !pollutantIsoCode) {
-          return false;
-        }
-        
-        // Vérifier si le polluant est présent dans variables avec en_service = true
-        const variable = station.variables[pollutantIsoCode];
-        return variable && variable.en_service === true;
-      });
+      // Les stations sont déjà filtrées par polluant dans fetchStations()
+      const filteredStations = stationsResponse.stations;
 
       // Créer un map des stations par ID pour un accès rapide
       const stationsMap = new Map<string, AtmoRefStation>();
@@ -588,7 +684,7 @@ export class AtmoRefService extends BaseDataService {
       return temporalDataPoints;
     } catch (error) {
       console.error(
-        "❌ [AtmoRef] Erreur lors de la récupération des données temporelles:",
+        "Erreur lors de la récupération des données temporelles:",
         error
       );
       throw error;

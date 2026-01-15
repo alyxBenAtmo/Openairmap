@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useCallback } from "react";
 import { Marker, Polyline, CircleMarker } from "react-leaflet";
 import L from "leaflet";
 import { MeasurementDevice } from "../../types";
 import { useCustomSpiderfier } from "../../hooks/useCustomSpiderfier";
+import MarkerWithTooltip from "./MarkerWithTooltip";
 
 interface CustomSpiderfiedMarkersProps {
   devices: MeasurementDevice[];
@@ -12,9 +13,12 @@ interface CustomSpiderfiedMarkersProps {
   nearbyDistance?: number;
   zoomThreshold?: number;
   getMarkerKey?: (device: MeasurementDevice) => string;
-  onMarkerHover?: (device: MeasurementDevice, event: L.LeafletMouseEvent) => void;
-  onMarkerHoverOut?: () => void;
-  onMarkerClick?: (device: MeasurementDevice) => void;
+  sensorMetadataMap?: Map<string, {
+    sensorModel?: string;
+    sensorBrand?: string;
+    measuredPollutants?: string[];
+  }>;
+  mapRef?: React.RefObject<L.Map | null>;
 }
 
 const CustomSpiderfiedMarkers: React.FC<CustomSpiderfiedMarkersProps> = ({
@@ -25,9 +29,8 @@ const CustomSpiderfiedMarkers: React.FC<CustomSpiderfiedMarkersProps> = ({
   nearbyDistance = 20,
   zoomThreshold = 12,
   getMarkerKey,
-  onMarkerHover,
-  onMarkerHoverOut,
-  onMarkerClick,
+  sensorMetadataMap,
+  mapRef,
 }) => {
   const markerRefs = useRef<Map<string, any>>(new Map());
   const {
@@ -43,6 +46,62 @@ const CustomSpiderfiedMarkers: React.FC<CustomSpiderfiedMarkersProps> = ({
     zoomThreshold,
   });
 
+  // Mettre à jour la position des marqueurs éclatés manuellement et réattacher les eventHandlers
+  useEffect(() => {
+    markerRefs.current.forEach((marker, deviceId) => {
+      if (!marker) return;
+
+      const device = devices.find((d) => d.id === deviceId);
+      if (!device) return;
+
+      const newPosition = getMarkerPosition(device);
+      const leafletMarker = (marker as any).leafletElement || marker;
+
+      if (!leafletMarker || typeof leafletMarker.setLatLng !== "function")
+        return;
+
+      const currentLatLng = leafletMarker.getLatLng();
+      const newLatLng = L.latLng(newPosition[0], newPosition[1]);
+
+      // Mettre à jour la position seulement si elle a changé
+      if (!currentLatLng || !currentLatLng.equals(newLatLng)) {
+        // Mettre à jour la position
+        leafletMarker.setLatLng(newLatLng);
+      }
+
+      // Toujours réattacher les eventHandlers pour les marqueurs éclatés
+      // (même si la position n'a pas changé) pour s'assurer qu'ils sont toujours présents
+      const isSpiderfied = isMarkerSpiderfied(device);
+      if (isSpiderfied) {
+        // Supprimer les anciens eventHandlers
+        leafletMarker.off("click");
+        leafletMarker.off("mouseover");
+        leafletMarker.off("mouseout");
+
+        // Réattacher les eventHandlers
+        leafletMarker.on("click", (e: L.LeafletMouseEvent) => {
+          handleMarkerClick(device);
+        });
+      }
+    });
+  }, [
+    devices,
+    getMarkerPosition,
+    spiderfiedMarkers,
+    handleMarkerClick,
+    isMarkerSpiderfied,
+  ]);
+
+  // Mémoriser les eventHandlers pour éviter les re-renders inutiles
+  // Ce handler est utilisé pour les marqueurs NON-ÉCLATÉS (React-Leaflet eventHandlers)
+  const clickHandler = useCallback(
+    (device: MeasurementDevice) => (e: L.LeafletMouseEvent) => {
+      // Ne pas utiliser stopPropagation pour permettre au click de se propager correctement
+      handleMarkerClick(device);
+    },
+    [handleMarkerClick]
+  );
+
   return (
     <>
       {/* Marqueurs normaux ou éclatés */}
@@ -54,27 +113,56 @@ const CustomSpiderfiedMarkers: React.FC<CustomSpiderfiedMarkersProps> = ({
 
         return (
           <React.Fragment key={markerKey}>
-            <Marker
+            <MarkerWithTooltip
+              key={markerKey}
+              device={device}
               position={position}
               icon={createCustomIcon(device)}
-              eventHandlers={{
-                click: () => {
-                  // Masquer le tooltip lors du clic si la fonction est fournie
-                  if (onMarkerClick) {
-                    onMarkerClick(device);
-                  }
-                  handleMarkerClick(device);
-                },
-                ...(onMarkerHover && {
-                  mouseover: (e: L.LeafletMouseEvent) => onMarkerHover(device, e),
-                }),
-                ...(onMarkerHoverOut && {
-                  mouseout: () => onMarkerHoverOut(),
-                }),
-              }}
+              interactive={true}
+              bubblingMouseEvents={true}
+              sensorMetadata={sensorMetadataMap?.get(device.id)}
+              minZoom={11}
+              mapRef={mapRef}
+              eventHandlers={
+                // Pour les marqueurs éclatés, on n'utilise pas les eventHandlers React-Leaflet
+                // car ils ne fonctionnent pas correctement quand la position change
+                // On utilise uniquement les eventHandlers Leaflet natifs attachés dans le useEffect
+                isSpiderfied
+                  ? {
+                      // Pour les marqueurs éclatés, les handlers sont attachés via Leaflet natif dans le useEffect/ref
+                      // On peut quand même ajouter des handlers React-Leaflet comme fallback
+                      click: (e: L.LeafletMouseEvent) => {
+                        handleMarkerClick(device);
+                      },
+                    }
+                  : {
+                      click: clickHandler(device),
+                    }
+              }
               ref={(marker) => {
                 if (marker) {
                   markerRefs.current.set(device.id, marker);
+
+                  // Attacher immédiatement les eventHandlers pour les marqueurs éclatés
+                  if (isSpiderfied) {
+                    const leafletMarker =
+                      (marker as any).leafletElement || marker;
+                    if (
+                      leafletMarker &&
+                      typeof leafletMarker.on === "function"
+                    ) {
+                      // Supprimer les anciens eventHandlers
+                      leafletMarker.off("click");
+                      leafletMarker.off("mouseover");
+                      leafletMarker.off("mouseout");
+
+                      // Attacher les eventHandlers pour click
+                      // Les tooltips sont maintenant gérés par MarkerWithTooltip, pas besoin de handlers supplémentaires
+                      leafletMarker.on("click", (e: L.LeafletMouseEvent) => {
+                        handleMarkerClick(device);
+                      });
+                    }
+                  }
                 } else {
                   markerRefs.current.delete(device.id);
                 }
@@ -93,6 +181,7 @@ const CustomSpiderfiedMarkers: React.FC<CustomSpiderfiedMarkersProps> = ({
                 opacity={0.8}
                 dashArray="5, 5"
                 interactive={false}
+                bubblingMouseEvents={false}
               />
             )}
           </React.Fragment>
@@ -111,6 +200,7 @@ const CustomSpiderfiedMarkers: React.FC<CustomSpiderfiedMarkersProps> = ({
           fillColor="#3388ff"
           fillOpacity={0.4}
           interactive={false}
+          bubblingMouseEvents={false}
         />
       ))}
     </>

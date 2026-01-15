@@ -13,9 +13,13 @@ import { pollutants } from "../constants/pollutants";
 
 export class NebuleAirService extends BaseDataService {
   private readonly BASE_URL = this.getApiBaseUrl();
-  private sensorsMetadataCache: NebuleAirSensor[] | null = null;
-  private lastMetadataFetch: number = 0;
-  private readonly METADATA_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  // Cache STATIQUE partagé entre toutes les instances pour éviter les requêtes multiples
+  // Les métadonnées (capteurs) changent rarement, donc cache long (30 minutes)
+  private static sensorsMetadataCache: NebuleAirSensor[] | null = null;
+  private static lastMetadataFetch: number = 0;
+  private static readonly METADATA_CACHE_DURATION = 30 * 60 * 1000; // 30 minutes - métadonnées changent rarement
+  // Verrou pour éviter les appels API parallèles simultanés
+  private static metadataFetchPromise: Promise<NebuleAirSensor[]> | null = null;
 
   constructor() {
     super("nebuleair");
@@ -60,11 +64,14 @@ export class NebuleAirService extends BaseDataService {
 
       const pollutantConfig = pollutants[params.pollutant];
 
-      // Récupérer les données des capteurs
-      const sensorsData = await this.fetchSensorsData();
+      // OPTIMISATION: Utiliser le cache au lieu de faire un appel API direct
+      // Le cache contient déjà toutes les métadonnées des capteurs 
+      const sensorsData = await this.getCachedSensorsMetadata();
 
       // Transformer les données en MeasurementDevice
       const devices: MeasurementDevice[] = [];
+      let sensorsWithData = 0;
+      let sensorsWithoutData = 0;
 
       for (const sensor of sensorsData) {
         // Vérifier si le capteur doit être affiché sur la carte
@@ -86,11 +93,17 @@ export class NebuleAirService extends BaseDataService {
           timeStepSuffix
         );
 
+        // Si le capteur ne mesure pas ce polluant (valeur null ou -1), l'ignorer complètement
+        if (value === null || value === -1) {
+          continue;
+        }
+
         // Vérifier si la donnée est récente selon le pas de temps
         const isDataRecent = this.isDataRecent(sensor.time, params.timeStep);
 
         if (value === null || value === -1 || !isDataRecent) {
           // Capteur sans donnée valide ou donnée trop ancienne - utiliser le marqueur par défaut
+          sensorsWithoutData++;
           devices.push({
             id: sensor.sensorId,
             name: `NebuleAir ${sensor.sensorId}`,
@@ -106,6 +119,7 @@ export class NebuleAirService extends BaseDataService {
           } as MeasurementDevice & { qualityLevel: string });
         } else {
           // Capteur avec donnée valide et récente - considérer comme actif
+          sensorsWithData++;
           const pollutant = pollutants[params.pollutant];
           // Utiliser la valeur arrondie pour la cohérence avec l'affichage
           const roundedValue = Math.round(value);
@@ -142,15 +156,12 @@ export class NebuleAirService extends BaseDataService {
 
   private async fetchSensorsData(): Promise<NebuleAirSensor[]> {
     try {
-      const url = `${this.BASE_URL}/capteurs/metadata?capteurType=NebuleAir&format=JSON`;
+      const url = `${this.BASE_URL}/capteurs/metadata?capteurType=NebuleAir&format=JSON&gas=true`;
 
       const response = await this.makeRequest(url);
 
       // Vérifier si la réponse est valide (pas de HTML)
       if (typeof response === "string" && response.includes("<html")) {
-        console.warn(
-          "❌ [NebuleAir] L'API NebuleAir retourne du HTML, utilisation de données simulées"
-        );
         return this.getMockSensorsData();
       }
 
@@ -178,21 +189,10 @@ export class NebuleAirService extends BaseDataService {
         return displayableSensors;
       }
 
-      console.warn(
-        "❌ [NebuleAir] Format de réponse NebuleAir non reconnu:",
-        response
-      );
       return this.getMockSensorsData();
     } catch (error) {
-      console.warn(
-        "❌ [NebuleAir] Erreur lors de l'appel à l'API NebuleAir, utilisation de données simulées:",
-        error
-      );
 
       // Données simulées pour le développement - utiliser un capteur qui a des données historiques
-      console.log(
-        "⚠️ [NebuleAir] Utilisation de données simulées avec capteur qui a des données historiques"
-      );
       return this.getMockSensorsData();
     }
   }
@@ -425,68 +425,15 @@ export class NebuleAirService extends BaseDataService {
     Record<string, { label: string; code_iso: string; en_service: boolean }>
   > {
     try {
-      console.log("🔍 [NebuleAir] fetchSiteVariables appelé pour:", sensorId);
-
-      const variables: Record<
-        string,
-        { label: string; code_iso: string; en_service: boolean }
-      > = {};
-
-      // Polluants toujours supportés par NebuleAir
-      const alwaysSupportedPollutants = ["PM1", "PM25", "PM10"];
+      // Récupérer les métadonnées du capteur
+      const sensorsMetadata = await this.getCachedSensorsMetadata();
+      const sensor = sensorsMetadata.find((s) => s.sensorId === sensorId);
       
-      alwaysSupportedPollutants.forEach((nebuleAirPollutant) => {
-        // Convertir le code NebuleAir vers notre code interne
-        const ourPollutantCode =
-          NEBULEAIR_POLLUTANT_MAPPING[nebuleAirPollutant];
-        if (ourPollutantCode) {
-          variables[ourPollutantCode] = {
-            label: this.getPollutantLabel(nebuleAirPollutant),
-            code_iso: this.getPollutantCodeISO(nebuleAirPollutant),
-            en_service: true,
-          };
-        }
-      });
-
-      // Vérifier si le capteur mesure vraiment le bruit
-      // Récupérer les métadonnées du capteur pour vérifier la valeur NOISE
-      try {
-        const sensorsMetadata = await this.getCachedSensorsMetadata();
-        const sensor = sensorsMetadata.find((s) => s.sensorId === sensorId);
-        
-        if (sensor) {
-          // Vérifier si NOISE a une valeur valide (pas null, pas "-1")
-          const noiseValue = sensor.NOISE;
-          const hasValidNoise = 
-            noiseValue !== null && 
-            noiseValue !== undefined && 
-            noiseValue !== "-1" &&
-            noiseValue.trim() !== "";
-          
-          if (hasValidNoise) {
-            const ourPollutantCode = NEBULEAIR_POLLUTANT_MAPPING["NOISE"];
-            if (ourPollutantCode) {
-              variables[ourPollutantCode] = {
-                label: this.getPollutantLabel("NOISE"),
-                code_iso: this.getPollutantCodeISO("NOISE"),
-                en_service: true,
-              };
-            }
-          }
-        }
-      } catch (metadataError) {
-        console.warn(
-          `⚠️ [NebuleAir] Impossible de vérifier les métadonnées NOISE pour ${sensorId}:`,
-          metadataError
-        );
-        // En cas d'erreur, ne pas inclure NOISE par défaut
-      }
-
-      console.log("✅ [NebuleAir] Variables retournées:", variables);
-      return variables;
+      // Utiliser la méthode optimisée qui accepte les métadonnées
+      return await this.fetchSiteVariablesWithMetadata(sensorId, sensor);
     } catch (error) {
       console.error(
-        `❌ [NebuleAir] Erreur lors de la récupération des variables pour ${sensorId}:`,
+        `Erreur lors de la récupération des variables pour ${sensorId}:`,
         error
       );
       return {};
@@ -494,21 +441,22 @@ export class NebuleAirService extends BaseDataService {
   }
 
   // Méthode pour récupérer les métadonnées complètes d'un capteur (variables + last_seen_sec)
-  async fetchSiteInfo(
-    sensorId: string
-  ): Promise<{
-    variables: Record<string, { label: string; code_iso: string; en_service: boolean }>;
+  async fetchSiteInfo(sensorId: string): Promise<{
+    variables: Record<
+      string,
+      { label: string; code_iso: string; en_service: boolean }
+    >;
     lastSeenSec?: number;
   }> {
+    
     try {
-      console.log("🔍 [NebuleAir] fetchSiteInfo appelé pour:", sensorId);
-
-      // Récupérer les variables
-      const variables = await this.fetchSiteVariables(sensorId);
-
-      // Récupérer les métadonnées du capteur pour obtenir last_seen_sec
+      // OPTIMISATION: Récupérer les métadonnées une seule fois et les réutiliser
+      // pour éviter deux appels au cache (un dans fetchSiteVariables, un ici)
       const sensorsMetadata = await this.getCachedSensorsMetadata();
       const sensor = sensorsMetadata.find((s) => s.sensorId === sensorId);
+
+      // Récupérer les variables en passant les métadonnées pour éviter un deuxième appel
+      const variables = await this.fetchSiteVariablesWithMetadata(sensorId, sensor);
 
       return {
         variables,
@@ -516,13 +464,91 @@ export class NebuleAirService extends BaseDataService {
       };
     } catch (error) {
       console.error(
-        `❌ [NebuleAir] Erreur lors de la récupération des infos pour ${sensorId}:`,
+        `Erreur lors de la récupération des infos pour ${sensorId}:`,
         error
       );
-      // En cas d'erreur, retourner au moins les variables
-      const variables = await this.fetchSiteVariables(sensorId);
-      return { variables };
+      // En cas d'erreur, retourner des variables vides plutôt que de réessayer
+      // pour éviter les boucles infinies
+      return { variables: {} };
     }
+  }
+  
+  // Version optimisée de fetchSiteVariables qui accepte les métadonnées en paramètre
+  private async fetchSiteVariablesWithMetadata(
+    sensorId: string,
+    sensor?: NebuleAirSensor
+  ): Promise<
+    Record<string, { label: string; code_iso: string; en_service: boolean }>
+  > {
+    const variables: Record<
+      string,
+      { label: string; code_iso: string; en_service: boolean }
+    > = {};
+
+    // Polluants toujours supportés par NebuleAir
+    const alwaysSupportedPollutants = ["PM1", "PM25", "PM10"];
+
+    alwaysSupportedPollutants.forEach((nebuleAirPollutant) => {
+      // Convertir le code NebuleAir vers notre code interne
+      const ourPollutantCode =
+        NEBULEAIR_POLLUTANT_MAPPING[nebuleAirPollutant];
+      if (ourPollutantCode) {
+        variables[ourPollutantCode] = {
+          label: this.getPollutantLabel(nebuleAirPollutant),
+          code_iso: this.getPollutantCodeISO(nebuleAirPollutant),
+          en_service: true,
+        };
+      }
+    });
+
+    // Vérifier si le capteur mesure vraiment le bruit et/ou NO2
+    if (sensor) {
+      // Vérifier si NOISE a une valeur valide (pas null, pas "-1")
+      const noiseValue = sensor.NOISE;
+      const noiseValueStr =
+        typeof noiseValue === "string"
+          ? noiseValue
+          : String(noiseValue || "");
+      const hasValidNoise =
+        noiseValue !== null &&
+        noiseValue !== undefined &&
+        noiseValue !== "-1" &&
+        noiseValueStr.trim() !== "";
+
+      if (hasValidNoise) {
+        const ourPollutantCode = NEBULEAIR_POLLUTANT_MAPPING["NOISE"];
+        if (ourPollutantCode) {
+          variables[ourPollutantCode] = {
+            label: this.getPollutantLabel("NOISE"),
+            code_iso: this.getPollutantCodeISO("NOISE"),
+            en_service: true,
+          };
+        }
+      }
+
+      // Vérifier si NO2 a une valeur valide (pas null, pas "-1")
+      const no2Value = sensor.NO2;
+      const no2ValueStr =
+        typeof no2Value === "string" ? no2Value : String(no2Value || "");
+      const hasValidNo2 =
+        no2Value !== null &&
+        no2Value !== undefined &&
+        no2Value !== "-1" &&
+        no2ValueStr.trim() !== "";
+
+      if (hasValidNo2) {
+        const ourPollutantCode = NEBULEAIR_POLLUTANT_MAPPING["NO2"];
+        if (ourPollutantCode) {
+          variables[ourPollutantCode] = {
+            label: this.getPollutantLabel("NO2"),
+            code_iso: this.getPollutantCodeISO("NO2"),
+            en_service: true,
+          };
+        }
+      }
+    }
+
+    return variables;
   }
 
   private getPollutantLabel(pollutant: string): string {
@@ -530,6 +556,7 @@ export class NebuleAirService extends BaseDataService {
       PM1: "Particules PM₁",
       PM25: "Particules PM₂.₅",
       PM10: "Particules PM₁₀",
+      NO2: "Dioxyde d'azote NO₂",
       NOISE: "Bruit",
     };
     return labels[pollutant] || pollutant;
@@ -540,6 +567,7 @@ export class NebuleAirService extends BaseDataService {
       PM1: "PM1",
       PM25: "PM2.5",
       PM10: "PM10",
+      NO2: "NO2",
       NOISE: "dB(A)",
     };
     return codes[pollutant] || pollutant;
@@ -554,59 +582,34 @@ export class NebuleAirService extends BaseDataService {
     endDate: string;
   }): Promise<Array<{ timestamp: string; value: number; unit: string }>> {
     try {
-      const callId = Math.random().toString(36).substr(2, 9);
-      console.log(
-        `🔍 [NebuleAir] [${callId}] Début fetchHistoricalData avec params:`,
-        {
-          ...params,
-          callId,
-          timestamp: new Date().toISOString(),
-          stackTrace: new Error().stack?.split("\n").slice(1, 4).join("\n"),
-        }
-      );
-
       // Vérifier si le polluant est supporté
       const nebuleAirPollutant = this.getNebuleAirPollutantName(
         params.pollutant
       );
       if (!nebuleAirPollutant) {
-        console.warn(
-          `❌ [NebuleAir] Polluant ${params.pollutant} non supporté par NebuleAir`
-        );
+        console.warn(`Polluant ${params.pollutant} non supporté par NebuleAir`);
         return [];
       }
-      console.log(
-        `✅ [NebuleAir] [${callId}] Polluant supporté:`,
-        nebuleAirPollutant
-      );
 
       // Convertir les dates au format attendu par l'API
       const startDate = new Date(params.startDate);
       const endDate = new Date(params.endDate);
       const now = new Date();
 
-      console.log(`🔍 [NebuleAir] [${callId}] Calcul des dates:`, {
-        startDate: params.startDate,
-        endDate: params.endDate,
-        startDateObj: startDate.toISOString(),
-        endDateObj: endDate.toISOString(),
-        now: now.toISOString(),
-      });
-
       // CORRECTION : Utiliser des dates absolues (ISO) au lieu du format relatif
       // Cela garantit que toutes les sources (AtmoRef, AtmoMicro, NebuleAir) utilisent exactement la même période
       // même si l'utilisateur ajoute des sources à des moments différents
       // L'API NebuleAir accepte les dates ISO en format absolu pour start et stop
       // Format attendu : 2019-09-16T12:00:00Z (sans millisecondes)
-      
+
       // Formater les dates au format ISO sans millisecondes (format attendu par l'API NebuleAir)
       const start = this.formatDateForNebuleAirAPI(startDate);
-      
+
       // Utiliser "now" pour stop si endDate est très proche de maintenant (dans les 5 minutes)
       // Sinon, utiliser la date absolue pour garantir la cohérence
       const timeDiffFromNow = Math.abs(now.getTime() - endDate.getTime());
       const fiveMinutes = 5 * 60 * 1000;
-      
+
       let stop: string;
       if (timeDiffFromNow <= fiveMinutes) {
         // endDate est très proche de maintenant, utiliser "now" pour avoir les données les plus récentes
@@ -616,55 +619,27 @@ export class NebuleAirService extends BaseDataService {
         stop = this.formatDateForNebuleAirAPI(endDate);
       }
 
-      console.log(`🔍 [NebuleAir] [${callId}] Calcul de la période:`, {
-        startDate: params.startDate,
-        endDate: params.endDate,
-        startDateObj: startDate.toISOString(),
-        endDateObj: endDate.toISOString(),
-        start,
-        stop,
-        timeDiffFromNow,
-        note: "Utilisation de dates absolues (ISO) pour garantir la cohérence avec AtmoRef et AtmoMicro",
-      });
-
       // Convertir le pas de temps au format de l'API
       const freq = this.convertTimeStepToFreq(params.timeStep);
 
       // Construire l'URL pour les données historiques selon l'exemple fourni
       // Encoder les paramètres start et stop pour l'URL
-      const url = `${this.BASE_URL}/capteurs/dataNebuleAir?capteurID=${params.sensorId}&start=${encodeURIComponent(start)}&stop=${encodeURIComponent(stop)}&freq=${freq}`;
-
-      console.log(`🌐 [NebuleAir] [${callId}] URL construite:`, url);
-      console.log(`📊 [NebuleAir] [${callId}] Paramètres finaux:`, {
-        sensorId: params.sensorId,
-        pollutant: params.pollutant,
-        timeStep: params.timeStep,
-        startDate: params.startDate,
-        endDate: params.endDate,
-        start,
-        stop,
-        freq,
-        nebuleAirPollutant,
-        timeDiffFromNow: timeDiffFromNow,
-        note: stop === "now" ? "Utilisation de 'now' car endDate proche de maintenant" : "Utilisation de date absolue pour garantir la cohérence",
-      });
+      const url = `${this.BASE_URL}/capteurs/dataNebuleAir?capteurID=${
+        params.sensorId
+      }&start=${encodeURIComponent(start)}&stop=${encodeURIComponent(
+        stop
+      )}&freq=${freq}&gas=true`;
 
       const response = await this.makeRequest(url);
-      console.log("📥 [NebuleAir] Réponse reçue:", response);
 
       // L'API retourne directement un tableau de données
       if (!Array.isArray(response)) {
         console.warn(
-          "❌ [NebuleAir] Format de réponse historique NebuleAir non reconnu:",
+          "Format de réponse historique NebuleAir non reconnu:",
           response
         );
         return [];
       }
-
-      console.log(
-        "📊 [NebuleAir] Nombre de points de données reçus:",
-        response.length
-      );
 
       // Transformer les données historiques
       const historicalData = response
@@ -676,25 +651,14 @@ export class NebuleAirService extends BaseDataService {
           );
 
           // Extraire le timestamp (l'API NebuleAir utilise "time")
-          const timestamp = dataPoint.timestamp || dataPoint.time || dataPoint.date;
-          
-          if (index < 3) {
-            // Log des 3 premiers points pour debug
-            console.log(`🔍 [NebuleAir] Point ${index}:`, {
-              dataPoint,
-              value,
-              nebuleAirPollutant,
-              timestamp,
-              timestampType: typeof timestamp,
-            });
-          }
+          const timestamp =
+            dataPoint.timestamp || dataPoint.time || dataPoint.date;
 
           if (value === null || value === undefined) {
             return null;
           }
 
           if (!timestamp) {
-            console.warn(`⚠️ [NebuleAir] Point ${index} sans timestamp:`, dataPoint);
             return null;
           }
 
@@ -716,17 +680,6 @@ export class NebuleAirService extends BaseDataService {
         return dateA - dateB;
       });
 
-      console.log(
-        "✅ [NebuleAir] Données historiques transformées:",
-        historicalData.length,
-        "points"
-      );
-      
-      if (historicalData.length > 0) {
-        console.log("📊 [NebuleAir] Premier point:", historicalData[0]);
-        console.log("📊 [NebuleAir] Dernier point:", historicalData[historicalData.length - 1]);
-      }
-      
       return historicalData;
     } catch (error) {
       console.error(
@@ -748,12 +701,14 @@ export class NebuleAirService extends BaseDataService {
     if (!hasTimeComponent) {
       // Si pas d'heure, traiter comme une date locale (YYYY-MM-DD)
       // Parser la date locale
-      const [year, month, day] = dateString.split('-').map(Number);
-      
+      const [year, month, day] = dateString.split("-").map(Number);
+
       if (isNaN(year) || isNaN(month) || isNaN(day)) {
-        throw new Error(`Format de date invalide: ${dateString}. Format attendu: YYYY-MM-DD`);
+        throw new Error(
+          `Format de date invalide: ${dateString}. Format attendu: YYYY-MM-DD`
+        );
       }
-      
+
       // CORRECTION : Créer une date locale d'abord, puis convertir en UTC
       // Pour la date de début : minuit local = 23h UTC la veille (si UTC+1)
       // Pour la date de fin : minuit local du jour suivant = 23h UTC du jour sélectionné (si UTC+1)
@@ -777,7 +732,7 @@ export class NebuleAirService extends BaseDataService {
     if (isNaN(date.getTime())) {
       throw new Error(`Date invalide: ${dateString}`);
     }
-    
+
     // Préserver l'heure existante - ne pas forcer à 00:00:00 ou 23:59:59
     // Cela permet de respecter exactement la période demandée (ex: 24h exactement)
     return date.toISOString();
@@ -788,7 +743,7 @@ export class NebuleAirService extends BaseDataService {
   private formatDateForNebuleAirAPI(date: Date): string {
     // toISOString() retourne 2019-09-16T12:00:00.000Z
     // On doit enlever les millisecondes pour avoir 2019-09-16T12:00:00Z
-    return date.toISOString().replace(/\.\d{3}Z$/, 'Z');
+    return date.toISOString().replace(/\.\d{3}Z$/, "Z");
   }
 
   // Méthode pour convertir le pas de temps au format de l'API
@@ -809,9 +764,8 @@ export class NebuleAirService extends BaseDataService {
     dataPoint: any,
     pollutant: string
   ): number | null {
-    // L'API retourne les valeurs directement par nom de polluant (PM1, PM25, PM10)
+    // L'API retourne les valeurs directement par nom de polluant (PM1, PM25, PM10, NO2)
     const value = dataPoint[pollutant];
-
 
     if (value === null || value === undefined || value === "-1") {
       return null;
@@ -831,11 +785,6 @@ export class NebuleAirService extends BaseDataService {
     sensorsMetadata?: NebuleAirSensor[]; // Métadonnées des capteurs (optionnel)
   }): Promise<TemporalDataPoint[]> {
     try {
-      console.log(
-        "🕒 [NebuleAir] Récupération des données temporelles:",
-        params
-      );
-
       // Vérifier si le polluant est supporté par NebuleAir
       const nebuleAirPollutant = this.getNebuleAirPollutantName(
         params.pollutant
@@ -853,7 +802,10 @@ export class NebuleAirService extends BaseDataService {
         params.startDate,
         false
       );
-      const endDateFormatted = this.formatDateForHistoricalMode(params.endDate, true);
+      const endDateFormatted = this.formatDateForHistoricalMode(
+        params.endDate,
+        true
+      );
 
       // Convertir en Date puis formater au format attendu par l'API NebuleAir (sans millisecondes)
       const startDate = new Date(startDateFormatted);
@@ -866,19 +818,12 @@ export class NebuleAirService extends BaseDataService {
         this.BASE_URL
       }/capteurs/dataNebuleAirAll?start=${encodeURIComponent(
         start
-      )}&end=${encodeURIComponent(end)}&freq=${freq}&format=JSON`;
-
-      console.log(`🌐 [NebuleAir] URL construite:`, url);
+      )}&end=${encodeURIComponent(end)}&freq=${freq}&format=JSON&gas=true`;
 
       const response = await this.makeRequest(url);
-      console.log("📥 [NebuleAir] Réponse reçue:", response);
 
       // L'API retourne un objet avec les capteurs comme clés
       if (!response || typeof response !== "object") {
-        console.warn(
-          "❌ [NebuleAir] Format de réponse temporelle non reconnu:",
-          response
-        );
         return [];
       }
 
@@ -887,12 +832,8 @@ export class NebuleAirService extends BaseDataService {
       let sensorsMetadata: NebuleAirSensor[];
       if (params.sensorsMetadata) {
         sensorsMetadata = params.sensorsMetadata;
-        console.log(
-          "✅ [NebuleAir] Utilisation des métadonnées fournies en paramètre"
-        );
       } else {
         sensorsMetadata = await this.getCachedSensorsMetadata();
-        console.log("✅ [NebuleAir] Utilisation des métadonnées en cache");
       }
 
       const sensorsMap = new Map<string, NebuleAirSensor>();
@@ -1003,22 +944,10 @@ export class NebuleAirService extends BaseDataService {
           new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
       );
 
-      console.log(`✅ [NebuleAir] Données temporelles récupérées:`, {
-        totalPoints: temporalDataPoints.length,
-        totalDevices: temporalDataPoints.reduce(
-          (sum, point) => sum + point.deviceCount,
-          0
-        ),
-        timeRange: {
-          start: temporalDataPoints[0]?.timestamp,
-          end: temporalDataPoints[temporalDataPoints.length - 1]?.timestamp,
-        },
-      });
-
       return temporalDataPoints;
     } catch (error) {
       console.error(
-        "❌ [NebuleAir] Erreur lors de la récupération des données temporelles:",
+        "Erreur lors de la récupération des données temporelles:",
         error
       );
       throw error;
@@ -1039,26 +968,73 @@ export class NebuleAirService extends BaseDataService {
     return "extrMauvais";
   }
 
-  // Méthode pour récupérer les métadonnées avec cache
+  // Méthode pour récupérer les métadonnées avec cache STATIQUE partagé et verrou
   private async getCachedSensorsMetadata(): Promise<NebuleAirSensor[]> {
     const now = Date.now();
+    const cacheAge = NebuleAirService.lastMetadataFetch ? 
+      Math.round((now - NebuleAirService.lastMetadataFetch) / 1000) : null;
+    const cacheValid = NebuleAirService.sensorsMetadataCache &&
+      now - NebuleAirService.lastMetadataFetch < NebuleAirService.METADATA_CACHE_DURATION;
 
-    // Vérifier si le cache est valide
-    if (
-      this.sensorsMetadataCache &&
-      now - this.lastMetadataFetch < this.METADATA_CACHE_DURATION
-    ) {
-      console.log("📦 [NebuleAir] Utilisation du cache des métadonnées");
-      return this.sensorsMetadataCache;
+    // Vérifier si le cache STATIQUE est valide
+    if (cacheValid && NebuleAirService.sensorsMetadataCache) {
+      return NebuleAirService.sensorsMetadataCache;
     }
 
-    // Récupérer les métadonnées et mettre à jour le cache
-    console.log(
-      "🔄 [NebuleAir] Récupération des métadonnées (cache expiré ou vide)"
-    );
-    this.sensorsMetadataCache = await this.fetchSensorsData();
-    this.lastMetadataFetch = now;
+    // Si un fetch est déjà en cours, attendre sa completion au lieu d'en lancer un nouveau
+    if (NebuleAirService.metadataFetchPromise) {
+      return await NebuleAirService.metadataFetchPromise;
+    }
 
-    return this.sensorsMetadataCache;
+    // Récupérer les métadonnées et mettre à jour le cache STATIQUE
+    
+    // Créer une promesse partagée pour éviter les appels parallèles
+    NebuleAirService.metadataFetchPromise = (async (): Promise<NebuleAirSensor[]> => {
+      try {
+        const sensors = await this.fetchSensorsData();
+        NebuleAirService.sensorsMetadataCache = sensors;
+        NebuleAirService.lastMetadataFetch = Date.now();
+        return sensors;
+      } finally {
+        // Libérer le verrou une fois terminé
+        NebuleAirService.metadataFetchPromise = null;
+      }
+    })();
+
+    return await NebuleAirService.metadataFetchPromise;
+  }
+
+  // Méthode pour récupérer les coordonnées d'un capteur
+  async fetchSensorCoordinates(
+    sensorId: string
+  ): Promise<{ latitude: number; longitude: number } | null> {
+    try {
+      const sensorsMetadata = await this.getCachedSensorsMetadata();
+      const sensor = sensorsMetadata.find((s) => s.sensorId === sensorId);
+
+      if (!sensor) {
+        console.warn(`Capteur ${sensorId} non trouvé dans les métadonnées`);
+        return null;
+      }
+
+      const lat = parseFloat(sensor.latitude);
+      const lon = parseFloat(sensor.longitude);
+
+      if (isNaN(lat) || isNaN(lon) || lat === 0 || lon === 0) {
+        console.warn(`Coordonnées invalides pour le capteur ${sensorId}`);
+        return null;
+      }
+
+      return {
+        latitude: lat,
+        longitude: lon,
+      };
+    } catch (error) {
+      console.error(
+        "Erreur lors de la récupération des coordonnées du capteur NebuleAir:",
+        error
+      );
+      return null;
+    }
   }
 }

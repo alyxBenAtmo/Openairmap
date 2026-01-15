@@ -50,14 +50,6 @@ export class FeuxDeForetService {
     const referenceDate = this.parseMetaTimestamp(data.meta?.timestamp) ?? new Date();
     const freshnessWindowMs = 48 * 60 * 60 * 1000; // 48 heures
 
-    console.debug(
-      "[FeuxDeForetService] Signalements reçus:",
-      data.signalements.length,
-      "| Timestamp meta:",
-      data.meta?.timestamp,
-      "| Date de référence:",
-      referenceDate.toISOString()
-    );
 
     return data.signalements
       .map((signalement) => this.transformSignalement(signalement))
@@ -68,18 +60,6 @@ export class FeuxDeForetService {
           freshnessWindowMs
         );
 
-        if (!isRecent) {
-          console.debug(
-            "[FeuxDeForetService] Signalement ignoré (trop ancien):",
-            report.id,
-            {
-              date: report.date,
-              dateText: report.dateText,
-              postModified: report.postModified,
-              commune: report.commune,
-            }
-          );
-        }
 
         return isRecent;
       });
@@ -188,32 +168,11 @@ export class FeuxDeForetService {
         const diff = referenceDate.getTime() - date.getTime();
 
         if (diff >= 0 && diff <= freshnessWindowMs) {
-          console.debug(
-            "[FeuxDeForetService] Signalement conservé:",
-            report.id,
-            {
-              date: report.date,
-              dateText: report.dateText,
-              postModified: report.postModified,
-              commune: report.commune,
-              deltaMinutes: Math.round(diff / 60000),
-            }
-          );
           return true;
         }
       }
     }
 
-    console.debug(
-      "[FeuxDeForetService] Signalement ignoré (hors fenêtre):",
-      report.id,
-      {
-        date: report.date,
-        dateText: report.dateText,
-        postModified: report.postModified,
-        commune: report.commune,
-      }
-    );
     return false;
   }
 }

@@ -7,6 +7,7 @@ import {
 import { AtmoMicroService } from "../services/AtmoMicroService";
 import { AtmoRefService } from "../services/AtmoRefService";
 import { NebuleAirService } from "../services/NebuleAirService";
+import { DataServiceFactory } from "../services/DataServiceFactory";
 
 interface UseTemporalVisualizationProps {
   selectedPollutant: string;
@@ -35,9 +36,9 @@ export const useTemporalVisualization = ({
 
   // Références pour la gestion des intervalles
   const playbackIntervalRef = useRef<number | null>(null);
-  const atmoMicroService = useRef(new AtmoMicroService());
-  const atmoRefService = useRef(new AtmoRefService());
-  const nebuleAirService = useRef(new NebuleAirService());
+  const atmoMicroService = useRef(DataServiceFactory.getService('atmoMicro') as AtmoMicroService);
+  const atmoRefService = useRef(DataServiceFactory.getService('atmoRef') as AtmoRefService);
+  const nebuleAirService = useRef(DataServiceFactory.getService('nebuleair') as NebuleAirService);
 
   // Synchroniser le timeStep du state avec le timeStep des props
   // et réinitialiser les données si elles sont déjà chargées (car elles ne correspondent plus au nouveau pas de temps)

@@ -2,6 +2,7 @@ import { MeasurementDevice } from '../types';
 import { AtmoRefService } from '../services/AtmoRefService';
 import { AtmoMicroService } from '../services/AtmoMicroService';
 import { NebuleAirService } from '../services/NebuleAirService';
+import { DataServiceFactory } from '../services/DataServiceFactory';
 
 interface SensorMetadata {
   sensorModel?: string;
@@ -24,6 +25,7 @@ export const getSensorMetadata = async (
 ): Promise<SensorMetadata> => {
   const cacheKey = `${device.source}-${device.id}`;
 
+
   // Vérifier le cache
   if (metadataCache.has(cacheKey)) {
     return metadataCache.get(cacheKey)!;
@@ -34,7 +36,7 @@ export const getSensorMetadata = async (
   try {
     // AtmoRef : récupérer les variables disponibles
     if (device.source === 'atmoRef') {
-      const atmoRefService = new AtmoRefService();
+      const atmoRefService = DataServiceFactory.getService('atmoRef') as AtmoRefService;
       const variables = await atmoRefService.fetchStationVariables(device.id);
       metadata.measuredPollutants = Object.keys(variables).map(
         (key) => variables[key].label
@@ -43,7 +45,7 @@ export const getSensorMetadata = async (
 
     // AtmoMicro : récupérer le modèle et les variables
     else if (device.source === 'atmoMicro') {
-      const atmoMicroService = new AtmoMicroService();
+      const atmoMicroService = DataServiceFactory.getService('atmoMicro') as AtmoMicroService;
       const siteInfo = await atmoMicroService.fetchSiteVariables(device.id);
       metadata.sensorModel = siteInfo.sensorModel;
       metadata.measuredPollutants = Object.keys(siteInfo.variables).map(
@@ -54,7 +56,7 @@ export const getSensorMetadata = async (
     // NebuleAir : récupérer les variables disponibles
     // Les capteurs NebuleAir mesurent toujours PM₁, PM₂.₅ et PM₁₀ au minimum
     else if (device.source === 'nebuleair') {
-      const nebuleAirService = new NebuleAirService();
+      const nebuleAirService = DataServiceFactory.getService('nebuleair') as NebuleAirService;
       const variables = await nebuleAirService.fetchSiteVariables(device.id);
       
       // Vérifier que variables n'est pas undefined
@@ -114,11 +116,12 @@ export const getSensorMetadata = async (
     );
   }
 
-  // Mettre en cache (avec expiration après 5 minutes)
+  // Mettre en cache (avec expiration après 30 minutes)
+  // Les métadonnées changent rarement, donc cache long
   metadataCache.set(cacheKey, metadata);
   setTimeout(() => {
     metadataCache.delete(cacheKey);
-  }, 5 * 60 * 1000);
+  }, 30 * 60 * 1000); // 30 minutes - métadonnées changent rarement
 
   return metadata;
 };

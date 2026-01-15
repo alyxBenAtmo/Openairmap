@@ -108,7 +108,9 @@ const SpiderfiedMarkers: React.FC<SpiderfiedMarkersProps> = ({
           position={[device.latitude, device.longitude]}
           icon={createCustomIcon(device)}
           eventHandlers={{
-            click: () => handleMarkerClick(device),
+            click: (e: L.LeafletMouseEvent) => {
+              handleMarkerClick(device);
+            },
           }}
           ref={(marker) => {
             if (marker) {
