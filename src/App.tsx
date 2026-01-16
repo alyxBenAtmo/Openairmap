@@ -243,6 +243,15 @@ const App: React.FC = () => {
     }
   }, [isHistoricalModeActive]);
 
+  // Cacher le panel de sélection quand les données historiques sont chargées (sauf si explicitement réouvert)
+  useEffect(() => {
+    if (hasHistoricalData && isHistoricalModeActive) {
+      // Cacher le panel de sélection quand les données sont chargées pour la première fois
+      // (l'utilisateur peut le rouvrir via le bouton calendrier)
+      setIsDatePanelVisible(false);
+    }
+  }, [hasHistoricalData, isHistoricalModeActive]);
+
   // Hook pour récupérer les données (mode normal)
   const {
     devices: normalDevices,
@@ -344,7 +353,7 @@ const App: React.FC = () => {
 
           {/* Contrôles intégrés dans l'en-tête - Desktop uniquement */}
           <div className="hidden lg:flex items-center space-x-2">
-            <div className="flex items-center space-x-3">
+            <div className={`flex items-center space-x-3 ${isHistoricalModeActive && temporalState.isPlaying ? "opacity-50 pointer-events-none" : ""}`}>
               <PollutantDropdown
                 selectedPollutant={selectedPollutant}
                 onPollutantChange={setSelectedPollutant}
@@ -366,16 +375,17 @@ const App: React.FC = () => {
               />
             </div>
 
-            <div className="flex items-center space-x-4 border-gray-300 pl-6 text-xs text-gray-600">
+            <div className={`flex items-center space-x-4 border-gray-300 pl-6 text-xs text-gray-600 ${isHistoricalModeActive && temporalState.isPlaying ? "opacity-50 pointer-events-none" : ""}`}>
               <AutoRefreshControl
                 enabled={autoRefreshEnabled && !isHistoricalModeActive}
                 onToggle={setAutoRefreshEnabled}
                 lastRefresh={lastRefresh}
                 loading={loading}
                 selectedTimeStep={selectedTimeStep}
+                historicalCurrentDate={isHistoricalModeActive && temporalState.isPlaying ? temporalState.currentDate : undefined}
               />
             </div>
-            <div className="flex items-center space-x-4 border-gray-300 pl-2 border-l">
+            <div className={`flex items-center space-x-4 border-gray-300 pl-2 border-l ${isHistoricalModeActive && temporalState.isPlaying ? "opacity-50 pointer-events-none" : ""}`}>
               <ModelingLayerControl
                 currentModelingLayer={currentModelingLayer}
                 onModelingLayerChange={setCurrentModelingLayer}
@@ -474,7 +484,7 @@ const App: React.FC = () => {
           isHistoricalModeActive={isHistoricalModeActive}
         />
 
-        {/* Panel de contrôle historique (sélection de date) */}
+        {/* Panel de contrôle historique (sélection de date) - Visible si mode historique actif ET panel de date visible */}
         <HistoricalControlPanel
           isVisible={isHistoricalModeActive && isDatePanelVisible}
           onToggleHistoricalMode={toggleHistoricalMode}
@@ -484,15 +494,20 @@ const App: React.FC = () => {
           onSeekToDate={seekToDate}
           onGoToPrevious={goToPrevious}
           onGoToNext={goToNext}
-          onPanelVisibilityChange={setIsDatePanelVisible}
+          onPanelVisibilityChange={(visible) => {
+            setIsDatePanelVisible(visible);
+          }}
+          onOpenPlaybackPanel={() => {
+            setIsDatePanelVisible(false);
+          }}
           onExpandRequest={(expandFn) => {
             expandPanelRef.current = expandFn;
           }}
           selectedPollutant={selectedPollutant}
         />
 
-        {/* Panneau de lecture draggable */}
-        {isHistoricalModeActive && hasHistoricalData && (
+        {/* Panneau de lecture draggable - Visible si données historiques chargées ET panel de sélection caché */}
+        {isHistoricalModeActive && hasHistoricalData && !isDatePanelVisible && (
           <HistoricalPlaybackControl
             state={temporalState}
             controls={temporalControls}

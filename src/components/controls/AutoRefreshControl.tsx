@@ -6,6 +6,7 @@ interface AutoRefreshControlProps {
   lastRefresh?: Date | null;
   loading?: boolean;
   selectedTimeStep: string;
+  historicalCurrentDate?: string; // Date actuellement affichée en mode historique
 }
 
 const AutoRefreshControl: React.FC<AutoRefreshControlProps> = ({
@@ -14,6 +15,7 @@ const AutoRefreshControl: React.FC<AutoRefreshControlProps> = ({
   lastRefresh,
   loading = false,
   selectedTimeStep,
+  historicalCurrentDate,
 }) => {
   const formatLastRefresh = (date: Date): string => {
     return date.toLocaleTimeString("fr-FR", {
@@ -104,7 +106,24 @@ const AutoRefreshControl: React.FC<AutoRefreshControlProps> = ({
     }
   };
 
-  const currentPeriod = getCurrentDataPeriod(selectedTimeStep);
+  // Formater la date historique pour l'affichage
+  const formatHistoricalDate = (dateString: string): string => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleString("fr-FR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  // Si on est en mode historique, afficher la date actuelle, sinon la période calculée
+  const displayedPeriod = historicalCurrentDate 
+    ? formatHistoricalDate(historicalCurrentDate)
+    : getCurrentDataPeriod(selectedTimeStep);
 
   return (
     <div className="flex items-center gap-2 px-3 py-2 bg-white/90 backdrop-blur-sm rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200">
@@ -138,13 +157,13 @@ const AutoRefreshControl: React.FC<AutoRefreshControlProps> = ({
       </div>
 
       {/* Période de données actuellement affichée */}
-      {currentPeriod && (
+      {displayedPeriod && (
         <>
           <div className="w-px h-4 bg-gray-300"></div>
           <div className="flex flex-col">
             <span className="text-xs text-gray-600">Période:</span>
             <span className="text-xs font-medium text-gray-800">
-              {currentPeriod}
+              {displayedPeriod}
             </span>
           </div>
         </>

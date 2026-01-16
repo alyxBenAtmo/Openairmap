@@ -21,11 +21,25 @@ const HistoricalPlaybackControl: React.FC<HistoricalPlaybackControlProps> = ({
   onGoToPrevious,
   onGoToNext,
 }) => {
-  // Position initiale : en bas à gauche pour ne pas gêner les autres contrôles
-  const [position, setPosition] = useState({ x: 20, y: window.innerHeight - 300 });
+  // Position initiale : même position que le panel de sélection (haut à droite : top-[60px] right-4)
+  // right-4 = 16px, top-[60px] = 60px
+  // On utilise useEffect pour calculer après le premier rendu car on a besoin de la largeur du conteneur
+  const [position, setPosition] = useState({ x: window.innerWidth - 320 - 16, y: 60 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Ajuster la position initiale après le premier rendu pour utiliser la vraie largeur
+  useEffect(() => {
+    if (containerRef.current) {
+      const width = containerRef.current.offsetWidth || 320;
+      const rightOffset = 16; // right-4 = 1rem = 16px
+      setPosition({
+        x: window.innerWidth - width - rightOffset,
+        y: 60, // top-[60px]
+      });
+    }
+  }, []);
 
   // Réinitialiser la position si la fenêtre est redimensionnée
   useEffect(() => {
