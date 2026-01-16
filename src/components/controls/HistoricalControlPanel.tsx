@@ -61,11 +61,11 @@ const HistoricalControlPanel: React.FC<
   }, [isVisible, isPanelVisible, isExpanded]);
 
   // Réinitialiser la visibilité du panel quand le mode historique est activé
+  // Mais ne pas réinitialiser si l'utilisateur a manuellement ouvert le panel
   useEffect(() => {
-    if (isVisible) {
+    if (isVisible && !userManuallyOpenedRef.current) {
       setIsPanelVisible(true);
       setIsExpanded(true);
-      userManuallyOpenedRef.current = false;
     }
   }, [isVisible]);
 

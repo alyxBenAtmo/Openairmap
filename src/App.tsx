@@ -513,11 +513,18 @@ const App: React.FC = () => {
             controls={temporalControls}
             onToggleHistoricalMode={toggleHistoricalMode}
             onOpenDatePanel={() => {
-              setIsDatePanelVisible(true);
-              // Développer le panel s'il est rabattu
-              if (expandPanelRef.current) {
-                expandPanelRef.current();
+              // Arrêter la lecture si elle est en cours
+              if (temporalState.isPlaying) {
+                temporalControls.onPlayPause();
               }
+              // Ouvrir le panel de sélection
+              setIsDatePanelVisible(true);
+              // Développer le panel en grand (avec un délai pour s'assurer que le panel est visible)
+              setTimeout(() => {
+                if (expandPanelRef.current) {
+                  expandPanelRef.current();
+                }
+              }, 0);
             }}
             onSeekToDate={seekToDate}
             onGoToPrevious={goToPrevious}

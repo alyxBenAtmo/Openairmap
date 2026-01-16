@@ -1230,21 +1230,25 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
                     </div>
                   )}
 
-                  {/* Toggle modélisation - Disponible uniquement au pas de temps horaire */}
-                  <div className="mb-2 sm:mb-3 flex items-center justify-between">
-                    <label
-                      className={`flex items-center space-x-2 ${
-                        state.chartControls.timeStep === "heure"
-                          ? "cursor-pointer"
-                          : "cursor-not-allowed opacity-60"
-                      }`}
-                    >
+                  {/* Toggle pour afficher la modélisation AZUR */}
+                  <div className="mb-3 sm:mb-4 border border-gray-200 rounded-lg p-2 sm:p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        {loadingModeling && (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#4271B3]"></div>
+                        )}
+                        <span className="text-sm text-gray-700">
+                          Afficher la modélisation AZUR
+                          {state.chartControls.timeStep !== "heure" && (
+                            <span className="text-xs text-gray-500 ml-2">
+                              (disponible uniquement au pas de temps horaire)
+                            </span>
+                          )}
+                        </span>
+                      </div>
                       <input
                         type="checkbox"
-                        checked={
-                          showModeling &&
-                          state.chartControls.timeStep === "heure"
-                        }
+                        checked={showModeling}
                         disabled={
                           loadingModeling ||
                           state.chartControls.timeStep !== "heure"
@@ -1284,20 +1288,7 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
                         }}
                         className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       />
-                      <span className="text-sm text-gray-700 flex items-center space-x-2">
-                        <span>
-                          Afficher la modélisation AZUR
-                          {state.chartControls.timeStep !== "heure" && (
-                            <span className="text-xs text-gray-500 ml-1">
-                              (disponible uniquement au pas de temps horaire)
-                            </span>
-                          )}
-                        </span>
-                        {loadingModeling && (
-                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
-                        )}
-                      </span>
-                    </label>
+                    </div>
                   </div>
 
                   {/* Graphique */}
