@@ -178,12 +178,13 @@ export class AtmoRefService extends BaseDataService {
   // Méthode helper pour obtenir le code ISO depuis le nom du polluant AtmoSud
   private getPollutantIsoCodeFromName(pollutantName: string): string | null {
     // Mapping des noms AtmoSud vers les codes ISO
+    // Ces codes doivent correspondre à ATMOREF_POLLUTANT_MAPPING dans types/index.ts
     const nameToIsoCode: Record<string, string> = {
       "pm2.5": "39", // PM2.5
-      "pm10": "40",  // PM10
-      "pm1": "41",   // PM1
+      "pm10": "24",  // PM10 - CORRECTION: code ISO correct est "24", pas "40"
+      "pm1": "68",   // PM1 - CORRECTION: code ISO correct est "68", pas "41"
       "no2": "03",   // NO2
-      "o3": "07",    // O3
+      "o3": "08",    // O3 - CORRECTION: code ISO correct est "08", pas "07"
       "so2": "01",   // SO2
     };
     
