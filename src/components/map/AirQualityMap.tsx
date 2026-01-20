@@ -206,6 +206,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   const [spiderfyConfig, setSpiderfyConfig] = useState(defaultSpiderfyConfig);
   const [currentBaseLayer, setCurrentBaseLayer] =
     useState<BaseLayerKey>("Carte standard");
+  const [isCommunalLayerEnabled, setIsCommunalLayerEnabled] = useState(false);
 
   // État pour les données PurpleAir (stockées par ID de station)
   const [purpleAirDeviceData, setPurpleAirDeviceData] = useState<
@@ -237,6 +238,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     selectedTimeStep,
     selectedPollutant,
     currentModelingLayer,
+    isCommunalLayerEnabled,
   });
 
   const wildfire = useWildfireLayer();
@@ -1234,6 +1236,8 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
           <BaseLayerControl
             currentBaseLayer={currentBaseLayer}
             onBaseLayerChange={setCurrentBaseLayer}
+            isCommunalLayerEnabled={isCommunalLayerEnabled}
+            onCommunalLayerToggle={setIsCommunalLayerEnabled}
           />
         </div>
 

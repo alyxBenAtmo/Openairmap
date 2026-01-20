@@ -4,11 +4,16 @@ import { baseLayers, BaseLayerKey } from "../../constants/mapLayers";
 interface BaseLayerControlProps {
   currentBaseLayer: BaseLayerKey;
   onBaseLayerChange: (layerKey: BaseLayerKey) => void;
+  // Nouveaux props pour le découpage communal
+  isCommunalLayerEnabled: boolean;
+  onCommunalLayerToggle: (enabled: boolean) => void;
 }
 
 const BaseLayerControl: React.FC<BaseLayerControlProps> = ({
   currentBaseLayer,
   onBaseLayerChange,
+  isCommunalLayerEnabled,
+  onCommunalLayerToggle,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -30,6 +35,11 @@ const BaseLayerControl: React.FC<BaseLayerControlProps> = ({
   const handleLayerSelect = (layerKey: BaseLayerKey) => {
     onBaseLayerChange(layerKey);
     setIsOpen(false);
+  };
+
+  const handleCommunalLayerToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onCommunalLayerToggle(!isCommunalLayerEnabled);
   };
 
   const getLayerIcon = (layerKey: BaseLayerKey) => {
@@ -117,6 +127,43 @@ const BaseLayerControl: React.FC<BaseLayerControlProps> = ({
                 <span>{layerKey}</span>
               </button>
             ))}
+            
+            {/* Séparateur */}
+            <div className="border-t border-gray-200/50 my-1"></div>
+            
+            {/* Option de découpage communal (overlay layer) */}
+            <button
+              type="button"
+              onClick={handleCommunalLayerToggle}
+              className={`w-full flex items-center px-2.5 py-1.5 rounded text-xs transition-colors whitespace-nowrap ${
+                isCommunalLayerEnabled
+                  ? "bg-green-50/80 text-green-900 border border-green-200/50"
+                  : "text-gray-700 hover:bg-gray-50/80"
+              }`}
+            >
+              <div
+                className={`w-3 h-3 rounded border mr-2 flex items-center justify-center ${
+                  isCommunalLayerEnabled
+                    ? "border-green-600 bg-green-600"
+                    : "border-gray-300/50"
+                }`}
+              >
+                {isCommunalLayerEnabled && (
+                  <svg
+                    className="w-2 h-2 text-white"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                )}
+              </div>
+              <span>Découpage communal</span>
+            </button>
           </div>
         </div>
       )}

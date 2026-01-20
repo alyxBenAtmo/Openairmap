@@ -11,6 +11,7 @@ import {
   isModelingAvailable,
   loadWindFromAtmoSud,
 } from "../../../services/ModelingLayerService";
+import { createCommunalGeoJSONLayer } from "../../../services/CommunalLayerService";
 
 interface UseMapLayersProps {
   mapRef: React.RefObject<L.Map | null>;
@@ -18,6 +19,7 @@ interface UseMapLayersProps {
   selectedTimeStep: string;
   selectedPollutant: string;
   currentModelingLayer: ModelingLayerType | null;
+  isCommunalLayerEnabled: boolean;
 }
 
 export const useMapLayers = ({
@@ -26,6 +28,7 @@ export const useMapLayers = ({
   selectedTimeStep,
   selectedPollutant,
   currentModelingLayer,
+  isCommunalLayerEnabled,
 }: UseMapLayersProps) => {
   const [currentTileLayer, setCurrentTileLayer] = useState<L.TileLayer | null>(
     null
@@ -42,6 +45,7 @@ export const useMapLayers = ({
   const modelingLayerRef = useRef<L.TileLayer | null>(null);
   const windLayerRef = useRef<L.Layer | null>(null);
   const windLayerGroupRef = useRef<L.LayerGroup | null>(null);
+  const communalLayerRef = useRef<L.LayerGroup | null>(null);
 
   // Fonction pour charger la modélisation de vent
   const loadWindModeling = useCallback(async () => {
@@ -225,6 +229,42 @@ export const useMapLayers = ({
     loadWindModeling,
     mapRef,
   ]);
+
+  // Effet pour gérer la couche communale (utilise GeoJSON pour un contrôle total du style)
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    let isCancelled = false;
+
+    // Supprimer l'ancienne couche si elle existe
+    if (communalLayerRef.current && mapRef.current) {
+      mapRef.current.removeLayer(communalLayerRef.current);
+      communalLayerRef.current = null;
+    }
+
+    // Charger et ajouter la couche si elle est activée
+    if (isCommunalLayerEnabled && mapRef.current) {
+      createCommunalGeoJSONLayer(mapRef.current)
+        .then((layerGroup) => {
+          if (!isCancelled && mapRef.current) {
+            layerGroup.addTo(mapRef.current);
+            communalLayerRef.current = layerGroup;
+          }
+        })
+        .catch((error) => {
+          console.error("Erreur lors du chargement de la couche communale:", error);
+        });
+    }
+
+    // Cleanup
+    return () => {
+      isCancelled = true;
+      if (mapRef.current && communalLayerRef.current) {
+        mapRef.current.removeLayer(communalLayerRef.current);
+        communalLayerRef.current = null;
+      }
+    };
+  }, [isCommunalLayerEnabled, mapRef]);
 
   return {
     currentTileLayer,
