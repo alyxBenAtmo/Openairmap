@@ -120,8 +120,9 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
     <div
       ref={containerRef}
       className={cn(
-        "fixed z-[1600] flex flex-col transition-all duration-300",
-        isDragging && "opacity-90 select-none",
+        "fixed z-[1600] flex flex-col",
+        // Désactiver les transitions SEULEMENT pendant le drag pour un suivi immédiat
+        isDragging ? "select-none opacity-90" : "transition-all duration-300",
         isCollapsed ? "gap-1.5" : "gap-2.5"
       )}
       style={{
