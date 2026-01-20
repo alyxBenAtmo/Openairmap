@@ -24,6 +24,7 @@ import HistoricalTimeRangeSelector, {
 } from "../controls/HistoricalTimeRangeSelector";
 import { ToggleGroup, ToggleGroupItem } from "../ui/button-group";
 import { cn } from "../../lib/utils";
+import ExpertMenu from "../controls/ExpertMenu";
 
 const NEBULEAIR_TIMESTEP_OPTIONS = [
   "instantane",
@@ -257,12 +258,16 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                   withList: true, // Récupérer toutes les échéances
                 });
 
-                // Filtrer les données pour correspondre à la plage de temps sélectionnée
+                // Filtrer les données pour inclure la plage de temps sélectionnée + les prévisions (+24h)
                 const filteredData = data.filter((point) => {
                   const pointDate = new Date(point.timestamp);
+                  const start = new Date(startDate);
+                  const end = new Date(endDate);
+                  // Ajouter 24 heures pour inclure les prévisions
+                  const endWithForecast = new Date(end.getTime() + 24 * 60 * 60 * 1000);
                   return (
-                    pointDate >= new Date(startDate) &&
-                    pointDate <= new Date(endDate)
+                    pointDate >= start &&
+                    pointDate <= endWithForecast
                   );
                 });
 
@@ -1331,55 +1336,40 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                     </div>
                   )}
 
-                  {/* Toggle pour afficher la modélisation AZUR */}
-                  <div className="mb-3 sm:mb-4 border border-gray-200 rounded-lg p-2 sm:p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        {loadingModeling && (
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#4271B3]"></div>
-                        )}
-                        <span className="text-sm text-gray-700">
-                          Afficher la modélisation AZUR
-                          {state.chartControls.timeStep !== "heure" && (
-                            <span className="text-xs text-gray-500 ml-2">
-                              (disponible uniquement au pas de temps horaire)
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={showModeling}
-                        disabled={
-                          loadingModeling ||
-                          state.chartControls.timeStep !== "heure"
-                        }
-                        onChange={(e) => {
-                          const newValue = e.target.checked;
-                          setShowModeling(newValue);
-                          if (
-                            newValue &&
-                            selectedStation &&
+                  {/* Menu Expert - Options avancées */}
+                  <div className="mb-3 sm:mb-4">
+                    <ExpertMenu
+                      showModeling={showModeling}
+                      onModelingChange={(checked) => {
+                        setShowModeling(checked);
+                        if (
+                          checked &&
+                          selectedStation &&
+                          stationCoordinates
+                        ) {
+                          // Charger les données de modélisation pour tous les polluants actuellement sélectionnés
+                          const pollutantsToLoad =
+                            state.chartControls.selectedPollutants;
+                          loadHistoricalData(
+                            selectedStation,
+                            pollutantsToLoad,
+                            state.chartControls.timeRange,
+                            state.chartControls.timeStep,
+                            true,
                             stationCoordinates
-                          ) {
-                            // Charger les données de modélisation pour tous les polluants actuellement sélectionnés
-                            const pollutantsToLoad =
-                              state.chartControls.selectedPollutants;
-                            loadHistoricalData(
-                              selectedStation,
-                              pollutantsToLoad,
-                              state.chartControls.timeRange,
-                              state.chartControls.timeStep,
-                              true,
-                              stationCoordinates
-                            );
-                          } else if (!newValue) {
-                            setModelingData({});
-                          }
-                        }}
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                      />
-                    </div>
+                          );
+                        } else if (!checked) {
+                          setModelingData({});
+                        }
+                      }}
+                      loadingModeling={loadingModeling}
+                      modelingDisabled={state.chartControls.timeStep !== "heure"}
+                      modelingDisabledReason={
+                        state.chartControls.timeStep !== "heure"
+                          ? "Disponible uniquement au pas de temps horaire"
+                          : undefined
+                      }
+                    />
                   </div>
 
                   {/* Graphique */}

@@ -18,6 +18,7 @@ import HistoricalTimeRangeSelector, {
   getMaxHistoryDays,
 } from "../controls/HistoricalTimeRangeSelector";
 import { ToggleGroup, ToggleGroupItem } from "../ui/button-group";
+import ExpertMenu from "../controls/ExpertMenu";
 import { cn } from "../../lib/utils";
 
 interface MicroSidePanelProps {
@@ -215,12 +216,16 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                     withList: true, // Récupérer toutes les échéances
                   });
 
-                  // Filtrer les données pour correspondre à la plage de temps sélectionnée
+                  // Filtrer les données pour inclure la plage de temps sélectionnée + les prévisions (+24h)
                   const filteredData = data.filter((point) => {
                     const pointDate = new Date(point.timestamp);
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+                    // Ajouter 24 heures pour inclure les prévisions
+                    const endWithForecast = new Date(end.getTime() + 24 * 60 * 60 * 1000);
                     return (
-                      pointDate >= new Date(startDate) &&
-                      pointDate <= new Date(endDate)
+                      pointDate >= start &&
+                      pointDate <= endWithForecast
                     );
                   });
 
@@ -1201,98 +1206,45 @@ const MicroSidePanel: React.FC<MicroSidePanelProps> = ({
                       )}
                     </div>
 
-                    {/* Contrôle d'affichage des données brutes - seulement si des données corrigées sont disponibles */}
-                    {hasCorrectedData && (
-                      <div className="flex-1 border border-gray-200 rounded-lg">
-                        <div className="p-2 sm:p-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-1.5 sm:space-x-2 min-w-0">
-                              <svg
-                                className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600 flex-shrink-0"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                                />
-                              </svg>
-                              <span className="text-xs sm:text-sm font-medium text-gray-700 truncate">
-                                Données brutes
-                              </span>
-                            </div>
-                            <button
-                              onClick={() => setShowRawData(!showRawData)}
-                              className={`relative inline-flex h-4 w-8 sm:h-5 sm:w-9 items-center rounded-full transition-colors flex-shrink-0 ${
-                                showRawData ? "bg-[#4271B3]" : "bg-gray-200"
-                              }`}
-                            >
-                              <span
-                                className={`inline-block h-2.5 w-2.5 sm:h-3 sm:w-3 transform rounded-full bg-white transition-transform ${
-                                  showRawData
-                                    ? "translate-x-4 sm:translate-x-5"
-                                    : "translate-x-0.5 sm:translate-x-1"
-                                }`}
-                              />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </div>
 
-                  {/* Toggle pour afficher la modélisation AZUR */}
-                  <div className="mb-3 sm:mb-4 border border-gray-200 rounded-lg p-2 sm:p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        {loadingModeling && (
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#4271B3]"></div>
-                        )}
-                        <span className="text-sm text-gray-700">
-                          Afficher la modélisation AZUR
-                          {state.chartControls.timeStep !== "heure" && (
-                            <span className="text-xs text-gray-500 ml-2">
-                              (disponible uniquement au pas de temps horaire)
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={showModeling}
-                        disabled={
-                          loadingModeling ||
-                          state.chartControls.timeStep !== "heure"
-                        }
-                        onChange={(e) => {
-                          const newValue = e.target.checked;
-                          setShowModeling(newValue);
-                          if (
-                            newValue &&
-                            selectedStation &&
+                  {/* Menu Expert - Options avancées */}
+                  <div className="mb-3 sm:mb-4">
+                    <ExpertMenu
+                      showModeling={showModeling}
+                      onModelingChange={(checked) => {
+                        setShowModeling(checked);
+                        if (
+                          checked &&
+                          selectedStation &&
+                          stationCoordinates
+                        ) {
+                          // Charger les données de modélisation pour tous les polluants actuellement sélectionnés
+                          const pollutantsToLoad =
+                            state.chartControls.selectedPollutants;
+                          loadHistoricalData(
+                            selectedStation,
+                            pollutantsToLoad,
+                            state.chartControls.timeRange,
+                            state.chartControls.timeStep,
+                            true,
                             stationCoordinates
-                          ) {
-                            // Charger les données de modélisation pour tous les polluants actuellement sélectionnés
-                            const pollutantsToLoad =
-                              state.chartControls.selectedPollutants;
-                            loadHistoricalData(
-                              selectedStation,
-                              pollutantsToLoad,
-                              state.chartControls.timeRange,
-                              state.chartControls.timeStep,
-                              true,
-                              stationCoordinates
-                            );
-                          } else if (!newValue) {
-                            setModelingData({});
-                          }
-                        }}
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                      />
-                    </div>
+                          );
+                        } else if (!checked) {
+                          setModelingData({});
+                        }
+                      }}
+                      loadingModeling={loadingModeling}
+                      modelingDisabled={state.chartControls.timeStep !== "heure"}
+                      modelingDisabledReason={
+                        state.chartControls.timeStep !== "heure"
+                          ? "Disponible uniquement au pas de temps horaire"
+                          : undefined
+                      }
+                      showRawData={showRawData}
+                      onRawDataChange={(checked) => setShowRawData(checked)}
+                      rawDataAvailable={hasCorrectedData}
+                    />
                   </div>
 
                   {state.infoMessage && (

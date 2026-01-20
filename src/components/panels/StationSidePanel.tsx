@@ -17,6 +17,7 @@ import HistoricalTimeRangeSelector, {
   TimeRange,
   getMaxHistoryDays,
 } from "../controls/HistoricalTimeRangeSelector";
+import ExpertMenu from "../controls/ExpertMenu";
 import { ToggleGroup, ToggleGroupItem } from "../ui/button-group";
 import { cn } from "../../lib/utils";
 
@@ -437,13 +438,15 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
                       withList: true,
                     });
 
-                  // Filtrer les données de modélisation pour ne garder que celles dans la plage de dates
+                  // Filtrer les données de modélisation pour inclure la plage de dates + les prévisions (+24h)
                   const filteredModelingPoints = modelingPoints.filter(
                     (point) => {
                       const pointDate = new Date(point.timestamp);
                       const start = new Date(startDate);
                       const end = new Date(endDate);
-                      return pointDate >= start && pointDate <= end;
+                      // Ajouter 24 heures pour inclure les prévisions
+                      const endWithForecast = new Date(end.getTime() + 24 * 60 * 60 * 1000);
+                      return pointDate >= start && pointDate <= endWithForecast;
                     }
                   );
 
@@ -1230,65 +1233,50 @@ const StationSidePanel: React.FC<StationSidePanelProps> = ({
                     </div>
                   )}
 
-                  {/* Toggle pour afficher la modélisation AZUR */}
-                  <div className="mb-3 sm:mb-4 border border-gray-200 rounded-lg p-2 sm:p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        {loadingModeling && (
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#4271B3]"></div>
-                        )}
-                        <span className="text-sm text-gray-700">
-                          Afficher la modélisation AZUR
-                          {state.chartControls.timeStep !== "heure" && (
-                            <span className="text-xs text-gray-500 ml-2">
-                              (disponible uniquement au pas de temps horaire)
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={showModeling}
-                        disabled={
-                          loadingModeling ||
-                          state.chartControls.timeStep !== "heure"
+                  {/* Menu Expert - Options avancées */}
+                  <div className="mb-3 sm:mb-4">
+                    <ExpertMenu
+                      showModeling={showModeling}
+                      onModelingChange={(checked) => {
+                        // Ne permettre l'activation que si le pas de temps est horaire
+                        if (
+                          state.chartControls.timeStep !== "heure" &&
+                          checked
+                        ) {
+                          return;
                         }
-                        onChange={(e) => {
-                          const newValue = e.target.checked;
-                          // Ne permettre l'activation que si le pas de temps est horaire
-                          if (
-                            state.chartControls.timeStep !== "heure" &&
-                            newValue
-                          ) {
-                            return;
-                          }
-                          setShowModeling(newValue);
-                          // Recharger les données si on active la modélisation et qu'on a les coordonnées
-                          if (
-                            newValue &&
-                            selectedStation &&
+                        setShowModeling(checked);
+                        // Recharger les données si on active la modélisation et qu'on a les coordonnées
+                        if (
+                          checked &&
+                          selectedStation &&
+                          stationCoordinates
+                        ) {
+                          // Charger les données de modélisation pour tous les polluants actuellement sélectionnés
+                          const pollutantsToLoad =
+                            state.chartControls.selectedPollutants;
+                          loadHistoricalData(
+                            selectedStation,
+                            pollutantsToLoad,
+                            state.chartControls.timeRange,
+                            state.chartControls.timeStep,
+                            true,
                             stationCoordinates
-                          ) {
-                            // Charger les données de modélisation pour tous les polluants actuellement sélectionnés
-                            const pollutantsToLoad =
-                              state.chartControls.selectedPollutants;
-                            loadHistoricalData(
-                              selectedStation,
-                              pollutantsToLoad,
-                              state.chartControls.timeRange,
-                              state.chartControls.timeStep,
-                              true,
-                              stationCoordinates
-                            );
-                          } else if (!newValue) {
-                            setModelingData({});
-                            setLoadingModeling(false);
-                          }
-                          // Si on active mais qu'on n'a pas encore les coordonnées, elles seront chargées dans le useEffect
-                        }}
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                      />
-                    </div>
+                          );
+                        } else if (!checked) {
+                          setModelingData({});
+                          setLoadingModeling(false);
+                        }
+                        // Si on active mais qu'on n'a pas encore les coordonnées, elles seront chargées dans le useEffect
+                      }}
+                      loadingModeling={loadingModeling}
+                      modelingDisabled={state.chartControls.timeStep !== "heure"}
+                      modelingDisabledReason={
+                        state.chartControls.timeStep !== "heure"
+                          ? "Disponible uniquement au pas de temps horaire"
+                          : undefined
+                      }
+                    />
                   </div>
 
                   {/* Graphique */}

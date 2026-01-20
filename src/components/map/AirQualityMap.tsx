@@ -55,6 +55,7 @@ import { AtmoMicroService } from "../../services/AtmoMicroService";
 import { NebuleAirService } from "../../services/NebuleAirService";
 import { DataServiceFactory } from "../../services/DataServiceFactory";
 import MarkerClusterGroup from "react-leaflet-cluster";
+import { featureFlags } from "../../config/featureFlags";
 
 // Hooks personnalisés
 import { useMapView } from "./hooks/useMapView";
@@ -1222,10 +1223,12 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
           }`}
         >
           {/* Contrôle du clustering */}
-          <ClusterControl
-            config={clusterConfig}
-            onConfigChange={setClusterConfig}
-          />
+          {featureFlags.displayClusteringToggle && (
+            <ClusterControl
+              config={clusterConfig}
+              onConfigChange={setClusterConfig}
+            />
+          )}
 
           {/* Contrôle du fond de carte */}
           <BaseLayerControl
