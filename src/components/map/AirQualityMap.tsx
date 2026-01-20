@@ -26,7 +26,7 @@ import {
   StationInfo,
   WildfireReport,
 } from "../../types";
-import { BaseLayerKey } from "../../constants/mapLayers";
+import { BaseLayerKey, ModelingLayerType } from "../../constants/mapLayers";
 import BaseLayerControl from "../controls/BaseLayerControl";
 import ClusterControl from "../controls/ClusterControl";
 import CustomSearchControl from "../controls/CustomSearchControl";
@@ -101,7 +101,7 @@ interface AirQualityMapProps {
   selectedPollutant: string;
   selectedSources: string[];
   selectedTimeStep: string;
-  currentModelingLayer: "icaireh" | "pollutant" | "vent" | null;
+  currentModelingLayer: ModelingLayerType | null;
   loading?: boolean;
   signalAirPeriod: { startDate: string; endDate: string };
   signalAirSelectedTypes: string[];

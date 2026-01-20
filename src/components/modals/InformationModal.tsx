@@ -155,22 +155,6 @@ const DATA_SOURCES: DataSourceItem[] = [
       "Modélisation des particules fines à l'échelle horaire sur toute la région PACA.",
     provider: { label: "AtmoSud", href: "https://www.atmosud.org" },
   },
-  {
-    id: "modeling-icaireh",
-    title: "Modélisation horaire ICAIRH",
-    category: "modélisation",
-    icon: { kind: "badge", label: "mod" },
-    timeSteps: [
-      { label: "Scan", status: "unavailable" },
-      { label: "2 min", status: "unavailable" },
-      { label: "QH", status: "available" },
-      { label: "H", status: "available" },
-      { label: "J", status: "unavailable" },
-    ],
-    description:
-      "Modélisation de l'indice cumulé de la qualité de l'air (NO2, O3, PM2.5 et PM10) à l'échelle horaire sur toute la région PACA.",
-    provider: { label: "AtmoSud", href: "https://www.atmosud.org" },
-  },
 ];
 
 const STEP_STYLES: Record<TimeStepStatus, string> = {

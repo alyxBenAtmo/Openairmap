@@ -36,12 +36,10 @@ export type BaseLayerKey = keyof typeof baseLayers;
 
 // Types de layers de modélisation
 export type ModelingLayerType = 
-  | "icaireh"           // ICAIR'H (Modélisation multipolluant)
   | "pollutant"         // Modélisation polluant sélectionné
   | "vent";             // Vent
 
 export const modelingLayers: Record<ModelingLayerType, string> = {
-  icaireh: "ICAIR'H",
   pollutant: "Modélisation polluant sélectionné",
   vent: "Vent",
 };

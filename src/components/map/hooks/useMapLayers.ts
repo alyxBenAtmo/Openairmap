@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import L from "leaflet";
-import { baseLayers, BaseLayerKey } from "../../../constants/mapLayers";
+import { baseLayers, BaseLayerKey, ModelingLayerType } from "../../../constants/mapLayers";
 import {
   getModelingLayerHour,
   formatHourLayerName,
-  getIcairehLayerName,
   getPollutantLayerName,
   createModelingWMTSLayer,
   getModelingLegendUrl,
@@ -18,7 +17,7 @@ interface UseMapLayersProps {
   currentBaseLayer: BaseLayerKey;
   selectedTimeStep: string;
   selectedPollutant: string;
-  currentModelingLayer: "icaireh" | "pollutant" | "vent" | null;
+  currentModelingLayer: ModelingLayerType | null;
 }
 
 export const useMapLayers = ({
@@ -159,16 +158,13 @@ export const useMapLayers = ({
       return;
     }
 
-    // Vérifier si les modélisations sont disponibles pour ce pas de temps (pour icaireh et pollutant)
+    // Vérifier si les modélisations sont disponibles pour ce pas de temps (pour pollutant)
     if (!isModelingAvailable(selectedTimeStep)) {
       return;
     }
 
-    // Si un layer de modélisation WMTS est sélectionné (icaireh ou pollutant)
-    if (
-      currentModelingLayer === "icaireh" ||
-      currentModelingLayer === "pollutant"
-    ) {
+    // Si un layer de modélisation WMTS est sélectionné (pollutant)
+    if (currentModelingLayer === "pollutant") {
       try {
         // Calculer l'heure à afficher
         const hour = getModelingLayerHour(selectedTimeStep);
@@ -183,17 +179,10 @@ export const useMapLayers = ({
         let layerName: string;
 
         // Déterminer le nom du layer selon le type
-        if (currentModelingLayer === "icaireh") {
-          layerName = getIcairehLayerName(hourFormatted);
-        } else if (currentModelingLayer === "pollutant") {
-          if (!selectedPollutant) {
-            return;
-          }
-          layerName = getPollutantLayerName(selectedPollutant, hourFormatted);
-        } else {
-          // Ce cas ne devrait jamais se produire, mais TypeScript le requiert
+        if (!selectedPollutant) {
           return;
         }
+        layerName = getPollutantLayerName(selectedPollutant, hourFormatted);
 
         // Créer et ajouter le layer WMTS
         const wmtsLayer = createModelingWMTSLayer(layerName);

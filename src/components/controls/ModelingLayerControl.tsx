@@ -49,7 +49,7 @@ const ModelingLayerControl: React.FC<ModelingLayerControlProps> = ({
     return "Carte de modélisation";
   };
 
-  const layerTypes: ModelingLayerType[] = ["icaireh", "pollutant", "vent"];
+  const layerTypes: ModelingLayerType[] = ["pollutant", "vent"];
   const isDisabled = !isModelingAvailable(selectedTimeStep);
 
   // Désactiver automatiquement si le pas de temps ne permet pas les modélisations

@@ -17,7 +17,6 @@ export class ModelingService {
     no2: "no2",
     o3: "o3",
     so2: "so2",
-    icairh: "icairh", // Indice de qualité de l'air
   };
 
   /**
