@@ -4,6 +4,7 @@ import L from "leaflet";
 import { MeasurementDevice } from "../../types";
 import { useCustomSpiderfier } from "../../hooks/useCustomSpiderfier";
 import MarkerWithTooltip from "./MarkerWithTooltip";
+import { calculateZIndexOffset } from "./utils/mapIconUtils";
 
 interface CustomSpiderfiedMarkersProps {
   devices: MeasurementDevice[];
@@ -123,6 +124,7 @@ const CustomSpiderfiedMarkers: React.FC<CustomSpiderfiedMarkersProps> = ({
               sensorMetadata={sensorMetadataMap?.get(device.id)}
               minZoom={11}
               mapRef={mapRef}
+              zIndexOffset={calculateZIndexOffset(device)}
               eventHandlers={
                 // Pour les marqueurs éclatés, on n'utilise pas les eventHandlers React-Leaflet
                 // car ils ne fonctionnent pas correctement quand la position change

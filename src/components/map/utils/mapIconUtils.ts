@@ -9,6 +9,82 @@ import {
 import { getMarkerPath } from "../../../utils";
 import { QUALITY_COLORS } from "../../../constants/qualityColors";
 
+/**
+ * Niveaux de qualité considérés comme "valeurs hautes"
+ */
+const HIGH_VALUE_QUALITY_LEVELS = ["mauvais", "tresMauvais", "extrMauvais"];
+
+/**
+ * Priorité des sources de données (plus le nombre est élevé, plus la priorité est haute)
+ * Station de ref atmosud > Microcapteurs qualifiés atmosud > Nebuleair > le reste
+ */
+const SOURCE_PRIORITY: Record<string, number> = {
+  atmoRef: 100,
+  atmoMicro: 80,
+  nebuleair: 60,
+  // Toutes les autres sources ont une priorité de 0 par défaut
+};
+
+/**
+ * Calcule la priorité d'un device pour la mise en avant
+ * @param device - Le device à évaluer
+ * @returns Un score de priorité (plus élevé = plus prioritaire)
+ * 
+ * La priorité est calculée en couches :
+ * 1. La source est toujours le critère principal (multiplié par 1000)
+ * 2. Les valeurs hautes servent à départager les devices de même source (bonus de 0 à 100)
+ * 
+ * Cela garantit qu'un atmoRef sera toujours au-dessus d'un atmoMicro,
+ * qui sera toujours au-dessus d'un nebuleair, même avec des valeurs hautes.
+ */
+export const calculateDevicePriority = (device: MeasurementDevice): number => {
+  // Priorité de base selon la source (multipliée par 1000 pour être prédominante)
+  const sourcePriority = (SOURCE_PRIORITY[device.source] || 0) * 1000;
+
+  // Bonus pour les valeurs hautes (0 à 100) pour départager les devices de même source
+  let qualityBonus = 0;
+  if (device.qualityLevel === "extrMauvais") {
+    qualityBonus = 100;
+  } else if (device.qualityLevel === "tresMauvais") {
+    qualityBonus = 70;
+  } else if (device.qualityLevel === "mauvais") {
+    qualityBonus = 40;
+  } else if (device.qualityLevel === "degrade") {
+    qualityBonus = 20;
+  } else if (device.qualityLevel === "moyen") {
+    qualityBonus = 10;
+  }
+  // Les valeurs "bon" et "default" ont un bonus de 0
+
+  return sourcePriority + qualityBonus;
+};
+
+/**
+ * Calcule le zIndexOffset pour un device selon sa priorité
+ * @param device - Le device à évaluer
+ * @returns Le zIndexOffset à appliquer au marqueur Leaflet
+ */
+export const calculateZIndexOffset = (device: MeasurementDevice): number => {
+  const priority = calculateDevicePriority(device);
+  // Convertir la priorité en zIndexOffset (les valeurs positives sont au-dessus)
+  // On utilise un offset de 0 à 1000 pour les marqueurs prioritaires
+  return priority;
+};
+
+/**
+ * Trie les devices par priorité (les plus prioritaires en premier)
+ * @param devices - Liste des devices à trier
+ * @returns Liste triée par priorité décroissante
+ */
+export const sortDevicesByPriority = (devices: MeasurementDevice[]): MeasurementDevice[] => {
+  return [...devices].sort((a, b) => {
+    const priorityA = calculateDevicePriority(a);
+    const priorityB = calculateDevicePriority(b);
+    // Tri décroissant : les priorités les plus élevées en premier
+    return priorityB - priorityA;
+  });
+};
+
 interface CreateIconOptions {
   loading?: boolean;
   isSelected?: boolean;

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -76,6 +76,8 @@ import {
   formatWildfireDate,
   getMarkerKey,
   isDeviceSelected,
+  sortDevicesByPriority,
+  calculateZIndexOffset,
 } from "./utils/mapIconUtils";
 import { getOptimalZoomLevel } from "./utils/mapMarkerUtils";
 import {
@@ -279,6 +281,11 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       reports,
       debounceMs: 100,
     });
+
+  // Trier les devices par priorité pour mettre en avant les valeurs hautes des sources fiables
+  const sortedDevices = useMemo(() => {
+    return sortDevicesByPriority(devices);
+  }, [devices]);
   // Les métadonnées sont maintenant chargées directement dans MarkerWithTooltip
   // Plus besoin de charger les métadonnées ici
 
@@ -1004,7 +1011,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
               animate={clusterConfig.animate}
               animateAddingMarkers={clusterConfig.animateAddingMarkers}
             >
-              {devices
+              {sortedDevices
                 .filter((device) => {
                   // Filtrer complètement les devices MobileAir (gérés par MobileAirRoutes)
                   if (device.source === "mobileair") {
@@ -1022,6 +1029,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
                     bubblingMouseEvents={true}
                     minZoom={11}
                     mapRef={mapView.mapRef as React.RefObject<L.Map>}
+                    zIndexOffset={calculateZIndexOffset(device)}
                     eventHandlers={{
                       click: (e: L.LeafletMouseEvent) => {
                         handleMarkerClick(device);
@@ -1033,7 +1041,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
           ) : // Spiderfier automatique personnalisé - éclatement automatique des marqueurs qui se chevauchent
           spiderfyConfig.enabled ? (
             <CustomSpiderfiedMarkers
-              devices={devices.filter((device) => {
+              devices={sortedDevices.filter((device) => {
                 // Filtrer complètement les devices MobileAir (gérés par MobileAirRoutes)
                 if (device.source === "mobileair") {
                   return false;
@@ -1049,7 +1057,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
               mapRef={mapView.mapRef}
             />
           ) : (
-            devices
+            sortedDevices
               .filter((device) => {
                 // Filtrer complètement les devices MobileAir (gérés par MobileAirRoutes)
                 if (device.source === "mobileair") {
@@ -1067,6 +1075,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
                   bubblingMouseEvents={true}
                   minZoom={11}
                   mapRef={mapView.mapRef as React.RefObject<L.Map>}
+                  zIndexOffset={calculateZIndexOffset(device)}
                   eventHandlers={{
                     click: (e: L.LeafletMouseEvent) => {
                       handleMarkerClick(device);
