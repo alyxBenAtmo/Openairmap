@@ -134,20 +134,50 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
       {/* Conteneur principal avec fond unifié */}
       <div
         className={cn(
-          "bg-white/98 backdrop-blur-md rounded-2xl shadow-2xl border border-gray-200/80",
+          "relative bg-white/98 backdrop-blur-md rounded-2xl shadow-2xl border border-gray-200/80",
           "transition-all duration-300",
           isCollapsed ? "p-2" : "p-3",
           "hover:shadow-3xl hover:border-gray-300/80"
         )}
       >
-        {/* Header avec bouton collapse intégré */}
-        <div className="flex items-center justify-between mb-2">
-          <h3 className={cn(
-            "font-semibold text-gray-700 transition-all duration-300",
-            isCollapsed ? "text-xs opacity-0 w-0 overflow-hidden" : "text-sm"
-          )}>
-            Sources spéciales
-          </h3>
+        {/* Header avec zone de drag intégrée et bouton collapse */}
+        <div className={cn(
+          "flex items-center justify-between transition-all duration-300 relative",
+          isCollapsed ? "mb-1" : "mb-2"
+        )}>
+          {/* Zone de drag intégrée dans le header */}
+          <div
+            className={cn(
+              "flex items-center gap-2 cursor-grab active:cursor-grabbing drag-handle",
+              "px-2 py-1.5 rounded-lg transition-all duration-200",
+              "hover:bg-gray-100/80 active:bg-gray-200",
+              "group/drag"
+            )}
+            onMouseDown={handleMouseDown}
+            title="Glisser pour déplacer le panneau"
+            aria-label="Zone de déplacement"
+          >
+            {/* Icône de drag avec lignes horizontales */}
+            <div className="flex flex-col gap-1 opacity-60 group-hover/drag:opacity-100 transition-opacity">
+              <div className={cn(
+                "bg-gray-400 group-hover/drag:bg-gray-600 rounded-full transition-colors",
+                isCollapsed ? "w-3 h-0.5" : "w-4 h-0.5"
+              )} />
+              <div className={cn(
+                "bg-gray-400 group-hover/drag:bg-gray-600 rounded-full transition-colors",
+                isCollapsed ? "w-3 h-0.5" : "w-4 h-0.5"
+              )} />
+              <div className={cn(
+                "bg-gray-400 group-hover/drag:bg-gray-600 rounded-full transition-colors",
+                isCollapsed ? "w-3 h-0.5" : "w-4 h-0.5"
+              )} />
+            </div>
+            {!isCollapsed && (
+              <h3 className="font-semibold text-gray-700 text-sm select-none">
+                Sources spéciales
+              </h3>
+            )}
+          </div>
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
             className={cn(
@@ -191,19 +221,6 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
                 : "border-transparent bg-gray-50/50 hover:bg-gray-100/50 hover:border-gray-200"
             )}
           >
-            {/* Zone de drag discrète */}
-            <div
-              className={cn(
-                "absolute left-0 top-0 bottom-0 cursor-grab active:cursor-grabbing drag-handle rounded-l-xl",
-                "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
-                "bg-gradient-to-r from-gray-200/50 to-transparent",
-                isCollapsed ? "w-3" : "w-6"
-              )}
-              onMouseDown={handleMouseDown}
-              title="Glisser pour déplacer"
-              aria-label="Zone de déplacement"
-            />
-            
             <div className="flex items-center gap-2">
               <button
                 onClick={onSignalAirClick}
@@ -212,8 +229,8 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
                   "hover:bg-[#13A0DB]/5 focus:outline-none focus:ring-2 focus:ring-[#13A0DB]/30 focus:ring-offset-2",
                   "active:scale-[0.98]",
                   isCollapsed 
-                    ? "gap-0 p-2.5 pl-5" 
-                    : "gap-3 px-3.5 py-3 pl-8"
+                    ? "gap-0 p-2.5" 
+                    : "gap-3 px-3.5 py-3"
                 )}
                 aria-label="Ouvrir le panneau de sélection SignalAir"
               >
@@ -298,19 +315,6 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
                 : "border-transparent bg-gray-50/50 hover:bg-gray-100/50 hover:border-gray-200"
             )}
           >
-            {/* Zone de drag discrète */}
-            <div
-              className={cn(
-                "absolute left-0 top-0 bottom-0 cursor-grab active:cursor-grabbing drag-handle rounded-l-xl",
-                "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
-                "bg-gradient-to-r from-gray-200/50 to-transparent",
-                isCollapsed ? "w-3" : "w-6"
-              )}
-              onMouseDown={handleMouseDown}
-              title="Glisser pour déplacer"
-              aria-label="Zone de déplacement"
-            />
-            
             <div className="flex items-center gap-2">
               <button
                 onClick={onMobileAirClick}
@@ -319,8 +323,8 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
                   "hover:bg-green-500/5 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:ring-offset-2",
                   "active:scale-[0.98]",
                   isCollapsed 
-                    ? "gap-0 p-2.5 pl-5" 
-                    : "gap-3 px-3.5 py-3 pl-8"
+                    ? "gap-0 p-2.5" 
+                    : "gap-3 px-3.5 py-3"
                 )}
                 aria-label="Ouvrir le panneau de sélection MobileAir"
               >
