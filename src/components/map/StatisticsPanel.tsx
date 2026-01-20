@@ -3,6 +3,7 @@ import { MeasurementDevice, SignalAirReport } from "../../types";
 import { cn } from "../../lib/utils";
 import { QUALITY_COLORS } from "../../constants/qualityColors";
 import { sources } from "../../constants/sources";
+import { pollutants } from "../../constants/pollutants";
 import {
   DeviceStatistics as DeviceStatisticsType,
   SourceStatistics,
@@ -231,10 +232,6 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
     // Source directe
     const sourceConfig = sources[source as keyof typeof sources];
     if (sourceConfig && !sourceConfig.isGroup) {
-      // Cas spécial pour atmoMicro (enlever "AtmoSud" à la fin)
-      if (source === "atmoMicro") {
-        return "Microcapteurs qualifiés";
-      }
       return sourceConfig.name;
     }
     
@@ -392,7 +389,7 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
               {isSignalAirActive && reportsStats && reportsStats.total > 0 && (
                 <> • {reportsStats.total} signalement{reportsStats.total > 1 ? "s" : ""}</>
               )}
-              {visibleDevices.length > 0 && <> • {selectedPollutant.toUpperCase()}</>}
+              {visibleDevices.length > 0 && <> • {pollutants[selectedPollutant]?.name || selectedPollutant.toUpperCase()}</>}
             </p>
           </div>
           <button

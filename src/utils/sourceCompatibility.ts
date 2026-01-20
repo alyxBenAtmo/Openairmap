@@ -49,8 +49,8 @@ export const isSourceCompatibleWithTimeStep = (
  * Obtient le nom d'affichage d'une source
  */
 export const getSourceDisplayName = (sourceCode: string): string => {
-  if (sourceCode === "atmoRef") return "Station de référence atmosud";
-  if (sourceCode === "atmoMicro") return "Microcapteurs qualifiés";
+  if (sourceCode === "atmoRef") return "Station de référence AtmoSud";
+  if (sourceCode === "atmoMicro") return "Microcapteurs qualifiés AtmoSud";
   if (sourceCode === "signalair") return "SignalAir";
   if (sourceCode.startsWith("communautaire.")) {
     const subSource = sourceCode.split(".")[1];

@@ -130,8 +130,8 @@ const SourceDropdown: React.FC<SourceDropdownProps> = ({
     }
     if (selectedSources.length === 1) {
       const source = selectedSources[0];
-      if (source === "atmoRef") return "Station de référence atmosud";
-      if (source === "atmoMicro") return "Microcapteurs qualifiés";
+      if (source === "atmoRef") return "Station de référence AtmoSud";
+      if (source === "atmoMicro") return "Microcapteurs qualifiés AtmoSud";
       if (source === "signalair") return "SignalAir";
       if (source.includes("communautaire.")) {
         const subSource = source.split(".")[1];
@@ -191,7 +191,7 @@ const SourceDropdown: React.FC<SourceDropdownProps> = ({
                 "bg-[#e7eef8] text-[#1f3c6d]"
             )}
           >
-            Station de référence atmosud
+            Station de référence AtmoSud
           </DropdownMenuCheckboxItem>
 
           {/* AtmoMicro */}
@@ -204,7 +204,7 @@ const SourceDropdown: React.FC<SourceDropdownProps> = ({
                 "bg-[#e7eef8] text-[#1f3c6d]"
             )}
           >
-            Microcapteurs qualifiés
+            Microcapteurs qualifiés AtmoSud
           </DropdownMenuCheckboxItem>
         </div>
 

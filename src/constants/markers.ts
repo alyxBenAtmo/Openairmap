@@ -3,6 +3,8 @@
  * Centralise tous les chemins et configurations des marqueurs
  */
 
+import { featureFlags } from "../config/featureFlags";
+
 export interface MarkerConfig {
   source: string;
   basePath: string;
@@ -115,23 +117,47 @@ export const SIGNAL_AIR_MAPPING: Record<string, string> = {
 };
 
 /**
+ * Mappe les sources communautaires vers le marqueur unifié
+ * @param source - Le code de la source
+ * @returns Le code de la source pour le marqueur (peut être différent de la source originale)
+ */
+function getMarkerSource(source: string): string {
+  if (!featureFlags.markerNebuleAir) {
+    // Si le flag est false : les 3 sources communautaires partagent le même marqueur (celui de nebuleair)
+    if (source === "sensorCommunity" || source === "purpleair" || source === "nebuleair") {
+      return "nebuleair";
+    }
+  } else {
+    // Si le flag est true : nebuleair a son propre marqueur
+    // sensorCommunity et purpleair partagent le marqueur de sensorCommunity
+    if (source === "sensorCommunity" || source === "purpleair") {
+      return "sensorCommunity";
+    }
+    // nebuleair garde son propre marqueur (retourne "nebuleair")
+  }
+  return source;
+}
+
+/**
  * Obtient le chemin complet d'un marqueur
  * @param source - Le code de la source
  * @param level - Le niveau de qualité ou type de signalement
  * @returns Le chemin complet vers l'image du marqueur
  */
 export function getMarkerPath(source: string, level: string): string {
-  const config = MARKER_CONFIGS[source];
+  // Mapper la source vers le marqueur approprié (sensorCommunity et purpleair -> nebuleair)
+  const markerSource = getMarkerSource(source);
+  const config = MARKER_CONFIGS[markerSource];
 
   if (!config) {
     console.warn(
-      `Configuration de marqueur non trouvée pour la source: ${source}`
+      `Configuration de marqueur non trouvée pour la source: ${source} (mappée vers: ${markerSource})`
     );
     return `/markers/atmoRefMarkers/refStationAtmoSud_default.png`;
   }
 
   // Gestion spéciale pour SignalAir
-  if (source === "signalair") {
+  if (markerSource === "signalair") {
     const signalType = SIGNAL_AIR_MAPPING[level] || "odeur";
     return `/markers/${config.basePath}/${signalType}.png`;
   }
@@ -139,7 +165,7 @@ export function getMarkerPath(source: string, level: string): string {
   // Vérifier que le niveau est valide
   if (!config.levels.includes(level)) {
     console.warn(
-      `Niveau de qualité invalide: ${level} pour la source: ${source}`
+      `Niveau de qualité invalide: ${level} pour la source: ${source} (mappée vers: ${markerSource})`
     );
     level = config.defaultLevel;
   }
@@ -153,7 +179,8 @@ export function getMarkerPath(source: string, level: string): string {
  * @returns Liste des niveaux disponibles
  */
 export function getAvailableLevels(source: string): string[] {
-  return MARKER_CONFIGS[source]?.levels || [];
+  const markerSource = getMarkerSource(source);
+  return MARKER_CONFIGS[markerSource]?.levels || [];
 }
 
 /**
@@ -162,7 +189,8 @@ export function getAvailableLevels(source: string): string[] {
  * @returns Le niveau par défaut
  */
 export function getDefaultLevel(source: string): string {
-  return MARKER_CONFIGS[source]?.defaultLevel || "default";
+  const markerSource = getMarkerSource(source);
+  return MARKER_CONFIGS[markerSource]?.defaultLevel || "default";
 }
 
 /**
@@ -172,10 +200,11 @@ export function getDefaultLevel(source: string): string {
  * @returns True si le marqueur existe
  */
 export function markerExists(source: string, level: string): boolean {
-  const config = MARKER_CONFIGS[source];
+  const markerSource = getMarkerSource(source);
+  const config = MARKER_CONFIGS[markerSource];
   if (!config) return false;
 
-  if (source === "signalair") {
+  if (markerSource === "signalair") {
     return SIGNAL_AIR_MAPPING.hasOwnProperty(level);
   }
 

@@ -31,6 +31,10 @@ export const featureFlags = {
       undefined,
     false
   ),
+  markerNebuleAir: parseBooleanFlag(
+    import.meta.env.VITE_MARKER_NEBULEAIR as string | undefined,
+    true // Par défaut, nebuleair a son propre marqueur (comportement d'origine)
+  ),
 };
 
 

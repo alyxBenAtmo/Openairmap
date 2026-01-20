@@ -267,7 +267,7 @@ const SourceDropdownWithNotifications: React.FC<
           {/* AtmoRef */}
           <SourceItem
             code="atmoRef"
-            name="Station de référence atmosud"
+            name="Station de référence AtmoSud"
             isSelected={selectedSources.includes("atmoRef")}
             isCompatible={isSourceCompatibleWithTimeStep(
               "atmoRef",
@@ -279,7 +279,7 @@ const SourceDropdownWithNotifications: React.FC<
           {/* AtmoMicro */}
           <SourceItem
             code="atmoMicro"
-            name="Microcapteurs qualifiés"
+            name="Microcapteurs qualifiés AtmoSud"
             isSelected={selectedSources.includes("atmoMicro")}
             isCompatible={isSourceCompatibleWithTimeStep(
               "atmoMicro",

@@ -93,10 +93,6 @@ const DeviceStatistics: React.FC<DeviceStatisticsProps> = ({
     // Source directe
     const sourceConfig = sources[source as keyof typeof sources];
     if (sourceConfig && !sourceConfig.isGroup) {
-      // Cas spécial pour atmoMicro (enlever "AtmoSud" à la fin)
-      if (source === "atmoMicro") {
-        return "Microcapteurs qualifiés";
-      }
       return sourceConfig.name;
     }
     
