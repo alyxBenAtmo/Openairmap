@@ -9,20 +9,20 @@ import { MobileAirService } from "../../../services/MobileAirService";
 import L from "leaflet";
 
 interface UseMobileAirProps {
-  selectedSources: string[];
   devices: MeasurementDevice[];
   mapRef: React.RefObject<L.Map | null>;
   onMobileAirSensorSelected?: (
     sensorId: string,
     period: { startDate: string; endDate: string }
   ) => void;
+  isEnabled?: boolean; // Nouveau prop pour contrôler si MobileAir est activé
 }
 
 export const useMobileAir = ({
-  selectedSources,
   devices,
   mapRef,
   onMobileAirSensorSelected,
+  isEnabled = false,
 }: UseMobileAirProps) => {
   const [mobileAirRoutes, setMobileAirRoutes] = useState<MobileAirRoute[]>([]);
   const [isMobileAirSelectionPanelOpen, setIsMobileAirSelectionPanelOpen] =
@@ -46,18 +46,14 @@ export const useMobileAir = ({
     useState(false);
   const [userClosedDetailPanel, setUserClosedDetailPanel] = useState(false);
   const [forceNewChoice, setForceNewChoice] = useState(false);
-  const prevSelectedSourcesRef = useRef<string[]>([]);
+  const prevSelectedSourcesRef = useRef<boolean>(false);
   const prevMobileAirRoutesLengthRef = useRef<number>(0);
   const manuallyOpenedSelectionPanelRef = useRef<boolean>(false);
   const [routesJustLoaded, setRoutesJustLoaded] = useState<boolean>(false);
 
   // Effet pour extraire les routes MobileAir des devices
   useEffect(() => {
-    const isMobileAirSelected = selectedSources.includes(
-      "communautaire.mobileair"
-    );
-
-    if (!isMobileAirSelected) {
+    if (!isEnabled) {
       setMobileAirRoutes([]);
       setForceNewChoice(false);
       return;
@@ -133,27 +129,22 @@ export const useMobileAir = ({
         }
       }
     }
-  }, [devices, selectedSources, forceNewChoice]);
+  }, [devices, isEnabled, forceNewChoice]);
 
   // Effet pour ouvrir automatiquement le side panel de sélection MobileAir
   useEffect(() => {
-    const isMobileAirSelected = selectedSources.includes(
-      "communautaire.mobileair"
-    );
-    const wasMobileAirSelected = prevSelectedSourcesRef.current.includes(
-      "communautaire.mobileair"
-    );
-    const isNewlySelected = isMobileAirSelected && !wasMobileAirSelected;
+    const wasEnabled = prevSelectedSourcesRef.current;
+    const isNewlyEnabled = isEnabled && !wasEnabled;
     const hasMobileAirRoutes = mobileAirRoutes.length > 0;
 
     // Mettre à jour la référence pour la prochaine fois
-    prevSelectedSourcesRef.current = [...selectedSources];
+    prevSelectedSourcesRef.current = isEnabled;
 
-    // Si MobileAir vient d'être sélectionné et qu'il n'y a pas encore de routes chargées,
+    // Si MobileAir vient d'être activé et qu'il n'y a pas encore de routes chargées,
     // ouvrir le side panel de sélection (seulement si l'utilisateur ne l'a pas fermé manuellement
     // ET que le panel n'est pas déjà caché)
     if (
-      isNewlySelected &&
+      isNewlyEnabled &&
       !hasMobileAirRoutes &&
       !isMobileAirSelectionPanelOpen &&
       !userClosedSelectionPanel &&
@@ -162,11 +153,11 @@ export const useMobileAir = ({
       setIsMobileAirSelectionPanelOpen(true);
     }
 
-    // Si MobileAir est sélectionné ET qu'il y a des routes, s'assurer que le panel de sélection est fermé
+    // Si MobileAir est activé ET qu'il y a des routes, s'assurer que le panel de sélection est fermé
     // MAIS seulement si l'utilisateur n'a pas fermé manuellement le panel de sélection
     // ET que l'utilisateur ne vient pas de l'ouvrir manuellement
     if (
-      isMobileAirSelected &&
+      isEnabled &&
       hasMobileAirRoutes &&
       isMobileAirSelectionPanelOpen &&
       !userClosedSelectionPanel &&
@@ -175,7 +166,7 @@ export const useMobileAir = ({
       setIsMobileAirSelectionPanelOpen(false);
     }
   }, [
-    selectedSources,
+    isEnabled,
     mobileAirRoutes.length,
     isMobileAirSelectionPanelOpen,
     userClosedSelectionPanel,
@@ -184,12 +175,8 @@ export const useMobileAir = ({
 
   // Effet pour fermer automatiquement le side panel de sélection quand les routes sont chargées
   useEffect(() => {
-    const isMobileAirSelected = selectedSources.includes(
-      "communautaire.mobileair"
-    );
-
     if (
-      isMobileAirSelected &&
+      isEnabled &&
       mobileAirRoutes.length > 0 &&
       isMobileAirSelectionPanelOpen &&
       !userClosedSelectionPanel &&
@@ -201,7 +188,7 @@ export const useMobileAir = ({
       return () => clearTimeout(timer);
     }
   }, [
-    selectedSources,
+    isEnabled,
     mobileAirRoutes.length,
     isMobileAirSelectionPanelOpen,
     userClosedSelectionPanel,
@@ -209,18 +196,14 @@ export const useMobileAir = ({
 
   // Effet pour ouvrir automatiquement le side panel de détail quand les routes sont chargées
   useEffect(() => {
-    const isMobileAirSelected = selectedSources.includes(
-      "communautaire.mobileair"
-    );
-
     // Ouvrir le panel de détail si :
-    // 1. MobileAir est sélectionné
+    // 1. MobileAir est activé
     // 2. Il y a des routes
     // 3. Il y a une route active
     // 4. Le panel n'est pas déjà ouvert OU de nouvelles routes viennent d'être chargées (pour forcer la réouverture)
     // 5. L'utilisateur n'a pas fermé manuellement le panel (sauf si de nouvelles routes viennent d'être chargées)
     const shouldOpen =
-      isMobileAirSelected &&
+      isEnabled &&
       mobileAirRoutes.length > 0 &&
       activeMobileAirRoute &&
       (!isMobileAirDetailPanelOpen || routesJustLoaded) &&
@@ -236,7 +219,7 @@ export const useMobileAir = ({
       return () => clearTimeout(timer);
     }
   }, [
-    selectedSources,
+    isEnabled,
     mobileAirRoutes.length,
     activeMobileAirRoute,
     isMobileAirDetailPanelOpen,
@@ -258,13 +241,9 @@ export const useMobileAir = ({
     }
   }, [activeMobileAirRoute, mapRef]);
 
-  // Effet pour réinitialiser les états de fermeture manuelle quand les sources changent
+  // Effet pour réinitialiser les états de fermeture manuelle quand l'activation change
   useEffect(() => {
-    const isMobileAirSelected = selectedSources.includes(
-      "communautaire.mobileair"
-    );
-
-    if (!isMobileAirSelected) {
+    if (!isEnabled) {
       // Nettoyer IMMÉDIATEMENT les routes pour éviter les conflits
       setActiveMobileAirRoute(null);
       setSelectedMobileAirRoute(null);
@@ -293,7 +272,7 @@ export const useMobileAir = ({
       setForceNewChoice(true);
       prevMobileAirRoutesLengthRef.current = 0;
     }
-  }, [selectedSources]);
+  }, [isEnabled]);
 
   // Handlers
   const handleMobileAirSensorsSelected = (

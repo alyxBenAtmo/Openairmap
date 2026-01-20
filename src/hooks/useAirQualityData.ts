@@ -67,20 +67,31 @@ export const useAirQualityData = ({
     setLastRefresh(now);
 
     try {
+      // Filtrer signalair et mobileair des sources à charger automatiquement
+      // Ces sources sont gérées séparément via les boutons flottants
+      const filteredSources = selectedSources.filter(
+        (source) => source !== "signalair" && source !== "communautaire.mobileair"
+      );
+
       // Mapper les sources communautaires vers leurs codes de service réels
-      const mappedSources = selectedSources.map((source) => {
+      const mappedSources = filteredSources.map((source) => {
         if (source.startsWith("communautaire.")) {
           return source.split(".")[1]; // Extraire 'nebuleair' de 'communautaire.nebuleair'
         }
         return source;
       });
 
-      if (selectedSources.length === 0) {
-        setDevices([]);
-        setReports([]);
+      if (filteredSources.length === 0 && !shouldFetchSignalAir && !selectedMobileAirSensor) {
+        // Ne pas réinitialiser si on charge SignalAir ou MobileAir séparément
+        if (!isSignalAirSourceSelected && !selectedMobileAirSensor) {
+          setDevices([]);
+          setReports([]);
+        }
         setLoading(false);
         setLoadingSources([]);
-        return;
+        if (filteredSources.length === 0 && !isSignalAirSourceSelected && !selectedMobileAirSensor) {
+          return;
+        }
       }
 
       const isSignalAirSourceSelected =
@@ -121,12 +132,13 @@ export const useAirQualityData = ({
       );
 
       const fetchableSources = fetchableIndexes.map(
-        (index) => selectedSources[index]
+        (index) => filteredSources[index]
       );
 
       // NETTOYER LES ROUTES ET DEVICES MOBILEAIR EN PREMIER, AVANT TOUTE AUTRE OPÉRATION
       // Cela garantit que le nettoyage se fait au bon moment, même lors d'un rechargement
-      if (selectedSources.includes("communautaire.mobileair") && selectedMobileAirSensor) {
+      // MobileAir est maintenant géré séparément, donc on vérifie directement selectedMobileAirSensor
+      if (selectedMobileAirSensor) {
         // Nettoyer les routes dans le service MobileAir en PREMIER
         try {
           const mobileAirService = DataServiceFactory.getService("mobileair") as any;
@@ -157,7 +169,16 @@ export const useAirQualityData = ({
       // Le nettoyage sera fait plus tard (lignes 179-196) en filtrant par source
       // Cela permet de garder les données SignalAir quand on charge MobileAir et vice versa
 
-      if (fetchableSources.length === 0) {
+      // Ajouter SignalAir et MobileAir aux sources à charger si nécessaire
+      const allSourcesToLoad = [...fetchableSources];
+      if (shouldFetchSignalAir) {
+        allSourcesToLoad.push("signalair");
+      }
+      if (selectedMobileAirSensor) {
+        allSourcesToLoad.push("mobileair");
+      }
+
+      if (allSourcesToLoad.length === 0) {
         setLoading(false);
         setLoadingSources([]);
         return;
@@ -165,7 +186,7 @@ export const useAirQualityData = ({
 
       setLoading(true);
       setError(null);
-      setLoadingSources(fetchableSources);
+      setLoadingSources(allSourcesToLoad);
 
       // console.log("🔍 [HOOK] Mapping des sources:", {
       //   selectedSources,
@@ -199,8 +220,8 @@ export const useAirQualityData = ({
         return filteredDevices;
       });
 
-      // Supprimer explicitement les devices MobileAir si MobileAir n'est pas sélectionné
-      if (!selectedSources.includes("communautaire.mobileair")) {
+      // Supprimer explicitement les devices MobileAir si MobileAir n'est pas activé
+      if (!selectedMobileAirSensor) {
         setDevices((prevDevices) => {
           const filteredDevices = prevDevices.filter((device) => {
             return device.source !== "mobileair";
@@ -292,8 +313,73 @@ export const useAirQualityData = ({
         }
       }
 
+      // Charger SignalAir si nécessaire
       if (shouldFetchSignalAir && signalAirOptions) {
         signalAirLastTriggerRef.current = signalAirOptions.loadTrigger;
+        try {
+          const signalAirService = DataServiceFactory.getService("signalair");
+          if (signalAirService) {
+            setLoadingSources((prev) => [...prev, "signalair"]);
+            const data = await signalAirService.fetchData({
+              pollutant: selectedPollutant,
+              timeStep: selectedTimeStep,
+              sources: ["signalair"],
+              signalAirPeriod,
+              signalAirSelectedTypes: signalAirOptions.selectedTypes,
+            });
+
+            if (Array.isArray(data)) {
+              const signalReports: SignalAirReport[] = data.filter(
+                (item) => "signalType" in item
+              ) as SignalAirReport[];
+
+              setReports((prevReports) => {
+                const filteredReports = prevReports.filter(
+                  (report) => report.source !== "signalair"
+                );
+                return [...filteredReports, ...signalReports];
+              });
+            }
+          }
+        } catch (err) {
+          console.error("❌ Erreur lors de la récupération des données SignalAir:", err);
+        } finally {
+          setLoadingSources((prev) => prev.filter((source) => source !== "signalair"));
+        }
+      }
+
+      // Charger MobileAir si nécessaire
+      if (selectedMobileAirSensor) {
+        try {
+          const mobileAirService = DataServiceFactory.getService("mobileair");
+          if (mobileAirService) {
+            setLoadingSources((prev) => [...prev, "mobileair"]);
+            const data = await mobileAirService.fetchData({
+              pollutant: selectedPollutant,
+              timeStep: selectedTimeStep,
+              sources: ["mobileair"],
+              mobileAirPeriod,
+              selectedSensors: [selectedMobileAirSensor],
+            });
+
+            if (Array.isArray(data)) {
+              const measurementDevices: MeasurementDevice[] = data.filter(
+                (item) => "pollutant" in item && "value" in item && "unit" in item
+              ) as MeasurementDevice[];
+
+              setDevices((prevDevices) => {
+                const filteredDevices = prevDevices.filter(
+                  (device) => device.source !== "mobileair"
+                );
+                return [...filteredDevices, ...measurementDevices];
+              });
+            }
+          }
+        } catch (err) {
+          console.error("❌ Erreur lors de la récupération des données MobileAir:", err);
+        } finally {
+          setLoadingSources((prev) => prev.filter((source) => source !== "mobileair"));
+        }
       }
     } catch (err) {
       setError(

@@ -48,6 +48,7 @@ import CustomSpiderfiedMarkers from "./CustomSpiderfiedMarkers";
 import CustomSpiderfiedSignalAirMarkers from "./CustomSpiderfiedSignalAirMarkers";
 import MarkerWithTooltip from "./MarkerWithTooltip";
 import DeviceStatistics from "./DeviceStatistics";
+import SpecialSourceControls from "./SpecialSourceControls";
 
 import { AtmoRefService } from "../../services/AtmoRefService";
 import { AtmoMicroService } from "../../services/AtmoMicroService";
@@ -117,6 +118,15 @@ interface AirQualityMapProps {
   ) => void;
   onMobileAirSourceDeselected?: () => void;
   isHistoricalModeActive?: boolean;
+  // Nouveaux props pour gérer SignalAir et MobileAir indépendamment
+  isSignalAirEnabled?: boolean;
+  isMobileAirEnabled?: boolean;
+  isSignalAirVisible?: boolean;
+  isMobileAirVisible?: boolean;
+  onSignalAirToggle?: (visible: boolean) => void;
+  onMobileAirToggle?: (visible: boolean) => void;
+  onSignalAirPanelOpen?: () => void;
+  onMobileAirPanelOpen?: () => void;
 }
 
 const defaultClusterConfig = {
@@ -181,6 +191,14 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   onMobileAirSensorSelected,
   onMobileAirSourceDeselected,
   isHistoricalModeActive = false,
+  isSignalAirEnabled = false,
+  isMobileAirEnabled = false,
+  isSignalAirVisible = true,
+  isMobileAirVisible = true,
+  onSignalAirToggle,
+  onMobileAirToggle,
+  onSignalAirPanelOpen,
+  onMobileAirPanelOpen,
 }) => {
   // Configuration des clusters et spiderfier
   const [clusterConfig, setClusterConfig] = useState(defaultClusterConfig);
@@ -227,20 +245,20 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   });
 
   const signalAir = useSignalAir({
-    selectedSources,
     signalAirHasLoaded,
     signalAirReportsCount,
     isSignalAirLoading,
     reports,
     mapRef: mapView.mapRef,
     onSignalAirLoadRequest,
+    isEnabled: isSignalAirEnabled,
   });
 
   const mobileAir = useMobileAir({
-    selectedSources,
     devices,
     mapRef: mapView.mapRef,
     onMobileAirSensorSelected,
+    isEnabled: isMobileAirEnabled,
   });
 
   // Hook pour gérer le tooltip au hover sur les marqueurs (désactivé - on utilise les tooltips Leaflet natifs maintenant)
@@ -1055,20 +1073,22 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
               ))
           )}
 
-          {/* Parcours MobileAir - Afficher seulement la route active */}
-          <MobileAirRoutes
-            routes={
-              mobileAir.activeMobileAirRoute
-                ? [mobileAir.activeMobileAirRoute]
-                : []
-            }
-            selectedPollutant={selectedPollutant}
-            onPointClick={handleMobileAirPointClickWrapper}
-            onPointHover={mobileAir.handleMobileAirPointHover}
-            onRouteClick={handleMobileAirRouteClickWrapper}
-            highlightedPoint={mobileAir.highlightedMobileAirPoint}
-            hoveredPoint={mobileAir.hoveredMobileAirPoint}
-          />
+          {/* Parcours MobileAir - Afficher seulement la route active si visible */}
+          {isMobileAirVisible && (
+            <MobileAirRoutes
+              routes={
+                mobileAir.activeMobileAirRoute
+                  ? [mobileAir.activeMobileAirRoute]
+                  : []
+              }
+              selectedPollutant={selectedPollutant}
+              onPointClick={handleMobileAirPointClickWrapper}
+              onPointHover={mobileAir.handleMobileAirPointHover}
+              onRouteClick={handleMobileAirRouteClickWrapper}
+              highlightedPoint={mobileAir.highlightedMobileAirPoint}
+              hoveredPoint={mobileAir.hoveredMobileAirPoint}
+            />
+          )}
 
           {/* Marqueurs pour les incendies en cours */}
           {wildfire.isWildfireLayerEnabled &&
@@ -1120,15 +1140,35 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
               </Marker>
             ))}
 
-          {/* Marqueurs pour les signalements SignalAir avec spiderfier */}
-          <CustomSpiderfiedSignalAirMarkers
-            reports={reports}
-            createSignalIcon={createSignalIconWrapper}
-            handleMarkerClick={handleSignalAirMarkerClickWrapper}
-            enabled={spiderfyConfig.enabled}
-            zoomThreshold={spiderfyConfig.autoSpiderfyZoomThreshold}
-          />
+          {/* Marqueurs pour les signalements SignalAir avec spiderfier - Afficher seulement si visible */}
+          {isSignalAirVisible && (
+            <CustomSpiderfiedSignalAirMarkers
+              reports={reports}
+              createSignalIcon={createSignalIconWrapper}
+              handleMarkerClick={handleSignalAirMarkerClickWrapper}
+              enabled={spiderfyConfig.enabled}
+              zoomThreshold={spiderfyConfig.autoSpiderfyZoomThreshold}
+            />
+          )}
         </MapContainer>
+
+        {/* Contrôles spéciaux pour SignalAir et MobileAir */}
+        <SpecialSourceControls
+          onSignalAirClick={() => {
+            signalAir.handleOpenSignalAirPanel();
+            if (onSignalAirPanelOpen) onSignalAirPanelOpen();
+          }}
+          onMobileAirClick={() => {
+            mobileAir.handleOpenMobileAirSelectionPanel();
+            if (onMobileAirPanelOpen) onMobileAirPanelOpen();
+          }}
+          isSignalAirVisible={isSignalAirVisible}
+          isMobileAirVisible={isMobileAirVisible}
+          onSignalAirToggle={onSignalAirToggle || (() => {})}
+          onMobileAirToggle={onMobileAirToggle || (() => {})}
+          hasSignalAirData={signalAirHasLoaded && reports.length > 0}
+          hasMobileAirData={mobileAir.mobileAirRoutes.length > 0}
+        />
 
         {signalAir.signalAirFeedback && (
           <div className="absolute top-24 right-4 z-[1000] max-w-sm bg-white border border-blue-200 text-blue-800 text-sm px-3 py-2 rounded-lg shadow-lg">

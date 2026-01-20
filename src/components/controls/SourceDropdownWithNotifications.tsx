@@ -52,12 +52,11 @@ const SourceDropdownWithNotifications: React.FC<
     null
   );
 
-  // Définir les sources communautaires
+  // Définir les sources communautaires (mobileair retiré car géré séparément)
   const communautaireSources = [
     "communautaire.nebuleair",
     "communautaire.sensorCommunity",
     "communautaire.purpleair",
-    "communautaire.mobileair",
   ];
 
   // Vérifier l'état des groupes
@@ -308,7 +307,6 @@ const SourceDropdownWithNotifications: React.FC<
                 name: "Sensor.Community",
               },
               { code: "communautaire.purpleair", name: "PurpleAir" },
-              { code: "communautaire.mobileair", name: "MobileAir" },
             ].map(({ code, name }) => (
               <SourceItem
                 key={code}
@@ -326,21 +324,6 @@ const SourceDropdownWithNotifications: React.FC<
           </div>
         </div>
 
-        <DropdownMenuSeparator />
-
-        {/* SignalAir */}
-        <div className="p-1">
-          <SourceItem
-            code="signalair"
-            name="SignalAir"
-            isSelected={selectedSources.includes("signalair")}
-            isCompatible={isSourceCompatibleWithTimeStep(
-              "signalair",
-              selectedTimeStep
-            )}
-            onToggle={() => handleSourceToggle("signalair")}
-          />
-        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

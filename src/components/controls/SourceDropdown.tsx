@@ -34,12 +34,11 @@ const SourceDropdown: React.FC<SourceDropdownProps> = ({
   onTimeStepChange,
   onToast,
 }) => {
-  // Définir les sources communautaires
+  // Définir les sources communautaires (mobileair retiré car géré séparément)
   const communautaireSources = [
     "communautaire.nebuleair",
     "communautaire.sensorCommunity",
     "communautaire.purpleair",
-    "communautaire.mobileair",
   ];
 
   // Vérifier l'état des groupes
@@ -132,13 +131,11 @@ const SourceDropdown: React.FC<SourceDropdownProps> = ({
       const source = selectedSources[0];
       if (source === "atmoRef") return "Station de référence AtmoSud";
       if (source === "atmoMicro") return "Microcapteurs qualifiés AtmoSud";
-      if (source === "signalair") return "SignalAir";
       if (source.includes("communautaire.")) {
         const subSource = source.split(".")[1];
         if (subSource === "nebuleair") return "NebuleAir";
         if (subSource === "sensorCommunity") return "Sensor.Community";
         if (subSource === "purpleair") return "PurpleAir";
-        if (subSource === "mobileair") return "MobileAir";
       }
       return source;
     }
@@ -227,7 +224,6 @@ const SourceDropdown: React.FC<SourceDropdownProps> = ({
                 name: "Sensor.Community",
               },
               { code: "communautaire.purpleair", name: "PurpleAir" },
-              { code: "communautaire.mobileair", name: "MobileAir" },
             ].map(({ code, name }) => (
               <DropdownMenuCheckboxItem
                 key={code}
@@ -245,22 +241,6 @@ const SourceDropdown: React.FC<SourceDropdownProps> = ({
           </div>
         </div>
 
-        <DropdownMenuSeparator />
-
-        {/* SignalAir */}
-        <div className="p-1">
-          <DropdownMenuCheckboxItem
-            checked={selectedSources.includes("signalair")}
-            onCheckedChange={() => handleSourceToggle("signalair")}
-            className={cn(
-              "py-2 pr-3 text-sm",
-              selectedSources.includes("signalair") &&
-                "bg-[#e7eef8] text-[#1f3c6d]"
-            )}
-          >
-            SignalAir
-          </DropdownMenuCheckboxItem>
-        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -111,6 +111,12 @@ const App: React.FC = () => {
   >(null);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
+  // États pour gérer SignalAir et MobileAir indépendamment du système de sources
+  const [isSignalAirEnabled, setIsSignalAirEnabled] = useState(false);
+  const [isMobileAirEnabled, setIsMobileAirEnabled] = useState(false);
+  const [isSignalAirVisible, setIsSignalAirVisible] = useState(true);
+  const [isMobileAirVisible, setIsMobileAirVisible] = useState(true);
+
   // Fonction wrapper pour gérer le changement de période SignalAir
   const handleSignalAirDraftPeriodChange = (
     startDate: string,
@@ -143,60 +149,52 @@ const App: React.FC = () => {
     // Cela permet de recharger les données qui remplaceront celles existantes
     setSelectedMobileAirSensor(sensorId);
     setMobileAirPeriod(period);
-
-    // Ajouter communautaire.mobileair aux sources sélectionnées si pas déjà présent
-    if (!selectedSources.includes("communautaire.mobileair")) {
-      setSelectedSources([...selectedSources, "communautaire.mobileair"]);
-    }
+    // Activer MobileAir
+    setIsMobileAirEnabled(true);
+    setIsMobileAirVisible(true);
   };
 
   // Fonction pour désélectionner la source MobileAir
   const handleMobileAirSourceDeselected = () => {
-    // Retirer communautaire.mobileair des sources sélectionnées
-    setSelectedSources(
-      selectedSources.filter((source) => source !== "communautaire.mobileair")
-    );
     // Réinitialiser les états MobileAir
     setSelectedMobileAirSensor(null);
     setMobileAirPeriod(defaultSignalAirPeriod);
+    setIsMobileAirEnabled(false);
+    setIsMobileAirVisible(false);
   };
 
   const handleSignalAirSourceDeselected = () => {
-    setSelectedSources((sources) =>
-      sources.filter((source) => source !== "signalair")
-    );
     resetSignalAirSettings();
+    setIsSignalAirEnabled(false);
+    setIsSignalAirVisible(false);
   };
 
-  // Effet pour ouvrir automatiquement le side panel MobileAir quand la source est sélectionnée
-  useEffect(() => {
-    if (
-      selectedSources.includes("communautaire.mobileair") &&
-      !selectedMobileAirSensor
-    ) {
-      // MobileAir est sélectionné mais aucun capteur n'est encore choisi
-      // Le side panel s'ouvrira automatiquement via le composant AirQualityMap
-    }
-  }, [selectedSources, selectedMobileAirSensor]);
+  // Gérer l'ouverture des panels
+  const handleSignalAirPanelOpen = () => {
+    setIsSignalAirEnabled(true);
+  };
 
+  const handleMobileAirPanelOpen = () => {
+    setIsMobileAirEnabled(true);
+  };
+
+  // Gérer le chargement des données SignalAir quand activé
   useEffect(() => {
-    if (!selectedSources.includes("signalair")) {
-      resetSignalAirSettings();
+    if (isSignalAirEnabled && signalAirLoadTrigger > 0) {
+      // Les données seront chargées via useAirQualityData avec signalAirOptions
     }
-  }, [selectedSources, resetSignalAirSettings]);
+  }, [isSignalAirEnabled, signalAirLoadTrigger]);
 
   // État pour l'auto-refresh - désactivé par défaut
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
-
-  const isSignalAirSelected = selectedSources.includes("signalair");
 
   const signalAirOptions = useMemo(
     () => ({
       selectedTypes: signalAirSelectedTypes,
       loadTrigger: signalAirLoadTrigger,
-      isSourceSelected: isSignalAirSelected,
+      isSourceSelected: isSignalAirEnabled, // Utiliser isSignalAirEnabled au lieu de selectedSources
     }),
-    [signalAirSelectedTypes, signalAirLoadTrigger, isSignalAirSelected]
+    [signalAirSelectedTypes, signalAirLoadTrigger, isSignalAirEnabled]
   );
 
   useEffect(() => {
@@ -482,6 +480,14 @@ const App: React.FC = () => {
           onMobileAirSensorSelected={handleMobileAirSensorSelected}
           onMobileAirSourceDeselected={handleMobileAirSourceDeselected}
           isHistoricalModeActive={isHistoricalModeActive}
+          isSignalAirEnabled={isSignalAirEnabled}
+          isMobileAirEnabled={isMobileAirEnabled}
+          isSignalAirVisible={isSignalAirVisible}
+          isMobileAirVisible={isMobileAirVisible}
+          onSignalAirToggle={setIsSignalAirVisible}
+          onMobileAirToggle={setIsMobileAirVisible}
+          onSignalAirPanelOpen={handleSignalAirPanelOpen}
+          onMobileAirPanelOpen={handleMobileAirPanelOpen}
         />
 
         {/* Panel de contrôle historique (sélection de date) - Visible si mode historique actif ET panel de date visible */}

@@ -3,23 +3,23 @@ import { SignalAirReport } from "../../../types";
 import L from "leaflet";
 
 interface UseSignalAirProps {
-  selectedSources: string[];
   signalAirHasLoaded: boolean;
   signalAirReportsCount: number;
   isSignalAirLoading: boolean;
   reports: SignalAirReport[];
   mapRef: React.RefObject<L.Map | null>;
   onSignalAirLoadRequest?: () => void;
+  isEnabled?: boolean; // Nouveau prop pour contrôler si SignalAir est activé
 }
 
 export const useSignalAir = ({
-  selectedSources,
   signalAirHasLoaded,
   signalAirReportsCount,
   isSignalAirLoading,
   reports,
   mapRef,
   onSignalAirLoadRequest,
+  isEnabled = false,
 }: UseSignalAirProps) => {
   const [isSignalAirPanelOpen, setIsSignalAirPanelOpen] = useState(false);
   const [signalAirPanelSize, setSignalAirPanelSize] = useState<
@@ -38,18 +38,17 @@ export const useSignalAir = ({
   const [signalAirFeedback, setSignalAirFeedback] = useState<string | null>(
     null
   );
-  const prevSelectedSourcesRef = useRef<string[]>([]);
+  const prevEnabledRef = useRef<boolean>(false);
 
   // Effet pour gérer l'ouverture/fermeture automatique du panel SignalAir
   useEffect(() => {
-    const isSignalAirSourceSelected = selectedSources.includes("signalair");
-    const wasSignalAirSelected = prevSelectedSourcesRef.current.includes("signalair");
-    const isNewlySelected = isSignalAirSourceSelected && !wasSignalAirSelected;
+    const wasEnabled = prevEnabledRef.current;
+    const isNewlyEnabled = isEnabled && !wasEnabled;
 
     // Mettre à jour la référence pour la prochaine fois
-    prevSelectedSourcesRef.current = [...selectedSources];
+    prevEnabledRef.current = isEnabled;
 
-    if (!isSignalAirSourceSelected) {
+    if (!isEnabled) {
       signalAirLoadPendingRef.current = false;
       setIsSignalAirPanelOpen(false);
       setSignalAirPanelSize("normal");
@@ -70,12 +69,12 @@ export const useSignalAir = ({
     }
 
     // Ne rouvrir le panel que si:
-    // 1. SignalAir vient d'être sélectionné (nouvelle sélection)
+    // 1. SignalAir vient d'être activé (nouvelle activation)
     // 2. L'utilisateur ne l'a pas fermé manuellement
     // 3. Le panel n'est pas déjà caché
     // 4. Les données n'ont pas encore été chargées
     if (
-      isNewlySelected &&
+      isNewlyEnabled &&
       !signalAirHasLoaded &&
       !userClosedSignalAirPanel &&
       signalAirPanelSize !== "hidden"
@@ -84,7 +83,7 @@ export const useSignalAir = ({
       setSignalAirPanelSize("normal");
       setUserClosedSignalAirPanel(false);
     }
-  }, [selectedSources, signalAirHasLoaded, userClosedSignalAirPanel, signalAirPanelSize]);
+  }, [isEnabled, signalAirHasLoaded, userClosedSignalAirPanel, signalAirPanelSize]);
 
   // Effet pour gérer le feedback quand aucun signalement n'est trouvé
   useEffect(() => {
