@@ -25,12 +25,13 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
   // Détecter si on est sur mobile (breakpoint sm = 640px)
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
 
-  // Position initiale : à droite, en dessous de la barre de recherche (top-4 = 16px, hauteur ~50px, donc ~70px)
+  // Position initiale : à droite, en dessous de la barre de recherche (top-4 = 16px, hauteur ~40-50px, donc ~80-90px)
   const getInitialPosition = () => {
     // Estimation de la largeur du composant (sera ajustée après le premier rendu)
     const estimatedWidth = isMobile ? Math.min(250, window.innerWidth - 32) : 250;
     const rightOffset = isMobile ? 8 : 16; // Moins d'espace sur mobile
-    const topOffset = isMobile ? 60 : 70; // Ajusté pour mobile
+    // Barre de recherche: top-4 (16px) + hauteur (~40-50px) + espace (10-15px) = ~80-90px
+    const topOffset = isMobile ? 75 : 85; // Positionné en dessous de la barre de recherche
     return {
       x: window.innerWidth - estimatedWidth - rightOffset,
       y: topOffset,
@@ -73,7 +74,8 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
       const isMobileScreen = window.innerWidth < 640;
       const width = containerRef.current.offsetWidth || 250;
       const rightOffset = isMobileScreen ? 8 : 16;
-      const topOffset = isMobileScreen ? 60 : 70;
+      // Barre de recherche: top-4 (16px) + hauteur (~40-50px) + espace (10-15px) = ~80-90px
+      const topOffset = isMobileScreen ? 75 : 85;
       setPosition({
         x: window.innerWidth - width - rightOffset,
         y: topOffset,
