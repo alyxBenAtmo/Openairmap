@@ -514,6 +514,14 @@ export interface NebuleAirDataResponse {
   data: NebuleAirSensor[];
 }
 
+// Type pour les commentaires de contexte NebuleAir
+export interface NebuleAirContextComment {
+  capteur_id: string;
+  datetime_start: string;
+  datetime_stop: string;
+  comments: string; // "fire", "traffic", "industrial", "voisinage"
+}
+
 // Mapping des polluants NebuleAir vers nos codes
 export const NEBULEAIR_POLLUTANT_MAPPING: Record<string, string> = {
   PM1: "pm1",

@@ -12,6 +12,7 @@ import {
   HistoricalDataPoint,
   SidePanelState,
   NEBULEAIR_POLLUTANT_MAPPING,
+  NebuleAirContextComment,
 } from "../../types";
 import { pollutants } from "../../constants/pollutants";
 import { NebuleAirService } from "../../services/NebuleAirService";
@@ -135,6 +136,9 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
   } | null>(null);
   const [loadingModeling, setLoadingModeling] = useState(false);
 
+  // État pour les commentaires de contexte
+  const [contextComments, setContextComments] = useState<NebuleAirContextComment[]>([]);
+
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
 
@@ -234,6 +238,32 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
           });
 
           newHistoricalData[pollutant] = data;
+        }
+
+        // Charger les commentaires de contexte pour ce capteur
+        try {
+          const comments = await nebuleAirService.fetchContextComments(station.id);
+          
+          // Filtrer les commentaires pour ne garder que ceux dans la plage de temps
+          // Le format de date de l'API est "YYYY-MM-DD HH:MM:SS", il faut le convertir en ISO
+          const filteredComments = comments.filter((comment) => {
+            // Convertir le format "YYYY-MM-DD HH:MM:SS" en ISO
+            // Remplacer l'espace par "T" pour avoir un format ISO valide
+            const isoDateString = comment.datetime_start.replace(" ", "T");
+            const commentDate = new Date(isoDateString);
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            
+            return commentDate >= start && commentDate <= end;
+          });
+          
+          setContextComments(filteredComments);
+        } catch (error) {
+          console.error(
+            "Erreur lors du chargement des commentaires de contexte:",
+            error
+          );
+          setContextComments([]);
         }
 
         // Charger les données de modélisation si demandé et si on a les coordonnées
@@ -353,6 +383,7 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
       setModelingData({});
       setLoadingModeling(false);
       setStationCoordinates(null);
+      setContextComments([]);
       return;
     }
 
@@ -411,6 +442,7 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
       setModelingData({});
       setStationCoordinates(null);
       setLoadingModeling(false);
+      setContextComments([]);
 
       // Charger les données historiques initiales si des polluants sont disponibles
       // Utiliser setTimeout pour s'assurer que l'état est bien mis à jour
@@ -1387,6 +1419,7 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                           ? modelingData
                           : undefined
                       }
+                      contextComments={contextComments}
                     />
                   </div>
 

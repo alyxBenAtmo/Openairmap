@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
-import { HistoricalDataPoint, StationInfo } from "../../types";
+import { HistoricalDataPoint, StationInfo, NebuleAirContextComment } from "../../types";
 import {
   exportAmChartsAsPNG,
   exportDataAsCSV,
@@ -28,6 +28,7 @@ interface HistoricalChartProps {
   timeStep?: string; // Pas de temps sélectionné (pour les métadonnées d'export)
   sensorTimeStep?: number | null; // Pas de temps du capteur en secondes (pour le mode instantane)
   modelingData?: Record<string, HistoricalDataPoint[]>; // Données de modélisation
+  contextComments?: NebuleAirContextComment[]; // Commentaires de contexte pour NebuleAir
 }
 
 const HistoricalChart: React.FC<HistoricalChartProps> = ({
@@ -41,11 +42,17 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   timeStep,
   sensorTimeStep,
   modelingData,
+  contextComments = [],
 }) => {
   // État pour détecter le mode paysage sur mobile
   const [isLandscapeMobile, setIsLandscapeMobile] = useState(false);
   // État pour détecter si on est sur mobile
   const [isMobile, setIsMobile] = useState(false);
+  // État pour le tooltip de commentaire
+  const [selectedComment, setSelectedComment] = useState<{
+    comment: NebuleAirContextComment;
+    position: { x: number; y: number };
+  } | null>(null);
 
   // Références pour le conteneur
   const containerRef = useRef<HTMLDivElement>(null);
@@ -129,6 +136,14 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     return getChartMargins(isLandscapeMobile, isMobile);
   }, [isLandscapeMobile, isMobile]);
 
+  // Callback pour gérer le clic sur un commentaire
+  const handleCommentClick = useCallback((comment: NebuleAirContextComment, event: MouseEvent) => {
+    setSelectedComment({
+      comment,
+      position: { x: event.clientX, y: event.clientY },
+    });
+  }, []);
+
   // Utiliser le hook pour gérer le graphique amCharts
   const { chartRef, rootRef } = useAmChartsChart({
     containerRef,
@@ -144,6 +159,8 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     isLandscapeMobile,
     stationInfo,
     timeStep,
+    contextComments,
+    onCommentClick: handleCommentClick,
   });
 
   // Notifier le composant parent si des données corrigées sont disponibles
@@ -224,6 +241,38 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     );
   }
 
+  // Fonction helper pour obtenir le label du commentaire
+  const getCommentLabel = (comment: string): string => {
+    const commentLower = comment.toLowerCase();
+    if (commentLower.includes("fire") || commentLower.includes("feu")) {
+      return "🔥 Feu";
+    } else if (commentLower.includes("traffic") || commentLower.includes("routier")) {
+      return "🚗 Trafic";
+    } else if (commentLower.includes("industrial") || commentLower.includes("industriel")) {
+      return "🏭 Industriel";
+    } else if (commentLower.includes("voisinage")) {
+      return "🏘️ Voisinage";
+    }
+    return "📝 Contexte";
+  };
+
+  // Formater la date du commentaire
+  const formatCommentDate = (dateString: string): string => {
+    try {
+      const isoDateString = dateString.replace(" ", "T");
+      const date = new Date(isoDateString);
+      return new Intl.DateTimeFormat("fr-FR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(date);
+    } catch {
+      return dateString;
+    }
+  };
+
   return (
     <div className="flex flex-col h-full relative">
       {/* Bouton burger et menu d'export en haut à droite */}
@@ -244,6 +293,53 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
           }}
         />
       </div>
+
+      {/* Tooltip discret pour le commentaire */}
+      {selectedComment && (
+        <>
+          {/* Overlay transparent pour fermer le tooltip */}
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setSelectedComment(null)}
+            aria-hidden="true"
+          />
+          
+          {/* Tooltip discret */}
+          <div
+            className="fixed z-50 bg-gray-900 text-white text-xs rounded-md shadow-lg px-3 py-2 max-w-xs pointer-events-none animate-in fade-in duration-150"
+            style={{
+              left: `${Math.min(Math.max(selectedComment.position.x + 10, 10), window.innerWidth - 280)}px`,
+              top: `${Math.min(Math.max(selectedComment.position.y - 10, 10), window.innerHeight - 100)}px`,
+              transform: "translateY(-100%)",
+            }}
+            role="tooltip"
+            aria-live="polite"
+          >
+            {/* Flèche pointant vers le point */}
+            <div
+              className="absolute bottom-0 left-4 transform translate-y-full"
+              style={{
+                borderLeft: "6px solid transparent",
+                borderRight: "6px solid transparent",
+                borderTop: "6px solid rgb(17, 24, 39)",
+              }}
+            />
+            
+            {/* Contenu du commentaire */}
+            <div className="space-y-1">
+              <div className="font-medium text-white">
+                {getCommentLabel(selectedComment.comment.comments)}
+              </div>
+              <div className="text-gray-300 text-xs">
+                {selectedComment.comment.comments}
+              </div>
+              <div className="text-gray-400 text-xs pt-1 border-t border-gray-700">
+                {formatCommentDate(selectedComment.comment.datetime_start)}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

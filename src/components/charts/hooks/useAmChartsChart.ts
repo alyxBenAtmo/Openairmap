@@ -13,6 +13,7 @@ import {
   addThresholdZones,
   setupLegend,
 } from "../utils/amChartsHelpers";
+import { NebuleAirContextComment } from "../../../types";
 
 interface UseAmChartsChartProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
@@ -28,6 +29,8 @@ interface UseAmChartsChartProps {
   isLandscapeMobile: boolean;
   stationInfo: any | null;
   timeStep?: string;
+  contextComments?: NebuleAirContextComment[];
+  onCommentClick?: (comment: NebuleAirContextComment, event: MouseEvent) => void;
 }
 
 export const useAmChartsChart = ({
@@ -44,6 +47,8 @@ export const useAmChartsChart = ({
   isLandscapeMobile,
   stationInfo,
   timeStep,
+  contextComments = [],
+  onCommentClick,
 }: UseAmChartsChartProps) => {
   const chartRef = useRef<am5xy.XYChart | null>(null);
   const rootRef = useRef<am5.Root | null>(null);
@@ -457,9 +462,19 @@ export const useAmChartsChart = ({
           const shouldConnect = !isAggregatedTimeStep;
           lineSeries.set("connect", shouldConnect);
         });
+        
+        // Réappliquer les bullets de commentaires après la recréation des séries
+        // On déclenche un événement personnalisé pour que l'effet des commentaires se réexécute
+        if (contextComments && contextComments.length > 0) {
+          // Forcer la réapplication des bullets en déclenchant un re-render
+          // On va utiliser un timeout pour s'assurer que les données sont bien chargées
+          setTimeout(() => {
+            // Les bullets seront ajoutés par l'effet contextComments
+          }, 100);
+        }
       }
     }, 50);
-  }, [seriesConfigs, amChartsData, timeStep]);
+  }, [seriesConfigs, amChartsData, timeStep, contextComments]);
 
   // Mise à jour des zones de seuils
   useEffect(() => {
@@ -564,6 +579,147 @@ export const useAmChartsChart = ({
       fontSize: isMobile ? 7 : isLandscapeMobile ? 9 : 12,
     });
   }, [chartMargins, isMobile, isLandscapeMobile]);
+
+  // Mise à jour des commentaires de contexte - uniquement des points sur la courbe
+  useEffect(() => {
+    if (!chartRef.current || !rootRef.current || !amChartsData || amChartsData.length === 0) {
+      return;
+    }
+
+    const chart = chartRef.current;
+    
+    // Attendre que les séries soient créées
+    if (chart.series.length === 0) {
+      return;
+    }
+
+    // Fonction helper pour obtenir la couleur selon le type de commentaire
+    const getCommentColor = (comment: string): string => {
+      const commentLower = comment.toLowerCase();
+      if (commentLower.includes("fire") || commentLower.includes("feu")) {
+        return "#ff6b6b";
+      } else if (commentLower.includes("traffic") || commentLower.includes("routier")) {
+        return "#ffa500";
+      } else if (commentLower.includes("industrial") || commentLower.includes("industriel")) {
+        return "#4ecdc4";
+      } else if (commentLower.includes("voisinage")) {
+        return "#95a5a6";
+      }
+      return "#95a5a6";
+    };
+
+    // Créer un Map des timestamps de commentaires pour une recherche rapide
+    // Clé: timestamp en millisecondes, Valeur: { color, comment }
+    const commentTimestamps = new Map<number, { color: string; comment: NebuleAirContextComment }>();
+    
+    if (contextComments && contextComments.length > 0) {
+      contextComments.forEach((comment) => {
+        try {
+          // Convertir le format "YYYY-MM-DD HH:MM:SS" en ISO
+          // Le format de l'API est en heure locale, on doit le traiter comme tel
+          const isoDateString = comment.datetime_start.replace(" ", "T");
+          const commentDate = new Date(isoDateString);
+          
+          if (isNaN(commentDate.getTime())) {
+            return;
+          }
+
+          const color = getCommentColor(comment.comments);
+          const timestampMs = commentDate.getTime();
+          commentTimestamps.set(timestampMs, { color, comment });
+        } catch (error) {
+          // Ignorer silencieusement les erreurs de traitement
+        }
+      });
+    }
+
+    // Retirer tous les anciens bullets de commentaires avant d'en ajouter de nouveaux
+    chart.series.each((seriesItem) => {
+      const lineSeries = seriesItem as am5xy.LineSeries;
+      // Supprimer le flag pour forcer la réapplication
+      delete (lineSeries as any)._hasCommentBullets;
+    });
+
+    // Ajouter des bullets sur les séries pour les points correspondant aux commentaires
+    if (commentTimestamps.size > 0) {
+      chart.series.each((seriesItem) => {
+        const lineSeries = seriesItem as am5xy.LineSeries;
+        
+        // Vérifier si on a déjà ajouté un bullet factory pour les commentaires
+        const hasCommentBullets = (lineSeries as any)._hasCommentBullets;
+        if (hasCommentBullets) {
+          return; // Déjà ajouté
+        }
+        
+        // Marquer que les bullets de commentaires ont été ajoutés
+        (lineSeries as any)._hasCommentBullets = true;
+        
+        // Ajouter un bullet factory pour les commentaires
+        lineSeries.bullets.push((root, series, dataItem) => {
+          const data = dataItem.dataContext as any;
+          if (!data || !data.timestamp) {
+            return undefined;
+          }
+
+          // Vérifier si ce timestamp correspond à un commentaire
+          // On accepte une tolérance de ±30 minutes pour gérer les différences de précision
+          const dataTimestamp = typeof data.timestamp === "number" 
+            ? data.timestamp 
+            : new Date(data.timestamp).getTime();
+          
+          if (isNaN(dataTimestamp)) {
+            return undefined;
+          }
+          
+          const tolerance = 30 * 60 * 1000; // 30 minutes en millisecondes (augmenté pour plus de flexibilité)
+          let matchingCommentData: { color: string; comment: NebuleAirContextComment } | null = null;
+          let minDiff = Infinity;
+          
+          for (const [commentTimestamp, commentData] of commentTimestamps.entries()) {
+            const diff = Math.abs(dataTimestamp - commentTimestamp);
+            if (diff <= tolerance) {
+              matchingCommentData = commentData;
+              break;
+            }
+          }
+
+          // Si ce point correspond à un commentaire, ajouter un bullet visible et cliquable
+          if (matchingCommentData) {
+            const circle = am5.Circle.new(root, {
+              radius: 6,
+              fill: am5.color(matchingCommentData.color),
+              fillOpacity: 1,
+              stroke: am5.color("#ffffff"),
+              strokeWidth: 2,
+              strokeOpacity: 1,
+              cursorOverStyle: "pointer",
+              tooltipText: "Cliquez pour voir le commentaire",
+            });
+
+            // Ajouter un événement de clic
+            circle.events.on("click", (ev) => {
+              if (onCommentClick && ev.originalEvent) {
+                const mouseEvent = ev.originalEvent as MouseEvent;
+                onCommentClick(matchingCommentData!.comment, mouseEvent);
+              }
+            });
+
+            return am5.Bullet.new(root, {
+              sprite: circle,
+            });
+          }
+
+          return undefined;
+        });
+      });
+    } else {
+      // Si pas de commentaires, retirer le flag des séries
+      chart.series.each((seriesItem) => {
+        const lineSeries = seriesItem as am5xy.LineSeries;
+        delete (lineSeries as any)._hasCommentBullets;
+      });
+    }
+  }, [contextComments, isMobile, amChartsData]);
 
   return {
     chartRef: chartRef as React.RefObject<am5xy.XYChart | null>,

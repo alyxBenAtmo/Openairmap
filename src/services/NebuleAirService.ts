@@ -7,6 +7,7 @@ import {
   NEBULEAIR_POLLUTANT_MAPPING,
   NEBULEAIR_TIMESTEP_MAPPING,
   TemporalDataPoint,
+  NebuleAirContextComment,
 } from "../types";
 import { getAirQualityLevel } from "../utils";
 import { pollutants } from "../constants/pollutants";
@@ -1035,6 +1036,37 @@ export class NebuleAirService extends BaseDataService {
         error
       );
       return null;
+    }
+  }
+
+  // Méthode pour récupérer les commentaires de contexte d'un capteur
+  async fetchContextComments(
+    sensorId: string
+  ): Promise<NebuleAirContextComment[]> {
+    try {
+      const url = `${this.BASE_URL}/openairmap/get_context.php?capteur_id=${encodeURIComponent(sensorId)}`;
+
+      const response = await this.makeRequest(url);
+
+      // L'API retourne directement un tableau de commentaires
+      if (Array.isArray(response)) {
+        return response;
+      }
+
+      // Si la réponse est encapsulée dans un objet
+      if (response.data && Array.isArray(response.data)) {
+        return response.data;
+      }
+
+      // Si la réponse est vide ou invalide, retourner un tableau vide
+      return [];
+    } catch (error) {
+      console.error(
+        `Erreur lors de la récupération des commentaires de contexte pour ${sensorId}:`,
+        error
+      );
+      // En cas d'erreur, retourner un tableau vide plutôt que de lever une exception
+      return [];
     }
   }
 }
