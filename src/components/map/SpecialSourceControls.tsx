@@ -22,7 +22,22 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
   hasSignalAirData,
   hasMobileAirData,
 }) => {
-  const [position, setPosition] = useState({ x: 16, y: 16 });
+  // Détecter si on est sur mobile (breakpoint sm = 640px)
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+
+  // Position initiale : à droite, en dessous de la barre de recherche (top-4 = 16px, hauteur ~50px, donc ~70px)
+  const getInitialPosition = () => {
+    // Estimation de la largeur du composant (sera ajustée après le premier rendu)
+    const estimatedWidth = isMobile ? Math.min(250, window.innerWidth - 32) : 250;
+    const rightOffset = isMobile ? 8 : 16; // Moins d'espace sur mobile
+    const topOffset = isMobile ? 60 : 70; // Ajusté pour mobile
+    return {
+      x: window.innerWidth - estimatedWidth - rightOffset,
+      y: topOffset,
+    };
+  };
+
+  const [position, setPosition] = useState(getInitialPosition());
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -36,7 +51,7 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
         const { x, y } = JSON.parse(savedPosition);
         setPosition({ x, y });
       } catch (e) {
-        // Ignorer les erreurs de parsing
+        // Ignorer les erreurs de parsing, utiliser la position initiale
       }
     }
     
@@ -47,6 +62,22 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
       } catch (e) {
         // Ignorer les erreurs de parsing
       }
+    }
+  }, []);
+
+  // Ajuster la position initiale à droite si aucune position n'est sauvegardée (après le premier rendu)
+  useEffect(() => {
+    const savedPosition = localStorage.getItem("specialSourceControlsPosition");
+    if (!savedPosition && containerRef.current) {
+      // Si aucune position sauvegardée, utiliser la position initiale à droite
+      const isMobileScreen = window.innerWidth < 640;
+      const width = containerRef.current.offsetWidth || 250;
+      const rightOffset = isMobileScreen ? 8 : 16;
+      const topOffset = isMobileScreen ? 60 : 70;
+      setPosition({
+        x: window.innerWidth - width - rightOffset,
+        y: topOffset,
+      });
     }
   }, []);
 
@@ -66,6 +97,42 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
     );
   }, [isCollapsed]);
 
+  // Ajuster la position lors du redimensionnement de la fenêtre
+  useEffect(() => {
+    const adjustPosition = () => {
+      if (containerRef.current) {
+        const maxX = window.innerWidth - containerRef.current.offsetWidth;
+        const maxY = window.innerHeight - containerRef.current.offsetHeight;
+
+        setPosition((prev) => ({
+          x: Math.max(0, Math.min(prev.x, maxX)),
+          y: Math.max(0, Math.min(prev.y, maxY)),
+        }));
+      }
+    };
+
+    // Ajuster la position au montage (après le premier rendu)
+    adjustPosition();
+
+    // Ajuster la position lors du redimensionnement
+    window.addEventListener("resize", adjustPosition);
+
+    return () => {
+      window.removeEventListener("resize", adjustPosition);
+    };
+  }, []);
+
+  const startDrag = (clientX: number, clientY: number) => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      setIsDragging(true);
+      setDragStart({
+        x: clientX - rect.left,
+        y: clientY - rect.top,
+      });
+    }
+  };
+
   const handleMouseDown = (e: React.MouseEvent) => {
     // Ne pas démarrer le drag si on clique sur un bouton
     const target = e.target as HTMLElement;
@@ -73,22 +140,29 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
       return;
     }
     
-    if (containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      setIsDragging(true);
-      setDragStart({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      });
+    startDrag(e.clientX, e.clientY);
+    e.preventDefault();
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    // Ne pas démarrer le drag si on touche un bouton
+    const target = e.target as HTMLElement;
+    if (target.closest("button") && !target.closest(".drag-handle")) {
+      return;
+    }
+    
+    const touch = e.touches[0];
+    if (touch) {
+      startDrag(touch.clientX, touch.clientY);
       e.preventDefault();
     }
   };
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    const updatePosition = (clientX: number, clientY: number) => {
       if (isDragging && containerRef.current) {
-        const newX = e.clientX - dragStart.x;
-        const newY = e.clientY - dragStart.y;
+        const newX = clientX - dragStart.x;
+        const newY = clientY - dragStart.y;
 
         // Limiter la position aux limites de la fenêtre
         const maxX = window.innerWidth - (containerRef.current.offsetWidth || 200);
@@ -101,18 +175,38 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
       }
     };
 
+    const handleMouseMove = (e: MouseEvent) => {
+      updatePosition(e.clientX, e.clientY);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (touch) {
+        updatePosition(touch.clientX, touch.clientY);
+        e.preventDefault();
+      }
+    };
+
     const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    const handleTouchEnd = () => {
       setIsDragging(false);
     };
 
     if (isDragging) {
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
+      document.addEventListener("touchmove", handleTouchMove, { passive: false });
+      document.addEventListener("touchend", handleTouchEnd);
     }
 
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener("touchmove", handleTouchMove);
+      document.removeEventListener("touchend", handleTouchEnd);
     };
   }, [isDragging, dragStart]);
 
@@ -123,7 +217,9 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
         "fixed z-[1600] flex flex-col",
         // Désactiver les transitions SEULEMENT pendant le drag pour un suivi immédiat
         isDragging ? "select-none opacity-90" : "transition-all duration-300",
-        isCollapsed ? "gap-1.5" : "gap-2.5"
+        isCollapsed ? "gap-1.5" : "gap-2.5",
+        // Largeur maximale sur mobile pour éviter le débordement
+        "max-w-[calc(100vw-16px)] sm:max-w-none"
       )}
       style={{
         left: `${position.x}px`,
@@ -137,24 +233,25 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
         className={cn(
           "relative bg-white/98 backdrop-blur-md rounded-2xl shadow-2xl border border-gray-200/80",
           "transition-all duration-300",
-          isCollapsed ? "p-2" : "p-3",
+          isCollapsed ? "p-1.5 sm:p-2" : "p-2.5 sm:p-3",
           "hover:shadow-3xl hover:border-gray-300/80"
         )}
       >
         {/* Header avec zone de drag intégrée et bouton collapse */}
         <div className={cn(
           "flex items-center justify-between transition-all duration-300 relative",
-          isCollapsed ? "mb-1" : "mb-2"
+          isCollapsed ? "mb-1" : "mb-1.5 sm:mb-2"
         )}>
           {/* Zone de drag intégrée dans le header */}
           <div
             className={cn(
-              "flex items-center gap-2 cursor-grab active:cursor-grabbing drag-handle",
-              "px-2 py-1.5 rounded-lg transition-all duration-200",
-              "hover:bg-gray-100/80 active:bg-gray-200",
+              "flex items-center gap-1.5 sm:gap-2 cursor-grab active:cursor-grabbing drag-handle",
+              "px-1.5 sm:px-2 py-1 sm:py-1.5 rounded-lg transition-all duration-200",
+              "hover:bg-gray-100/80 active:bg-gray-200 touch-manipulation",
               "group/drag"
             )}
             onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
             title="Glisser pour déplacer le panneau"
             aria-label="Zone de déplacement"
           >
@@ -174,7 +271,7 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
               )} />
             </div>
             {!isCollapsed && (
-              <h3 className="font-semibold text-gray-700 text-sm select-none">
+              <h3 className="font-semibold text-gray-700 text-xs sm:text-sm select-none">
                 Sources spéciales
               </h3>
             )}
@@ -182,10 +279,10 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
             className={cn(
-              "flex-shrink-0 w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200",
+              "flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-gray-100 hover:bg-gray-200",
               "text-gray-600 hover:text-gray-800 flex items-center justify-center",
               "transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400/50",
-              "active:scale-95",
+              "active:scale-95 touch-manipulation",
               isCollapsed && "ml-auto"
             )}
             aria-label={isCollapsed ? "Développer les contrôles" : "Réduire les contrôles"}
@@ -193,7 +290,7 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
           >
             <svg
               className={cn(
-                "w-4 h-4 transition-transform duration-300",
+                "w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform duration-300",
                 isCollapsed && "rotate-180"
               )}
               fill="none"
@@ -211,7 +308,7 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
         </div>
 
         {/* Liste des boutons */}
-        <div className={cn("flex flex-col", isCollapsed ? "gap-1.5" : "gap-2")}>
+        <div className={cn("flex flex-col", isCollapsed ? "gap-1 sm:gap-1.5" : "gap-1.5 sm:gap-2")}>
           {/* Bouton SignalAir */}
           <div
             className={cn(
@@ -228,17 +325,17 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
                 className={cn(
                   "flex items-center flex-1 rounded-lg transition-all duration-200",
                   "hover:bg-[#13A0DB]/5 focus:outline-none focus:ring-2 focus:ring-[#13A0DB]/30 focus:ring-offset-2",
-                  "active:scale-[0.98]",
+                  "active:scale-[0.98] touch-manipulation",
                   isCollapsed 
-                    ? "gap-0 p-2.5" 
-                    : "gap-3 px-3.5 py-3"
+                    ? "gap-0 p-2 sm:p-2.5" 
+                    : "gap-2 sm:gap-3 px-2.5 sm:px-3.5 py-2 sm:py-3"
                 )}
                 aria-label="Ouvrir le panneau de sélection SignalAir"
               >
                 {/* Icône SignalAir SVG */}
                 <div className={cn(
                   "flex-shrink-0 transition-all duration-200",
-                  isCollapsed ? "w-5 h-5" : "w-6 h-6"
+                  isCollapsed ? "w-4 h-4 sm:w-5 sm:h-5" : "w-5 h-5 sm:w-6 sm:h-6"
                 )}>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -254,7 +351,7 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
                   </svg>
                 </div>
                 {!isCollapsed && (
-                  <span className="text-sm font-semibold text-gray-800 flex-1 text-left">
+                  <span className="text-xs sm:text-sm font-semibold text-gray-800 flex-1 text-left">
                     SignalAir
                   </span>
                 )}
@@ -270,10 +367,10 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
                   className={cn(
                     "flex-shrink-0 transition-all duration-200",
                     "focus:outline-none focus:ring-2 focus:ring-[#13A0DB]/30 focus:ring-offset-2 rounded-lg",
-                    "active:scale-95",
+                    "active:scale-95 touch-manipulation",
                     isCollapsed 
-                      ? "w-2.5 h-2.5 rounded-full mr-2"
-                      : "px-3 py-1.5 rounded-lg text-xs font-semibold mr-2"
+                      ? "w-2.5 h-2.5 rounded-full mr-1 sm:mr-2"
+                      : "px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-semibold mr-1 sm:mr-2"
                   )}
                   aria-label={
                     isSignalAirVisible
@@ -322,17 +419,17 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
                 className={cn(
                   "flex items-center flex-1 rounded-lg transition-all duration-200",
                   "hover:bg-green-500/5 focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:ring-offset-2",
-                  "active:scale-[0.98]",
+                  "active:scale-[0.98] touch-manipulation",
                   isCollapsed 
-                    ? "gap-0 p-2.5" 
-                    : "gap-3 px-3.5 py-3"
+                    ? "gap-0 p-2 sm:p-2.5" 
+                    : "gap-2 sm:gap-3 px-2.5 sm:px-3.5 py-2 sm:py-3"
                 )}
                 aria-label="Ouvrir le panneau de sélection MobileAir"
               >
                 {/* Icône MobileAir SVG */}
                 <div className={cn(
                   "flex-shrink-0 text-green-600 transition-all duration-200",
-                  isCollapsed ? "w-5 h-5" : "w-6 h-6"
+                  isCollapsed ? "w-4 h-4 sm:w-5 sm:h-5" : "w-5 h-5 sm:w-6 sm:h-6"
                 )}>
                   <svg
                     fill="none"
@@ -364,7 +461,7 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
                   </svg>
                 </div>
                 {!isCollapsed && (
-                  <span className="text-sm font-semibold text-gray-800 flex-1 text-left">
+                  <span className="text-xs sm:text-sm font-semibold text-gray-800 flex-1 text-left">
                     MobileAir
                   </span>
                 )}
@@ -380,10 +477,10 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
                   className={cn(
                     "flex-shrink-0 transition-all duration-200",
                     "focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:ring-offset-2 rounded-lg",
-                    "active:scale-95",
+                    "active:scale-95 touch-manipulation",
                     isCollapsed 
-                      ? "w-2.5 h-2.5 rounded-full mr-2"
-                      : "px-3 py-1.5 rounded-lg text-xs font-semibold mr-2"
+                      ? "w-2.5 h-2.5 rounded-full mr-1 sm:mr-2"
+                      : "px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-semibold mr-1 sm:mr-2"
                   )}
                   aria-label={
                     isMobileAirVisible
