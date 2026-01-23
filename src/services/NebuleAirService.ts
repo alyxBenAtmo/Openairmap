@@ -8,6 +8,7 @@ import {
   NEBULEAIR_TIMESTEP_MAPPING,
   TemporalDataPoint,
   NebuleAirContextComment,
+  CreateNebuleAirContextComment,
 } from "../types";
 import { getAirQualityLevel } from "../utils";
 import { pollutants } from "../constants/pollutants";
@@ -1067,6 +1068,89 @@ export class NebuleAirService extends BaseDataService {
       );
       // En cas d'erreur, retourner un tableau vide plutôt que de lever une exception
       return [];
+    }
+  }
+
+  // Méthode pour créer un commentaire de contexte
+  async createContextComment(
+    comment: CreateNebuleAirContextComment
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const url = `${this.BASE_URL}/openairmap/post_context.php`;
+
+      // Construire le payload en s'assurant que les champs requis sont présents
+      const payload: Record<string, string> = {
+        capteur_id: comment.capteur_id,
+        datetime_start: comment.datetime_start,
+        datetime_end: comment.datetime_end,
+      };
+
+      // Ajouter les champs optionnels seulement s'ils sont définis et non vides
+      if (comment.timezone && comment.timezone.trim()) {
+        payload.timezone = comment.timezone.trim();
+      }
+      if (comment.context_type && comment.context_type.trim()) {
+        payload.context_type = comment.context_type.trim();
+      }
+      if (comment.comments && comment.comments.trim()) {
+        payload.comments = comment.comments.trim();
+      }
+      if (comment.user && comment.user.trim()) {
+        payload.user = comment.user.trim();
+      } else {
+        // Utiliser "anonymous" par défaut si user n'est pas fourni
+        payload.user = "anonymous";
+      }
+
+      // Log pour debug
+      console.log('[NebuleAirService] Envoi du commentaire:', JSON.stringify(payload, null, 2));
+
+      const response = await this.makeRequest(url, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      // L'API retourne { success: true, message: "..." } en cas de succès
+      if (response && response.success) {
+        return {
+          success: true,
+          message: response.message || "Commentaire créé avec succès",
+        };
+      }
+
+      // Si la réponse indique une erreur
+      if (response && response.success === false) {
+        return {
+          success: false,
+          error: response.error || "Erreur lors de la création du commentaire",
+        };
+      }
+
+      // Par défaut, considérer comme un succès si pas d'erreur explicite
+      return {
+        success: true,
+        message: "Commentaire créé avec succès",
+      };
+    } catch (error) {
+      console.error(
+        `Erreur lors de la création du commentaire de contexte pour ${comment.capteur_id}:`,
+        error
+      );
+      
+      // Essayer d'extraire le message d'erreur de la réponse si disponible
+      let errorMessage = "Erreur lors de la création du commentaire";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        // Si c'est une erreur HTTP, essayer de récupérer le message de l'API
+        if (error.message.includes('400')) {
+          errorMessage = "Requête invalide. Vérifiez que tous les champs requis sont remplis.";
+        }
+      }
+      
+      return {
+        success: false,
+        error: errorMessage,
+      };
     }
   }
 }

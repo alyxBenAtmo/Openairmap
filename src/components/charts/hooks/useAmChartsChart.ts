@@ -2,7 +2,7 @@
  * Hook pour gérer la création et la mise à jour du graphique amCharts
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as am5 from "@amcharts/amcharts5";
 import * as am5xy from "@amcharts/amcharts5/xy";
 import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
@@ -13,6 +13,7 @@ import {
   addThresholdZones,
   setupLegend,
 } from "../utils/amChartsHelpers";
+import { normalizeTimestamp } from "../utils/historicalChartDataTransformers";
 import { NebuleAirContextComment } from "../../../types";
 
 interface UseAmChartsChartProps {
@@ -31,6 +32,7 @@ interface UseAmChartsChartProps {
   timeStep?: string;
   contextComments?: NebuleAirContextComment[];
   onCommentClick?: (comment: NebuleAirContextComment, event: MouseEvent) => void;
+  onChartDoubleClick?: () => void;
 }
 
 export const useAmChartsChart = ({
@@ -49,17 +51,25 @@ export const useAmChartsChart = ({
   timeStep,
   contextComments = [],
   onCommentClick,
+  onChartDoubleClick,
 }: UseAmChartsChartProps) => {
   const chartRef = useRef<am5xy.XYChart | null>(null);
   const rootRef = useRef<am5.Root | null>(null);
   const xAxisDateFormatRef = useRef<{ format: (date: Date) => string } | null>(
     null
   );
+  const onCommentClickRef = useRef(onCommentClick);
+  const [seriesRecreated, setSeriesRecreated] = useState(0); // Compteur pour forcer la réapplication des bullets
 
   // Mettre à jour la ref du formatter quand xAxisDateFormat change
   useEffect(() => {
     xAxisDateFormatRef.current = xAxisDateFormat;
   }, [xAxisDateFormat]);
+
+  // Mettre à jour la ref du callback de clic sur commentaire
+  useEffect(() => {
+    onCommentClickRef.current = onCommentClick;
+  }, [onCommentClick]);
 
   // Création initiale du graphique
   useEffect(() => {
@@ -248,6 +258,19 @@ export const useAmChartsChart = ({
     cursor.lineY.set("visible", false);
     cursor.lineX.set("visible", true);
 
+    // Ajouter un gestionnaire de double-clic sur le graphique
+    if (onChartDoubleClick) {
+      const handleDoubleClick = () => {
+        onChartDoubleClick();
+      };
+      
+      // Attacher l'événement au plotContainer
+      chart.plotContainer.events.on("dblclick", handleDoubleClick);
+      
+      // Aussi attacher au conteneur du graphique au cas où
+      chart.events.on("dblclick", handleDoubleClick);
+    }
+
     // Créer la légende
     setupLegend(root, chart, seriesConfigs, isMobile);
 
@@ -394,6 +417,9 @@ export const useAmChartsChart = ({
     }
 
     lastSeriesConfigsRef.current = seriesConfigsKey;
+    
+    // Incrémenter le compteur pour forcer la réapplication des bullets de commentaires
+    setSeriesRecreated(prev => prev + 1);
 
     const chart = chartRef.current;
     const xAxis = chart.xAxes.getIndex(
@@ -415,6 +441,11 @@ export const useAmChartsChart = ({
     }
 
     // Supprimer toutes les séries existantes
+    // IMPORTANT: Supprimer aussi les flags des bullets de commentaires avant de supprimer les séries
+    chart.series.each((seriesItem) => {
+      const lineSeries = seriesItem as am5xy.LineSeries;
+      delete (lineSeries as any)._hasCommentBullets;
+    });
     chart.series.clear();
 
     // Recréer les séries avec la nouvelle configuration
@@ -460,7 +491,7 @@ export const useAmChartsChart = ({
           const isAggregatedTimeStep =
             timeStep && ["quartHeure", "heure", "jour"].includes(timeStep);
           const shouldConnect = !isAggregatedTimeStep;
-          lineSeries.set("connect", shouldConnect);
+          (lineSeries as any).set("connect", shouldConnect);
         });
         
         // Réappliquer les bullets de commentaires après la recréation des séries
@@ -594,8 +625,24 @@ export const useAmChartsChart = ({
     }
 
     // Fonction helper pour obtenir la couleur selon le type de commentaire
-    const getCommentColor = (comment: string): string => {
-      const commentLower = comment.toLowerCase();
+    // Utilise context_type en priorité, sinon analyse comments
+    const getCommentColor = (comment: NebuleAirContextComment): string => {
+      // Utiliser context_type si disponible
+      if (comment.context_type) {
+        const contextTypeLower = comment.context_type.toLowerCase();
+        if (contextTypeLower === "fire" || contextTypeLower === "feu") {
+          return "#ff6b6b";
+        } else if (contextTypeLower === "traffic" || contextTypeLower === "trafic" || contextTypeLower === "routier") {
+          return "#ffa500";
+        } else if (contextTypeLower === "industrial" || contextTypeLower === "industriel") {
+          return "#4ecdc4";
+        } else if (contextTypeLower === "voisinage") {
+          return "#95a5a6";
+        }
+      }
+      
+      // Fallback sur comments si context_type n'est pas disponible
+      const commentLower = comment.comments?.toLowerCase() || "";
       if (commentLower.includes("fire") || commentLower.includes("feu")) {
         return "#ff6b6b";
       } else if (commentLower.includes("traffic") || commentLower.includes("routier")) {
@@ -605,6 +652,7 @@ export const useAmChartsChart = ({
       } else if (commentLower.includes("voisinage")) {
         return "#95a5a6";
       }
+      
       return "#95a5a6";
     };
 
@@ -615,29 +663,38 @@ export const useAmChartsChart = ({
     if (contextComments && contextComments.length > 0) {
       contextComments.forEach((comment) => {
         try {
-          // Convertir le format "YYYY-MM-DD HH:MM:SS" en ISO
-          // Le format de l'API est en heure locale, on doit le traiter comme tel
-          const isoDateString = comment.datetime_start.replace(" ", "T");
-          const commentDate = new Date(isoDateString);
+          // IMPORTANT: Normaliser le timestamp du commentaire en UTC (millisecondes)
+          // 
+          // NOUVEAU COMPORTEMENT DE L'API (après modifications du collègue):
+          // L'API retourne maintenant les timestamps avec le suffixe "Z" pour indiquer explicitement UTC.
+          // Format: "2024-01-15T13:00:00Z" (explicitement en UTC)
+          // 
+          // La fonction normalizeTimestamp() gère correctement ce format et convertit en millisecondes UTC.
+          const timestampMs = normalizeTimestamp(comment.datetime_start);
           
-          if (isNaN(commentDate.getTime())) {
+          if (isNaN(timestampMs)) {
+            console.warn("Timestamp invalide pour le commentaire:", comment.datetime_start);
             return;
           }
 
-          const color = getCommentColor(comment.comments);
-          const timestampMs = commentDate.getTime();
+          const color = getCommentColor(comment);
           commentTimestamps.set(timestampMs, { color, comment });
         } catch (error) {
-          // Ignorer silencieusement les erreurs de traitement
+          console.warn("Erreur lors du traitement du commentaire:", error, comment);
         }
       });
     }
 
     // Retirer tous les anciens bullets de commentaires avant d'en ajouter de nouveaux
+    // IMPORTANT: Supprimer les bullet factories existants pour éviter les doublons
     chart.series.each((seriesItem) => {
       const lineSeries = seriesItem as am5xy.LineSeries;
       // Supprimer le flag pour forcer la réapplication
       delete (lineSeries as any)._hasCommentBullets;
+      // Supprimer les bullet factories de commentaires existants
+      // On va supprimer tous les bullets et les recréer (les autres bullets seront recréés par createLineSeries)
+      // Mais en fait, on ne peut pas supprimer un bullet factory spécifique, donc on va juste
+      // s'assurer que le flag est supprimé pour forcer la réapplication
     });
 
     // Ajouter des bullets sur les séries pour les points correspondant aux commentaires
@@ -662,10 +719,11 @@ export const useAmChartsChart = ({
           }
 
           // Vérifier si ce timestamp correspond à un commentaire
-          // On accepte une tolérance de ±30 minutes pour gérer les différences de précision
-          const dataTimestamp = typeof data.timestamp === "number" 
-            ? data.timestamp 
-            : new Date(data.timestamp).getTime();
+          // IMPORTANT: Normaliser le timestamp des données en UTC (millisecondes)
+          // pour garantir une comparaison correcte avec les timestamps des commentaires
+          // Les timestamps dans amChartsData sont normalement déjà des nombres (millisecondes UTC),
+          // mais on utilise normalizeTimestamp() pour gérer tous les cas
+          const dataTimestamp = normalizeTimestamp(data.timestamp);
           
           if (isNaN(dataTimestamp)) {
             return undefined;
@@ -675,11 +733,13 @@ export const useAmChartsChart = ({
           let matchingCommentData: { color: string; comment: NebuleAirContextComment } | null = null;
           let minDiff = Infinity;
           
+          // Comparer les timestamps en UTC (millisecondes)
+          // Les deux timestamps sont maintenant normalisés en UTC, donc la comparaison est correcte
           for (const [commentTimestamp, commentData] of commentTimestamps.entries()) {
             const diff = Math.abs(dataTimestamp - commentTimestamp);
-            if (diff <= tolerance) {
+            if (diff <= tolerance && diff < minDiff) {
               matchingCommentData = commentData;
-              break;
+              minDiff = diff;
             }
           }
 
@@ -697,10 +757,11 @@ export const useAmChartsChart = ({
             });
 
             // Ajouter un événement de clic
+            // IMPORTANT: Utiliser la ref pour éviter les problèmes de closure
             circle.events.on("click", (ev) => {
-              if (onCommentClick && ev.originalEvent) {
+              if (onCommentClickRef.current && ev.originalEvent) {
                 const mouseEvent = ev.originalEvent as MouseEvent;
-                onCommentClick(matchingCommentData!.comment, mouseEvent);
+                onCommentClickRef.current(matchingCommentData!.comment, mouseEvent);
               }
             });
 
@@ -719,7 +780,7 @@ export const useAmChartsChart = ({
         delete (lineSeries as any)._hasCommentBullets;
       });
     }
-  }, [contextComments, isMobile, amChartsData]);
+  }, [contextComments, isMobile, amChartsData, onCommentClick, seriesRecreated]);
 
   return {
     chartRef: chartRef as React.RefObject<am5xy.XYChart | null>,

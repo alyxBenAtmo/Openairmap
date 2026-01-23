@@ -71,9 +71,22 @@ export abstract class BaseDataService implements DataService {
       const response = await fetch(url, defaultOptions);
 
       if (!response.ok) {
-        throw new Error(
-          `HTTP error! status: ${response.status} - ${response.statusText}`
-        );
+        // Essayer de récupérer le message d'erreur de l'API
+        let errorMessage = `HTTP error! status: ${response.status} - ${response.statusText}`;
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const errorData = await response.json();
+            if (errorData.error) {
+              errorMessage = errorData.error;
+            } else if (errorData.message) {
+              errorMessage = errorData.message;
+            }
+          }
+        } catch {
+          // Si on ne peut pas parser l'erreur, utiliser le message par défaut
+        }
+        throw new Error(errorMessage);
       }
 
       // Certaines API renvoient 204 ou un corps vide lorsqu'aucune donnée n'est disponible

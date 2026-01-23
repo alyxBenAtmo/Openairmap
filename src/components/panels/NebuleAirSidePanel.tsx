@@ -13,6 +13,7 @@ import {
   SidePanelState,
   NEBULEAIR_POLLUTANT_MAPPING,
   NebuleAirContextComment,
+  CreateNebuleAirContextComment,
 } from "../../types";
 import { pollutants } from "../../constants/pollutants";
 import { NebuleAirService } from "../../services/NebuleAirService";
@@ -26,6 +27,7 @@ import HistoricalTimeRangeSelector, {
 import { ToggleGroup, ToggleGroupItem } from "../ui/button-group";
 import { cn } from "../../lib/utils";
 import ExpertMenu from "../controls/ExpertMenu";
+import AddContextCommentModal from "../modals/AddContextCommentModal";
 
 const NEBULEAIR_TIMESTEP_OPTIONS = [
   "instantane",
@@ -138,6 +140,9 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
 
   // État pour les commentaires de contexte
   const [contextComments, setContextComments] = useState<NebuleAirContextComment[]>([]);
+  
+  // État pour le modal d'ajout de commentaire
+  const [isAddCommentModalOpen, setIsAddCommentModalOpen] = useState(false);
 
   // Utiliser la taille externe si fournie, sinon la taille interne
   const currentPanelSize = externalPanelSize || internalPanelSize;
@@ -360,6 +365,70 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
     },
     [nebuleAirService, modelingService]
   );
+
+  // Fonction pour créer un commentaire de contexte
+  const handleCreateComment = useCallback(
+    async (comment: CreateNebuleAirContextComment) => {
+      if (!selectedStation) {
+        throw new Error('Aucune station sélectionnée');
+      }
+
+      const result = await nebuleAirService.createContextComment(comment);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Erreur lors de la création du commentaire');
+      }
+
+      // Recharger les données historiques et les commentaires pour que le nouveau point apparaisse
+      try {
+        await loadHistoricalData(
+          selectedStation,
+          state.chartControls.selectedPollutants,
+          state.chartControls.timeRange,
+          state.chartControls.timeStep,
+          showModeling, // Conserver l'état de la modélisation
+          stationCoordinates // Utiliser les coordonnées si disponibles
+        );
+      } catch (error) {
+        console.error('Erreur lors du rechargement des données après création du commentaire:', error);
+        // Ne pas bloquer l'utilisateur si le rechargement échoue
+        // Essayer au moins de recharger les commentaires
+        try {
+          const { startDate, endDate } = getDateRange(state.chartControls.timeRange);
+          const comments = await nebuleAirService.fetchContextComments(selectedStation.id);
+          
+          // Filtrer les commentaires pour ne garder que ceux dans la plage de temps
+          const filteredComments = comments.filter((c) => {
+            const isoDateString = c.datetime_start.replace(' ', 'T');
+            const commentDate = new Date(isoDateString);
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            
+            return commentDate >= start && commentDate <= end;
+          });
+          
+          setContextComments(filteredComments);
+        } catch (commentError) {
+          console.error('Erreur lors du rechargement des commentaires:', commentError);
+        }
+      }
+    },
+    [
+      nebuleAirService,
+      selectedStation,
+      state.chartControls.selectedPollutants,
+      state.chartControls.timeRange,
+      state.chartControls.timeStep,
+      showModeling,
+      stationCoordinates,
+      loadHistoricalData,
+    ]
+  );
+
+  // Callback pour le double-clic sur le graphique (ouvre simplement le modal)
+  const handleChartDoubleClick = useCallback(() => {
+    setIsAddCommentModalOpen(true);
+  }, []);
 
   // Mettre à jour l'état uniquement lors de l'ouverture du panel ou du changement de station
   useEffect(() => {
@@ -1420,6 +1489,7 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                           : undefined
                       }
                       contextComments={contextComments}
+                      onChartDoubleClick={handleChartDoubleClick}
                     />
                   </div>
 
@@ -1570,6 +1640,18 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
             </div>
           </div>
         )}
+
+        {/* Modal pour ajouter un commentaire de contexte */}
+        <AddContextCommentModal
+          isOpen={isAddCommentModalOpen}
+          onClose={() => {
+            setIsAddCommentModalOpen(false);
+          }}
+          onSubmit={handleCreateComment}
+          sensorId={selectedStation.id}
+          dataStartDate={getDateRange(state.chartControls.timeRange).startDate}
+          dataEndDate={getDateRange(state.chartControls.timeRange).endDate}
+        />
       </div>
     );
   };

@@ -331,12 +331,24 @@ const AmChartsLineChart: React.FC<AmChartsLineChartProps> = ({
           const data = dataItem.dataContext as AmChartsLineChartData;
           const value = (dataItem as any).get("valueY") as number;
           
-          if (data && data.timestamp && typeof value === "number") {
-            // Formater la date et l'heure
-            const timestampValue = data.timestamp;
-            const date = typeof timestampValue === "number" ? new Date(timestampValue) : new Date(String(timestampValue));
+          if (data && typeof value === "number") {
+            // IMPORTANT: Utiliser timestampValue (millisecondes UTC) plutôt que timestamp (string formatée)
+            // pour garantir une conversion correcte en heure locale
+            let date: Date | null = null;
             
-            if (!isNaN(date.getTime())) {
+            if (data.timestampValue !== undefined) {
+              // timestampValue est en millisecondes UTC
+              date = new Date(data.timestampValue);
+            } else if (data.timestamp) {
+              // Fallback: si timestampValue n'est pas disponible, utiliser timestamp
+              const timestampValue = typeof data.timestamp === "number" 
+                ? data.timestamp 
+                : new Date(String(data.timestamp)).getTime();
+              date = new Date(timestampValue);
+            }
+            
+            if (date && !isNaN(date.getTime())) {
+              // toLocaleString() convertit automatiquement en heure locale
               const dateStr = date.toLocaleString("fr-FR", {
                 year: "numeric",
                 month: "2-digit",

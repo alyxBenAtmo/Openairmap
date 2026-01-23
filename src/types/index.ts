@@ -520,6 +520,19 @@ export interface NebuleAirContextComment {
   datetime_start: string;
   datetime_stop: string;
   comments: string; // "fire", "traffic", "industrial", "voisinage"
+  context_type?: string; // Type de contexte (optionnel)
+  user?: string; // Identifiant utilisateur (optionnel)
+}
+
+// Type pour créer un nouveau commentaire de contexte
+export interface CreateNebuleAirContextComment {
+  capteur_id: string;
+  datetime_start: string; // Format ISO 8601 (sans Z si timezone fourni, avec Z si déjà en UTC)
+  datetime_end: string; // Format ISO 8601 (sans Z si timezone fourni, avec Z si déjà en UTC)
+  timezone?: string; // Timezone (ex: "Europe/Paris") - si fourni, les timestamps sont convertis vers UTC
+  context_type?: string;
+  comments?: string;
+  user?: string;
 }
 
 // Mapping des polluants NebuleAir vers nos codes

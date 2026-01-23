@@ -39,11 +39,30 @@ export const createSeriesTooltip = (
     const data = (dataItem as any).dataContext as any;
     const value = data?.[seriesConfig.dataKey];
     
-    // Formater la date
+    // Formater la date en heure locale
+    // IMPORTANT: Utiliser timestampValue (millisecondes UTC) plutôt que timestamp (string formatée)
+    // pour garantir une conversion correcte en heure locale
     let dateStr = "";
-    if (data?.timestamp) {
-      const timestampValue = data.timestamp;
-      const date = typeof timestampValue === "number" ? new Date(timestampValue) : new Date(timestampValue);
+    if (data?.timestampValue !== undefined) {
+      // timestampValue est en millisecondes UTC
+      const date = new Date(data.timestampValue);
+      if (!isNaN(date.getTime())) {
+        // toLocaleString() convertit automatiquement en heure locale
+        dateStr = date.toLocaleString("fr-FR", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+    } else if (data?.timestamp) {
+      // Fallback: si timestampValue n'est pas disponible, utiliser timestamp
+      // Mais normaliser d'abord pour garantir une conversion correcte
+      const timestampValue = typeof data.timestamp === "number" 
+        ? data.timestamp 
+        : new Date(data.timestamp).getTime();
+      const date = new Date(timestampValue);
       if (!isNaN(date.getTime())) {
         dateStr = date.toLocaleString("fr-FR", {
           year: "numeric",

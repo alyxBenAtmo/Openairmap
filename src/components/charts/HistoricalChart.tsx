@@ -29,6 +29,7 @@ interface HistoricalChartProps {
   sensorTimeStep?: number | null; // Pas de temps du capteur en secondes (pour le mode instantane)
   modelingData?: Record<string, HistoricalDataPoint[]>; // Données de modélisation
   contextComments?: NebuleAirContextComment[]; // Commentaires de contexte pour NebuleAir
+  onChartDoubleClick?: () => void; // Callback pour le double-clic sur le graphique
 }
 
 const HistoricalChart: React.FC<HistoricalChartProps> = ({
@@ -43,6 +44,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   sensorTimeStep,
   modelingData,
   contextComments = [],
+  onChartDoubleClick,
 }) => {
   // État pour détecter le mode paysage sur mobile
   const [isLandscapeMobile, setIsLandscapeMobile] = useState(false);
@@ -161,6 +163,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     timeStep,
     contextComments,
     onCommentClick: handleCommentClick,
+    onChartDoubleClick,
   });
 
   // Notifier le composant parent si des données corrigées sont disponibles
@@ -242,8 +245,24 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   }
 
   // Fonction helper pour obtenir le label du commentaire
-  const getCommentLabel = (comment: string): string => {
-    const commentLower = comment.toLowerCase();
+  // Utilise context_type en priorité, sinon analyse comments
+  const getCommentLabel = (comment: NebuleAirContextComment): string => {
+    // Utiliser context_type si disponible
+    if (comment.context_type) {
+      const contextTypeLower = comment.context_type.toLowerCase();
+      if (contextTypeLower === "fire" || contextTypeLower === "feu") {
+        return "🔥 Feu";
+      } else if (contextTypeLower === "traffic" || contextTypeLower === "trafic" || contextTypeLower === "routier") {
+        return "🚗 Trafic";
+      } else if (contextTypeLower === "industrial" || contextTypeLower === "industriel") {
+        return "🏭 Industriel";
+      } else if (contextTypeLower === "voisinage") {
+        return "🏘️ Voisinage";
+      }
+    }
+    
+    // Fallback sur comments si context_type n'est pas disponible
+    const commentLower = comment.comments?.toLowerCase() || "";
     if (commentLower.includes("fire") || commentLower.includes("feu")) {
       return "🔥 Feu";
     } else if (commentLower.includes("traffic") || commentLower.includes("routier")) {
@@ -253,6 +272,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     } else if (commentLower.includes("voisinage")) {
       return "🏘️ Voisinage";
     }
+    
     return "📝 Contexte";
   };
 
@@ -328,14 +348,26 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
             {/* Contenu du commentaire */}
             <div className="space-y-1">
               <div className="font-medium text-white">
-                {getCommentLabel(selectedComment.comment.comments)}
+                {getCommentLabel(selectedComment.comment)}
               </div>
-              <div className="text-gray-300 text-xs">
-                {selectedComment.comment.comments}
-              </div>
+              {selectedComment.comment.comments && (
+                <div className="text-gray-300 text-xs">
+                  {selectedComment.comment.comments}
+                </div>
+              )}
               <div className="text-gray-400 text-xs pt-1 border-t border-gray-700">
                 {formatCommentDate(selectedComment.comment.datetime_start)}
+                {selectedComment.comment.datetime_stop && (
+                  <span className="ml-2">
+                    → {formatCommentDate(selectedComment.comment.datetime_stop)}
+                  </span>
+                )}
               </div>
+              {selectedComment.comment.user && (
+                <div className="text-gray-400 text-xs">
+                  Par {selectedComment.comment.user}
+                </div>
+              )}
             </div>
           </div>
         </>
