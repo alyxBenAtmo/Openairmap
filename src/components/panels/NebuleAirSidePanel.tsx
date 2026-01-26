@@ -16,6 +16,7 @@ import {
   CreateNebuleAirContextComment,
 } from "../../types";
 import { pollutants } from "../../constants/pollutants";
+import { featureFlags } from "../../config/featureFlags";
 import { NebuleAirService } from "../../services/NebuleAirService";
 import { ModelingService } from "../../services/ModelingService";
 import { DataServiceFactory } from "../../services/DataServiceFactory";
@@ -245,29 +246,26 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
           newHistoricalData[pollutant] = data;
         }
 
-        // Charger les commentaires de contexte pour ce capteur
-        try {
-          const comments = await nebuleAirService.fetchContextComments(station.id);
-          
-          // Filtrer les commentaires pour ne garder que ceux dans la plage de temps
-          // Le format de date de l'API est "YYYY-MM-DD HH:MM:SS", il faut le convertir en ISO
-          const filteredComments = comments.filter((comment) => {
-            // Convertir le format "YYYY-MM-DD HH:MM:SS" en ISO
-            // Remplacer l'espace par "T" pour avoir un format ISO valide
-            const isoDateString = comment.datetime_start.replace(" ", "T");
-            const commentDate = new Date(isoDateString);
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            
-            return commentDate >= start && commentDate <= end;
-          });
-          
-          setContextComments(filteredComments);
-        } catch (error) {
-          console.error(
-            "Erreur lors du chargement des commentaires de contexte:",
-            error
-          );
+        // Charger les commentaires de contexte pour ce capteur (si feature activée)
+        if (featureFlags.displayContextCommentFeature) {
+          try {
+            const comments = await nebuleAirService.fetchContextComments(station.id);
+            const filteredComments = comments.filter((comment) => {
+              const isoDateString = comment.datetime_start.replace(" ", "T");
+              const commentDate = new Date(isoDateString);
+              const start = new Date(startDate);
+              const end = new Date(endDate);
+              return commentDate >= start && commentDate <= end;
+            });
+            setContextComments(filteredComments);
+          } catch (error) {
+            console.error(
+              "Erreur lors du chargement des commentaires de contexte:",
+              error
+            );
+            setContextComments([]);
+          }
+        } else {
           setContextComments([]);
         }
 
@@ -392,24 +390,22 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
       } catch (error) {
         console.error('Erreur lors du rechargement des données après création du commentaire:', error);
         // Ne pas bloquer l'utilisateur si le rechargement échoue
-        // Essayer au moins de recharger les commentaires
-        try {
-          const { startDate, endDate } = getDateRange(state.chartControls.timeRange);
-          const comments = await nebuleAirService.fetchContextComments(selectedStation.id);
-          
-          // Filtrer les commentaires pour ne garder que ceux dans la plage de temps
-          const filteredComments = comments.filter((c) => {
-            const isoDateString = c.datetime_start.replace(' ', 'T');
-            const commentDate = new Date(isoDateString);
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            
-            return commentDate >= start && commentDate <= end;
-          });
-          
-          setContextComments(filteredComments);
-        } catch (commentError) {
-          console.error('Erreur lors du rechargement des commentaires:', commentError);
+        // Essayer au moins de recharger les commentaires (si feature activée)
+        if (featureFlags.displayContextCommentFeature) {
+          try {
+            const { startDate, endDate } = getDateRange(state.chartControls.timeRange);
+            const comments = await nebuleAirService.fetchContextComments(selectedStation.id);
+            const filteredComments = comments.filter((c) => {
+              const isoDateString = c.datetime_start.replace(' ', 'T');
+              const commentDate = new Date(isoDateString);
+              const start = new Date(startDate);
+              const end = new Date(endDate);
+              return commentDate >= start && commentDate <= end;
+            });
+            setContextComments(filteredComments);
+          } catch (commentError) {
+            console.error('Erreur lors du rechargement des commentaires:', commentError);
+          }
         }
       }
     },
@@ -425,8 +421,8 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
     ]
   );
 
-  // Callback pour le double-clic sur le graphique (ouvre simplement le modal)
-  const handleChartDoubleClick = useCallback(() => {
+  // Callback pour ouvrir le modal d'ajout de commentaire de mise en contexte (menu du graphique)
+  const handleAddContextComment = useCallback(() => {
     setIsAddCommentModalOpen(true);
   }, []);
 
@@ -1488,8 +1484,19 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
                           ? modelingData
                           : undefined
                       }
-                      contextComments={contextComments}
-                      onChartDoubleClick={handleChartDoubleClick}
+                      contextComments={
+                        featureFlags.displayContextCommentFeature
+                          ? contextComments
+                          : []
+                      }
+                      onAddContextComment={
+                        featureFlags.displayContextCommentFeature
+                          ? handleAddContextComment
+                          : undefined
+                      }
+                      contextCommentFeatureEnabled={
+                        featureFlags.displayContextCommentFeature
+                      }
                     />
                   </div>
 
@@ -1641,17 +1648,16 @@ const NebuleAirSidePanel: React.FC<NebuleAirSidePanelProps> = ({
           </div>
         )}
 
-        {/* Modal pour ajouter un commentaire de contexte */}
-        <AddContextCommentModal
-          isOpen={isAddCommentModalOpen}
-          onClose={() => {
-            setIsAddCommentModalOpen(false);
-          }}
-          onSubmit={handleCreateComment}
-          sensorId={selectedStation.id}
-          dataStartDate={getDateRange(state.chartControls.timeRange).startDate}
-          dataEndDate={getDateRange(state.chartControls.timeRange).endDate}
-        />
+        {featureFlags.displayContextCommentFeature && (
+          <AddContextCommentModal
+            isOpen={isAddCommentModalOpen}
+            onClose={() => setIsAddCommentModalOpen(false)}
+            onSubmit={handleCreateComment}
+            sensorId={selectedStation.id}
+            dataStartDate={getDateRange(state.chartControls.timeRange).startDate}
+            dataEndDate={getDateRange(state.chartControls.timeRange).endDate}
+          />
+        )}
       </div>
     );
   };

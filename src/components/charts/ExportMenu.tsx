@@ -4,10 +4,12 @@ interface ExportMenuProps {
   hasData: boolean;
   onExportPNG: () => Promise<void> | void;
   onExportCSV: () => void;
+  /** Callback pour ouvrir le modal d'ajout de commentaire de mise en contexte (optionnel) */
+  onAddContextComment?: () => void;
 }
 
 const ExportMenu: React.FC<ExportMenuProps> = React.memo(
-  ({ hasData, onExportPNG, onExportCSV }) => {
+  ({ hasData, onExportPNG, onExportCSV, onAddContextComment }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -53,7 +55,7 @@ const ExportMenu: React.FC<ExportMenuProps> = React.memo(
         </button>
 
         <div
-          className={`absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20 ${
+          className={`absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20 ${
             isOpen ? "block" : "hidden"
           }`}
         >
@@ -138,6 +140,34 @@ const ExportMenu: React.FC<ExportMenuProps> = React.memo(
             </svg>
             <span>Exporter en CSV</span>
           </button>
+
+          {onAddContextComment && (
+            <>
+              <div className="border-t border-gray-200 my-2" role="separator" />
+              <button
+                onClick={() => {
+                  onAddContextComment();
+                  setIsOpen(false);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
+                  />
+                </svg>
+                <span>Ajouter un commentaire de mise en contexte</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
     );

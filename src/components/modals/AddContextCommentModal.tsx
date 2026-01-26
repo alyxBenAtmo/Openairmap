@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { CreateNebuleAirContextComment } from '../../types';
+import { cn } from '../../lib/utils';
 
 interface AddContextCommentModalProps {
   isOpen: boolean;
@@ -10,12 +11,12 @@ interface AddContextCommentModalProps {
   dataEndDate?: string; // Date de fin de la série affichée (ISO string)
 }
 
+/** Types de contexte pris en charge par l'API (context_type) */
 const CONTEXT_TYPES = [
-  { value: 'traffic', label: '🚗 Trafic', description: 'Trafic routier' },
-  { value: 'fire', label: '🔥 Feu', description: 'Feu, brûlage' },
+  { value: 'fire', label: '🔥 Feu', description: 'Incendie à proximité' },
   { value: 'industrial', label: '🏭 Industriel', description: 'Activité industrielle' },
-  { value: 'voisinage', label: '🏘️ Voisinage', description: 'Activité du voisinage' },
-  { value: 'other', label: '📝 Autre', description: 'Autre contexte' },
+  { value: 'traffic', label: '🚗 Trafic', description: 'Trafic routier' },
+  { value: 'neighbourhood', label: '🏘️ Voisinage', description: 'Activité de voisinage' },
 ];
 
 const AddContextCommentModal: React.FC<AddContextCommentModalProps> = ({
@@ -33,6 +34,29 @@ const AddContextCommentModal: React.FC<AddContextCommentModalProps> = ({
   const [user, setUser] = useState<string>('anonymous');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Fermeture au Escape
+  const handleClose = useCallback(() => {
+    if (!isSubmitting) onClose();
+  }, [isSubmitting, onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, handleClose]);
+
+  // Focus initial sur le premier champ à l'ouverture
+  useEffect(() => {
+    if (isOpen && modalRef.current) {
+      const first = modalRef.current.querySelector<HTMLInputElement>('#datetime-start');
+      first?.focus();
+    }
+  }, [isOpen]);
 
   // Initialiser les dates quand le modal s'ouvre avec les dates de la série affichée
   useEffect(() => {
@@ -58,6 +82,7 @@ const AddContextCommentModal: React.FC<AddContextCommentModalProps> = ({
       setDatetimeEnd(endISO);
       setContextType('');
       setComments('');
+      setUser('anonymous');
       setError(null);
     }
   }, [isOpen, dataStartDate, dataEndDate]);
@@ -151,212 +176,164 @@ const AddContextCommentModal: React.FC<AddContextCommentModalProps> = ({
     return null;
   }
 
+  const inputBase =
+    'w-full px-3 py-2 text-sm bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl ' +
+    'placeholder:text-gray-400 text-gray-800 ' +
+    'focus:outline-none focus:ring-2 focus:ring-[#4271B3]/20 focus:border-[#4271B3] focus:bg-white ' +
+    'transition-all duration-200';
+
   return (
     <div
-      className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 backdrop-blur-sm"
-      onClick={onClose}
+      className="fixed inset-0 z-[2000] flex items-center justify-center overflow-y-auto bg-slate-900/40 backdrop-blur-sm p-4 sm:p-6"
+      onClick={handleClose}
       aria-hidden="true"
     >
       <div
-        className="relative w-full max-w-md mx-4 bg-white rounded-lg shadow-xl"
+        ref={modalRef}
+        className={cn(
+          'relative w-full max-w-md rounded-2xl shadow-2xl',
+          'bg-white/95 backdrop-blur-xl border border-gray-200/80',
+          'transition-all duration-300'
+        )}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
       >
         {/* En-tête */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2
-            id="modal-title"
-            className="text-lg font-semibold text-gray-900"
-          >
-            Ajouter un commentaire de contexte
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200/60 bg-gradient-to-r from-slate-50/80 to-transparent rounded-t-2xl">
+          <h2 id="modal-title" className="text-lg font-semibold text-slate-800">
+            Ajouter un commentaire
           </h2>
           <button
-            onClick={onClose}
-            className="rounded-full p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            type="button"
+            onClick={handleClose}
+            className="rounded-full p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100/80 border border-gray-200/60 shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4271B3]/20"
             aria-label="Fermer"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              className="h-5 w-5"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        {/* Formulaire */}
-        <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
-          {/* Message informatif */}
+        <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
           {(dataStartDate || dataEndDate) && (
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <div className="flex items-start space-x-2">
-                <svg
-                  className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                <p className="text-sm text-blue-800">
-                  Les dates ont été pré-remplies avec la période affichée sur le graphique. 
-                  Vous pouvez les ajuster selon vos besoins.
-                </p>
-              </div>
-            </div>
+            <p className="text-sm text-blue-700/90 bg-blue-50/80 backdrop-blur-sm border border-blue-200/60 rounded-xl px-3 py-2.5">
+              Dates pré-remplies avec la période du graphique. Ajustez si besoin.
+            </p>
           )}
 
-          {/* Capteur ID (affiché en lecture seule) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Capteur
-            </label>
-            <input
-              type="text"
-              value={sensorId}
-              disabled
-              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600 cursor-not-allowed"
-            />
+          {/* Capteur et utilisateur */}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-slate-500 uppercase tracking-wide shrink-0">Capteur</span>
+              <span className="text-sm text-slate-700 truncate font-medium">{sensorId}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <label htmlFor="user" className="text-xs font-medium text-slate-500 uppercase tracking-wide shrink-0">
+                Utilisateur
+              </label>
+              <input
+                id="user"
+                type="text"
+                value={user}
+                onChange={(e) => setUser(e.target.value)}
+                placeholder="anonymous"
+                className={cn(inputBase, 'min-w-0 max-w-36')}
+              />
+            </div>
           </div>
 
-          {/* Date de début */}
-          <div>
-            <label
-              htmlFor="datetime-start"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Date et heure de début <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="datetime-start"
-              type="datetime-local"
-              value={datetimeStart ? formatForInput(datetimeStart) : ''}
-              onChange={(e) => setDatetimeStart(parseFromInput(e.target.value))}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          {/* Date de fin */}
-          <div>
-            <label
-              htmlFor="datetime-end"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Date et heure de fin <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="datetime-end"
-              type="datetime-local"
-              value={datetimeEnd ? formatForInput(datetimeEnd) : ''}
-              onChange={(e) => setDatetimeEnd(parseFromInput(e.target.value))}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+          {/* Dates */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="datetime-start" className="block text-xs font-medium text-slate-600 mb-1.5">
+                Début <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="datetime-start"
+                type="datetime-local"
+                value={datetimeStart ? formatForInput(datetimeStart) : ''}
+                onChange={(e) => setDatetimeStart(parseFromInput(e.target.value))}
+                required
+                className={inputBase}
+              />
+            </div>
+            <div>
+              <label htmlFor="datetime-end" className="block text-xs font-medium text-slate-600 mb-1.5">
+                Fin <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="datetime-end"
+                type="datetime-local"
+                value={datetimeEnd ? formatForInput(datetimeEnd) : ''}
+                onChange={(e) => setDatetimeEnd(parseFromInput(e.target.value))}
+                required
+                className={inputBase}
+              />
+            </div>
           </div>
 
           {/* Type de contexte */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Type de contexte (optionnel)
-            </label>
-            <div className="grid grid-cols-2 gap-2">
+            <label className="block text-xs font-medium text-slate-600 mb-2">Type (optionnel)</label>
+            <div className="flex flex-wrap gap-2">
               {CONTEXT_TYPES.map((type) => (
                 <button
                   key={type.value}
                   type="button"
-                  onClick={() =>
-                    setContextType(
-                      contextType === type.value ? '' : type.value
-                    )
-                  }
-                  className={`px-3 py-2 text-sm rounded-md border transition-colors ${
+                  onClick={() => setContextType(contextType === type.value ? '' : type.value)}
+                  title={type.description}
+                  className={cn(
+                    'px-3 py-1.5 text-sm rounded-xl border transition-all duration-200',
                     contextType === type.value
-                      ? 'bg-blue-50 border-blue-500 text-blue-700'
-                      : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
+                      ? 'bg-[#4271B3]/10 border-[#4271B3]/50 text-[#4271B3] font-medium shadow-sm'
+                      : 'bg-white/70 border-gray-200/60 text-gray-600 hover:bg-gray-50/80 hover:border-gray-300/60'
+                  )}
                 >
-                  <div className="font-medium">{type.label}</div>
-                  <div className="text-xs text-gray-500">{type.description}</div>
+                  {type.label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Commentaires */}
+          {/* Commentaire */}
           <div>
-            <label
-              htmlFor="comments"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label htmlFor="comments" className="block text-xs font-medium text-slate-600 mb-1.5">
               Commentaire (optionnel)
             </label>
             <textarea
               id="comments"
               value={comments}
               onChange={(e) => setComments(e.target.value)}
-              rows={3}
+              rows={2}
               placeholder="Décrivez le contexte..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              className={cn(inputBase, 'resize-none')}
             />
           </div>
 
-          {/* Utilisateur */}
-          <div>
-            <label
-              htmlFor="user"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Utilisateur (optionnel)
-            </label>
-            <input
-              id="user"
-              type="text"
-              value={user}
-              onChange={(e) => setUser(e.target.value)}
-              placeholder="anonymous"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          {/* Message d'erreur */}
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+            <div className="px-3 py-2.5 bg-red-50/80 backdrop-blur-sm border border-red-200/60 rounded-xl">
               <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
 
-          {/* Boutons */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200/60">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={isSubmitting}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white/80 backdrop-blur-sm border border-gray-200/60 rounded-xl hover:bg-gray-50 hover:border-gray-300/60 focus:outline-none focus:ring-2 focus:ring-[#4271B3]/20 transition-all duration-200 disabled:opacity-50"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2.5 text-sm font-medium text-white bg-[#4271B3] rounded-xl hover:bg-[#365a9a] shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-[#4271B3]/30 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
             >
-              {isSubmitting ? 'Création...' : 'Créer le commentaire'}
+              {isSubmitting ? 'Création…' : 'Créer'}
             </button>
           </div>
         </form>

@@ -32,7 +32,8 @@ interface UseAmChartsChartProps {
   timeStep?: string;
   contextComments?: NebuleAirContextComment[];
   onCommentClick?: (comment: NebuleAirContextComment, event: MouseEvent) => void;
-  onChartDoubleClick?: () => void;
+  /** Si false : zoom/pan au glissement. Si true : bullets commentaires + clics (pas de drag). */
+  contextCommentFeatureEnabled?: boolean;
 }
 
 export const useAmChartsChart = ({
@@ -51,7 +52,7 @@ export const useAmChartsChart = ({
   timeStep,
   contextComments = [],
   onCommentClick,
-  onChartDoubleClick,
+  contextCommentFeatureEnabled = false,
 }: UseAmChartsChartProps) => {
   const chartRef = useRef<am5xy.XYChart | null>(null);
   const rootRef = useRef<am5.Root | null>(null);
@@ -95,9 +96,12 @@ export const useAmChartsChart = ({
     root.setThemes([am5themes_Animated.new(root)]);
 
     // Créer le graphique XY
+    // Si contextCommentFeatureEnabled : pas de pan/drag (clic commentaires), molette seulement.
+    // Sinon : zoom/pan au glissement (cursor zoomXY) + molette.
+    const useCommentClicks = !!contextCommentFeatureEnabled;
     const chart = root.container.children.push(
       am5xy.XYChart.new(root, {
-        panX: true,
+        panX: !useCommentClicks,
         panY: false,
         wheelX: "panX",
         wheelY: "zoomX",
@@ -243,11 +247,11 @@ export const useAmChartsChart = ({
       );
     });
 
-    // Créer le curseur
+    // Curseur : "none" si commentaires (clics), "zoomXY" sinon (zoom/pan au glissement).
     const cursor = chart.set(
       "cursor",
       am5xy.XYCursor.new(root, {
-        behavior: "zoomXY",
+        behavior: useCommentClicks ? "none" : "zoomXY",
         xAxis: xAxis,
       })
     );
@@ -257,19 +261,6 @@ export const useAmChartsChart = ({
     }
     cursor.lineY.set("visible", false);
     cursor.lineX.set("visible", true);
-
-    // Ajouter un gestionnaire de double-clic sur le graphique
-    if (onChartDoubleClick) {
-      const handleDoubleClick = () => {
-        onChartDoubleClick();
-      };
-      
-      // Attacher l'événement au plotContainer
-      chart.plotContainer.events.on("dblclick", handleDoubleClick);
-      
-      // Aussi attacher au conteneur du graphique au cas où
-      chart.events.on("dblclick", handleDoubleClick);
-    }
 
     // Créer la légende
     setupLegend(root, chart, seriesConfigs, isMobile);
@@ -636,7 +627,7 @@ export const useAmChartsChart = ({
           return "#ffa500";
         } else if (contextTypeLower === "industrial" || contextTypeLower === "industriel") {
           return "#4ecdc4";
-        } else if (contextTypeLower === "voisinage") {
+        } else if (contextTypeLower === "neighbourhood" || contextTypeLower === "voisinage") {
           return "#95a5a6";
         }
       }
@@ -649,7 +640,7 @@ export const useAmChartsChart = ({
         return "#ffa500";
       } else if (commentLower.includes("industrial") || commentLower.includes("industriel")) {
         return "#4ecdc4";
-      } else if (commentLower.includes("voisinage")) {
+      } else if (commentLower.includes("neighbourhood") || commentLower.includes("voisinage")) {
         return "#95a5a6";
       }
       
@@ -745,6 +736,22 @@ export const useAmChartsChart = ({
 
           // Si ce point correspond à un commentaire, ajouter un bullet visible et cliquable
           if (matchingCommentData) {
+            const container = am5.Container.new(root, {
+              cursorOverStyle: "pointer",
+              tooltipText: "Cliquez pour voir le commentaire",
+              draggable: false,
+            });
+
+            // Grande zone de clic invisible (radius 20) pour faciliter le clic
+            const hitArea = am5.Circle.new(root, {
+              radius: 20,
+              fill: am5.color(0x000000),
+              fillOpacity: 0,
+              strokeOpacity: 0,
+            });
+            container.children.push(hitArea);
+
+            // Cercle visible (radius 6)
             const circle = am5.Circle.new(root, {
               radius: 6,
               fill: am5.color(matchingCommentData.color),
@@ -752,21 +759,29 @@ export const useAmChartsChart = ({
               stroke: am5.color("#ffffff"),
               strokeWidth: 2,
               strokeOpacity: 1,
-              cursorOverStyle: "pointer",
-              tooltipText: "Cliquez pour voir le commentaire",
             });
+            container.children.push(circle);
 
-            // Ajouter un événement de clic
-            // IMPORTANT: Utiliser la ref pour éviter les problèmes de closure
-            circle.events.on("click", (ev) => {
-              if (onCommentClickRef.current && ev.originalEvent) {
-                const mouseEvent = ev.originalEvent as MouseEvent;
-                onCommentClickRef.current(matchingCommentData!.comment, mouseEvent);
+            container.events.on("click", (ev) => {
+              const domEv = ev.originalEvent as MouseEvent;
+              if (domEv) {
+                domEv.preventDefault();
+                domEv.stopPropagation();
+              }
+              if (onCommentClickRef.current && domEv) {
+                onCommentClickRef.current(matchingCommentData!.comment, domEv);
+              }
+            });
+            container.events.on("pointerdown", (ev) => {
+              const domEv = ev.originalEvent as PointerEvent;
+              if (domEv) {
+                domEv.preventDefault();
+                domEv.stopPropagation();
               }
             });
 
             return am5.Bullet.new(root, {
-              sprite: circle,
+              sprite: container,
             });
           }
 

@@ -29,7 +29,10 @@ interface HistoricalChartProps {
   sensorTimeStep?: number | null; // Pas de temps du capteur en secondes (pour le mode instantane)
   modelingData?: Record<string, HistoricalDataPoint[]>; // Données de modélisation
   contextComments?: NebuleAirContextComment[]; // Commentaires de contexte pour NebuleAir
-  onChartDoubleClick?: () => void; // Callback pour le double-clic sur le graphique
+  /** Callback pour ouvrir le modal d'ajout de commentaire de mise en contexte (optionnel) */
+  onAddContextComment?: () => void;
+  /** Si true : bullets commentaires + clics ; si false : zoom/pan au glissement (pas de commentaires) */
+  contextCommentFeatureEnabled?: boolean;
 }
 
 const HistoricalChart: React.FC<HistoricalChartProps> = ({
@@ -44,7 +47,8 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
   sensorTimeStep,
   modelingData,
   contextComments = [],
-  onChartDoubleClick,
+  onAddContextComment,
+  contextCommentFeatureEnabled = false,
 }) => {
   // État pour détecter le mode paysage sur mobile
   const [isLandscapeMobile, setIsLandscapeMobile] = useState(false);
@@ -161,9 +165,9 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
     isLandscapeMobile,
     stationInfo,
     timeStep,
-    contextComments,
-    onCommentClick: handleCommentClick,
-    onChartDoubleClick,
+    contextComments: contextCommentFeatureEnabled ? contextComments : [],
+    onCommentClick: contextCommentFeatureEnabled ? handleCommentClick : undefined,
+    contextCommentFeatureEnabled,
   });
 
   // Notifier le composant parent si des données corrigées sont disponibles
@@ -256,7 +260,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
         return "🚗 Trafic";
       } else if (contextTypeLower === "industrial" || contextTypeLower === "industriel") {
         return "🏭 Industriel";
-      } else if (contextTypeLower === "voisinage") {
+      } else if (contextTypeLower === "neighbourhood" || contextTypeLower === "voisinage") {
         return "🏘️ Voisinage";
       }
     }
@@ -269,18 +273,19 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
       return "🚗 Trafic";
     } else if (commentLower.includes("industrial") || commentLower.includes("industriel")) {
       return "🏭 Industriel";
-    } else if (commentLower.includes("voisinage")) {
+    } else if (commentLower.includes("neighbourhood") || commentLower.includes("voisinage")) {
       return "🏘️ Voisinage";
     }
     
     return "📝 Contexte";
   };
 
-  // Formater la date du commentaire
+  // Formater la date du commentaire en heure locale
   const formatCommentDate = (dateString: string): string => {
     try {
-      const isoDateString = dateString.replace(" ", "T");
-      const date = new Date(isoDateString);
+      const s = dateString.replace(" ", "T");
+      const date = new Date(s);
+      if (isNaN(date.getTime())) return dateString;
       return new Intl.DateTimeFormat("fr-FR", {
         day: "2-digit",
         month: "2-digit",
@@ -300,6 +305,7 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
         hasData={chartData.length > 0}
         onExportPNG={handleExportPNG}
         onExportCSV={handleExportCSV}
+        onAddContextComment={onAddContextComment}
       />
 
       {/* Graphique */}
@@ -356,9 +362,11 @@ const HistoricalChart: React.FC<HistoricalChartProps> = ({
                 </div>
               )}
               <div className="text-gray-400 text-xs pt-1 border-t border-gray-700">
+                <span className="text-gray-500 italic">Heure locale</span>
+                {" · "}
                 {formatCommentDate(selectedComment.comment.datetime_start)}
                 {selectedComment.comment.datetime_stop && (
-                  <span className="ml-2">
+                  <span className="ml-1">
                     → {formatCommentDate(selectedComment.comment.datetime_stop)}
                   </span>
                 )}

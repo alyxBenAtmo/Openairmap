@@ -39,6 +39,11 @@ export const featureFlags = {
     import.meta.env.VITE_DISPLAY_CLUSTERING_TOGGLE as string | undefined,
     true // Par défaut, le toggle est affiché
   ),
+  /** Commentaires de contexte NebuleAir (ajout + consultation). Si false, zoom/pan au glissement sur le graphique. */
+  displayContextCommentFeature: parseBooleanFlag(
+    import.meta.env.VITE_DISPLAY_CONTEXT_COMMENT_FEATURE as string | undefined,
+    false
+  ),
 };
 
 
