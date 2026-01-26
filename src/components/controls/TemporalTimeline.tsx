@@ -172,19 +172,17 @@ const TemporalTimeline: React.FC<TemporalTimelineProps> = ({
   };
 
   const currentPosition = getCurrentPosition();
-  const hoverTimestamp = hoverPosition
-    ? positionToTimestamp(hoverPosition)
-    : null;
 
   return (
     <div className="space-y-3">
-      {/* Timeline principale */}
+      {/* Timeline principale — style liquid glass harmonisé */}
       <div className="relative">
         <div
           ref={timelineRef}
           className={`
-            relative h-8 bg-gray-200 rounded-lg cursor-pointer
-            ${disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-300"}
+            relative h-9 rounded-xl cursor-pointer overflow-hidden
+            bg-white/40 backdrop-blur-sm border border-gray-200/50
+            ${disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-white/50 hover:border-gray-300/50"}
             transition-colors duration-200
           `}
           onClick={handleTimelineClick}
@@ -192,26 +190,27 @@ const TemporalTimeline: React.FC<TemporalTimelineProps> = ({
           onMouseLeave={handleTimelineLeave}
           onMouseDown={handleMouseDown}
         >
-          {/* Fond de la timeline */}
-          <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-blue-100 to-green-100" />
+          {/* Bande de progression (déjà parcouru) */}
+          <div
+            className="absolute inset-y-0 left-0 rounded-l-xl bg-gray-200/40 transition-all duration-300"
+            style={{ width: `${currentPosition}%` }}
+          />
 
           {/* Marqueurs de données */}
           {dataPoints.map((point, index) => {
             const position = getTimestampPosition(point.timestamp);
             const density = getDataDensity(position);
-            const height = Math.max(2, Math.min(8, (density / 10) * 6 + 2));
+            const height = Math.max(2, Math.min(6, (density / 10) * 4 + 2));
 
             return (
               <div
                 key={`${point.timestamp}-${index}`}
-                className="absolute top-1/2 transform -translate-y-1/2 w-1 bg-blue-400 rounded-full opacity-60"
+                className="absolute top-1/2 -translate-y-1/2 w-0.5 bg-gray-400/50 rounded-full"
                 style={{
                   left: `${position}%`,
                   height: `${height}px`,
                 }}
-                title={`${formatDate(point.timestamp)} - ${
-                  point.deviceCount
-                } appareils`}
+                title={`${formatDate(point.timestamp)} - ${point.deviceCount} appareils`}
               />
             );
           })}
@@ -219,10 +218,10 @@ const TemporalTimeline: React.FC<TemporalTimelineProps> = ({
           {/* Curseur de position actuelle */}
           <div
             className={`
-              absolute top-1/2 transform -translate-y-1/2 w-1 h-6 rounded-full
-              ${disabled ? "bg-gray-400" : "bg-blue-600"}
+              absolute top-1/2 -translate-y-1/2 w-1.5 h-6 rounded-full
+              ${disabled ? "bg-gray-400" : "bg-gray-600"}
               transition-all duration-200
-              ${isDragging ? "scale-110 shadow-lg" : ""}
+              ${isDragging ? "scale-110 bg-gray-700" : ""}
             `}
             style={{ left: `${currentPosition}%` }}
           />
@@ -230,27 +229,24 @@ const TemporalTimeline: React.FC<TemporalTimelineProps> = ({
           {/* Indicateur de survol */}
           {hoverPosition !== null && !disabled && (
             <div
-              className="absolute top-1/2 transform -translate-y-1/2 w-0.5 h-6 bg-gray-500 rounded-full opacity-70"
+              className="absolute top-1/2 -translate-y-1/2 w-0.5 h-6 bg-gray-500/60 rounded-full pointer-events-none"
               style={{ left: `${hoverPosition}%` }}
             />
           )}
         </div>
 
-        {/* Labels de dates */}
-        <div className="flex justify-between mt-2 text-xs text-gray-600">
-          <span className="ml-1">{formatDate(effectiveStartDate)}</span>
-          <span className="font-bold text-blue-600">
-            {hoverTimestamp
-              ? formatDate(hoverTimestamp)
-              : formatDate(currentDate)}
-          </span>
-          <span>{formatDate(effectiveEndDate)}</span>
+        {/* Labels de dates — heure locale (début / fin uniquement) */}
+        <div className="flex justify-between items-baseline mt-2 text-xs text-gray-700 gap-2">
+          <span className="tabular-nums flex-shrink-0">{formatDate(effectiveStartDate)}</span>
+          <span className="tabular-nums flex-shrink-0">{formatDate(effectiveEndDate)}</span>
         </div>
+        <p className="mt-1 text-[11px] text-gray-600 text-center" role="note">
+          Heure locale
+        </p>
       </div>
 
-      {/* Informations sur les données */}
       {dataPoints.length > 0 && (
-        <div className="flex justify-end text-sm text-gray-500">
+        <div className="flex justify-end text-xs text-gray-600">
           {dataPoints.length} points temporels
         </div>
       )}
