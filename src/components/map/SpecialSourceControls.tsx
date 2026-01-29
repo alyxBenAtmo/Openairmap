@@ -25,16 +25,11 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
   // Détecter si on est sur mobile (breakpoint sm = 640px)
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
 
-  // Position initiale : à droite, en dessous de la barre de recherche (top-4 = 16px, hauteur ~40-50px, donc ~80-90px)
+  // Position initiale : en dessous de la barre de recherche
   const getInitialPosition = () => {
-    // Estimation de la largeur du composant (sera ajustée après le premier rendu)
-    const estimatedWidth = isMobile ? Math.min(250, window.innerWidth - 32) : 250;
-    const rightOffset = isMobile ? 8 : 16; // Moins d'espace sur mobile
-    // Barre de recherche: top-4 (16px) + hauteur (~40-50px) + espace (10-15px) = ~80-90px
-    const topOffset = isMobile ? 75 : 85; // Positionné en dessous de la barre de recherche
     return {
-      x: window.innerWidth - estimatedWidth - rightOffset,
-      y: topOffset,
+      x: 1005,
+      y: 119,
     };
   };
 
@@ -66,19 +61,14 @@ const SpecialSourceControls: React.FC<SpecialSourceControlsProps> = ({
     }
   }, []);
 
-  // Ajuster la position initiale à droite si aucune position n'est sauvegardée (après le premier rendu)
+  // Ajuster la position initiale si aucune position n'est sauvegardée (après le premier rendu)
   useEffect(() => {
     const savedPosition = localStorage.getItem("specialSourceControlsPosition");
-    if (!savedPosition && containerRef.current) {
-      // Si aucune position sauvegardée, utiliser la position initiale à droite
-      const isMobileScreen = window.innerWidth < 640;
-      const width = containerRef.current.offsetWidth || 250;
-      const rightOffset = isMobileScreen ? 8 : 16;
-      // Barre de recherche: top-4 (16px) + hauteur (~40-50px) + espace (10-15px) = ~80-90px
-      const topOffset = isMobileScreen ? 75 : 85;
+    if (!savedPosition) {
+      // Si aucune position sauvegardée, utiliser la position initiale fixe
       setPosition({
-        x: window.innerWidth - width - rightOffset,
-        y: topOffset,
+        x: 1005,
+        y: 119,
       });
     }
   }, []);

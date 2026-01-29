@@ -39,6 +39,20 @@ export const featureFlags = {
     import.meta.env.VITE_DISPLAY_CLUSTERING_TOGGLE as string | undefined,
     true // Par défaut, le toggle est affiché
   ),
+
+  /**
+   * Zoom minimum pour afficher le tooltip des marqueurs.
+   * null = pas de restriction (tooltip à tous les niveaux de zoom).
+   * number = tooltip uniquement quand zoom >= cette valeur.
+   */
+  tooltipMinZoom: ((): number | null => {
+    const raw = import.meta.env.VITE_TOOLTIP_MIN_ZOOM as string | undefined;
+    if (raw === undefined || raw === null || raw === "") return null;
+    const normalized = raw.trim().toLowerCase();
+    if (["false", "0", "off", "no", "disabled"].includes(normalized)) return null;
+    const num = Number(raw);
+    return Number.isInteger(num) && num >= 0 ? num : null;
+  })(),
 };
 
 

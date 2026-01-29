@@ -4,6 +4,7 @@ import L from "leaflet";
 import { MeasurementDevice } from "../../types";
 import { pollutants } from "../../constants/pollutants";
 import { formatTooltipDate } from "../../utils/dateUtils";
+import { featureFlags } from "../../config/featureFlags";
 
 interface MarkerWithTooltipProps extends MarkerProps {
   device: MeasurementDevice;
@@ -23,25 +24,9 @@ const MarkerTooltipContent: React.FC<{
   minZoom: number;
   tooltipRef?: React.MutableRefObject<L.Tooltip | null>;
 }> = ({ device, sensorMetadata, minZoom, tooltipRef: parentTooltipRef }) => {
-  const map = useMap();
-  const [zoom, setZoom] = useState(map.getZoom());
-
-  useEffect(() => {
-    const updateZoom = () => {
-      setZoom(map.getZoom());
-    };
-    map.on("zoomend", updateZoom);
-    return () => {
-      map.off("zoomend", updateZoom);
-    };
-  }, [map]);
-
-  const shouldShowTooltip = zoom >= minZoom;
-
-  // Ne pas rendre le Tooltip du tout si le zoom n'est pas suffisant
-  if (!shouldShowTooltip) {
-    return null;
-  }
+  // Toujours rendre le Tooltip pour éviter l'erreur Leaflet "this._tooltip is null".
+  // L'ouverture au survol est limitée par le zoom dans handleMouseOver du parent.
+  // Quand le zoom est insuffisant, on ne l'ouvre pas (voir handleMouseOver) au lieu de le démonter.
 
   // Normaliser un label de polluant pour utiliser la notation avec indices
   const normalizePollutantLabel = (label: string): string => {
@@ -201,24 +186,44 @@ const MarkerWithTooltip: React.FC<MarkerWithTooltipProps> = ({
     loadMetadata();
   }, [device, externalSensorMetadata]);
 
-  // Gérer l'ouverture/fermeture du tooltip au survol
-  const handleMouseOver = useCallback((e: L.LeafletMouseEvent) => {
-    // Vérifier que le zoom est suffisant avant d'ouvrir le tooltip
+  // Niveau de zoom minimum pour le tooltip (null = pas de restriction, contrôlé par VITE_TOOLTIP_MIN_ZOOM)
+  const effectiveMinZoom = featureFlags.tooltipMinZoom ?? minZoom;
+
+  // Fermer le tooltip si l'utilisateur zoome en dessous du seuil (quand restriction active)
+  useEffect(() => {
+    if (effectiveMinZoom === null) return;
     const map = mapRef?.current;
     if (!map) return;
-    
+    const onZoomEnd = () => {
+      if (map.getZoom() < effectiveMinZoom && tooltipInstanceRef.current?.isOpen()) {
+        tooltipInstanceRef.current.close();
+      }
+    };
+    map.on("zoomend", onZoomEnd);
+    return () => {
+      map.off("zoomend", onZoomEnd);
+    };
+  }, [mapRef, effectiveMinZoom]);
+
+  // Gérer l'ouverture/fermeture du tooltip au survol
+  const handleMouseOver = useCallback((e: L.LeafletMouseEvent) => {
+    const map = mapRef?.current;
+    if (!map) return;
+
     const currentZoom = map.getZoom();
-    if (currentZoom < minZoom) {
-      // Ne pas ouvrir le tooltip si le zoom est insuffisant
+    if (effectiveMinZoom !== null && currentZoom < effectiveMinZoom) {
+      if (tooltipInstanceRef.current?.isOpen()) {
+        tooltipInstanceRef.current.close();
+      }
       return;
     }
-    
+
     if (markerRef.current && tooltipInstanceRef.current) {
       if (!tooltipInstanceRef.current.isOpen()) {
         tooltipInstanceRef.current.openOn(map);
       }
     }
-  }, [mapRef, minZoom]);
+  }, [mapRef, effectiveMinZoom]);
 
   const handleMouseOut = useCallback((e: L.LeafletMouseEvent) => {
     if (tooltipInstanceRef.current && tooltipInstanceRef.current.isOpen()) {

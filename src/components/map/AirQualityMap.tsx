@@ -27,6 +27,7 @@ import {
   WildfireReport,
 } from "../../types";
 import { BaseLayerKey, ModelingLayerType } from "../../constants/mapLayers";
+import { MAX_COMPARISON_STATIONS } from "../../constants/comparison";
 import BaseLayerControl from "../controls/BaseLayerControl";
 import ClusterControl from "../controls/ClusterControl";
 import CustomSearchControl from "../controls/CustomSearchControl";
@@ -441,9 +442,9 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
       return;
     }
 
-    // Vérifier les limites (max 5 stations) seulement si on ajoute une nouvelle station
-    if (sidePanels.comparisonState.comparedStations.length >= 5) {
-      console.warn("Maximum 5 stations autorisées en comparaison");
+    // Vérifier les limites (max N stations) seulement si on ajoute une nouvelle station
+    if (sidePanels.comparisonState.comparedStations.length >= MAX_COMPARISON_STATIONS) {
+      console.warn(`Maximum ${MAX_COMPARISON_STATIONS} stations autorisées en comparaison`);
       return;
     }
 

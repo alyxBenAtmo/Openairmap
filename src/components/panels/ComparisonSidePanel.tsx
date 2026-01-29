@@ -7,6 +7,7 @@ import {
   ComparisonState,
 } from "../../types";
 import { pollutants } from "../../constants/pollutants";
+import { MAX_COMPARISON_STATIONS } from "../../constants/comparison";
 import { AtmoRefService } from "../../services/AtmoRefService";
 import { AtmoMicroService } from "../../services/AtmoMicroService";
 import HistoricalChart from "../charts/HistoricalChart";
@@ -440,7 +441,13 @@ const ComparisonSidePanel: React.FC<ComparisonSidePanelProps> = ({
             </div>
           </div>
           <p className="text-xs sm:text-sm text-gray-600 truncate">
-            {comparisonState.comparedStations.length} station(s) sélectionnée(s)
+            {comparisonState.comparedStations.length}/{MAX_COMPARISON_STATIONS} station(s) sélectionnée(s)
+          </p>
+          <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5 flex items-center gap-1" role="status">
+            <svg className="w-3.5 h-3.5 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Comparaison limitée à {MAX_COMPARISON_STATIONS} capteurs simultanés.</span>
           </p>
         </div>
 
@@ -759,7 +766,19 @@ const ComparisonSidePanel: React.FC<ComparisonSidePanelProps> = ({
                 </div>
 
                 {/* Graphique */}
-                <div className="h-80 sm:h-96 md:h-[28rem] mb-3 sm:mb-4">
+                <div className="mb-3 sm:mb-4">
+                  {/* Message au niveau du graphique (mode Scan) */}
+                  {comparisonState.timeStep === "instantane" && (
+                    <div className="mb-2 p-2.5 sm:p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-xs sm:text-sm text-blue-800 font-medium">
+                        Mode Scan – Résolutions temporelles variables
+                      </p>
+                      <p className="text-xs text-blue-700 mt-1">
+                        Chaque source affiche sa résolution réelle : stations de référence toutes les 15 min, microcapteurs entre 1 et 5 min selon le capteur. Les différences de densité des points sont normales.
+                      </p>
+                    </div>
+                  )}
+                  <div className="h-80 sm:h-96 md:h-[28rem]">
                   <HistoricalChart
                     data={
                       comparisonState.comparisonData[
@@ -773,6 +792,7 @@ const ComparisonSidePanel: React.FC<ComparisonSidePanelProps> = ({
                     onHasCorrectedDataChange={handleHasCorrectedDataChange}
                     showRawData={showRawData}
                   />
+                  </div>
                 </div>
 
                 {/* Contrôles du graphique */}

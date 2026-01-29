@@ -230,8 +230,12 @@ export const addThresholdZones = (
   });
 };
 
+/** Seuil au-delà duquel la légende passe en grille multi-colonnes avec hauteur limitée */
+const LEGEND_COMPACT_THRESHOLD = 5;
+
 /**
- * Configure la légende du graphique
+ * Configure la légende du graphique.
+ * Au-delà de LEGEND_COMPACT_THRESHOLD séries : grille 3 colonnes + hauteur limitée avec scroll.
  */
 export const setupLegend = (
   root: am5.Root,
@@ -239,16 +243,30 @@ export const setupLegend = (
   seriesConfigs: SeriesConfig[],
   isMobile: boolean
 ): am5.Legend => {
-  const legend = chart.children.push(
-    am5.Legend.new(root, {
-      centerX: am5.p50,
-      x: am5.p50,
-      marginTop: isMobile ? 2 : 8,
-      marginBottom: 0,
-      marginLeft: isMobile ? 0 : 8,
-      marginRight: isMobile ? 0 : 8,
-    })
-  );
+  const seriesCount = seriesConfigs.length;
+  const useCompactLegend = seriesCount > LEGEND_COMPACT_THRESHOLD;
+
+  const legendOptions: am5.ILegendSettings & { layout?: am5.Layout; height?: am5.Percent; verticalScrollbar?: am5.Scrollbar } = {
+    centerX: am5.p50,
+    x: am5.p50,
+    marginTop: isMobile ? 2 : 8,
+    marginBottom: 0,
+    marginLeft: isMobile ? 0 : 8,
+    marginRight: isMobile ? 0 : 8,
+  };
+
+  if (useCompactLegend) {
+    legendOptions.layout = am5.GridLayout.new(root, {
+      maxColumns: 3,
+      fixedWidthGrid: true,
+    });
+    legendOptions.height = 72 as unknown as am5.Percent;
+    legendOptions.verticalScrollbar = am5.Scrollbar.new(root, {
+      orientation: "vertical",
+    });
+  }
+
+  const legend = chart.children.push(am5.Legend.new(root, legendOptions));
 
   // Personnaliser les items de la légende
   legend.labels.template.setAll({
@@ -308,7 +326,7 @@ export const setupLegend = (
   legend.data.setAll(chart.series.values);
 
   // Gérer le clic sur la légende pour masquer/afficher les séries
-  legend.itemContainers.template.events.on("pointertap", (ev) => {
+  legend.itemContainers.template.events.on("tap" as keyof am5.IContainerEvents, (ev) => {
     const dataItem = ev.target.dataItem;
     if (dataItem) {
       const series = dataItem.dataContext as am5xy.LineSeries;
