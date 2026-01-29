@@ -187,7 +187,8 @@ const MarkerWithTooltip: React.FC<MarkerWithTooltipProps> = ({
   }, [device, externalSensorMetadata]);
 
   // Niveau de zoom minimum pour le tooltip (null = pas de restriction, contrôlé par VITE_TOOLTIP_MIN_ZOOM)
-  const effectiveMinZoom = featureFlags.tooltipMinZoom ?? minZoom;
+  // Ne pas utiliser ?? minZoom : quand le flag est null (false/vide), on veut aucune restriction.
+  const effectiveMinZoom = featureFlags.tooltipMinZoom;
 
   // Fermer le tooltip si l'utilisateur zoome en dessous du seuil (quand restriction active)
   useEffect(() => {
@@ -231,6 +232,21 @@ const MarkerWithTooltip: React.FC<MarkerWithTooltipProps> = ({
     }
   }, []);
 
+  // Fermer le tooltip au clic si le zoom est sous le seuil (Leaflet peut l'ouvrir au clic/focus après nos handlers)
+  const handleClick = useCallback((e: L.LeafletMouseEvent) => {
+    markerProps.eventHandlers?.click?.(e);
+    if (effectiveMinZoom === null) return;
+    const map = mapRef?.current;
+    if (!map) return;
+    if (map.getZoom() < effectiveMinZoom) {
+      requestAnimationFrame(() => {
+        if (tooltipInstanceRef.current?.isOpen()) {
+          tooltipInstanceRef.current.close();
+        }
+      });
+    }
+  }, [effectiveMinZoom, mapRef]);
+
   const sensorMetadata = externalSensorMetadata || loadedSensorMetadata;
 
   // Fusionner les eventHandlers existants avec nos handlers pour le tooltip
@@ -243,6 +259,9 @@ const MarkerWithTooltip: React.FC<MarkerWithTooltipProps> = ({
     mouseout: (e: L.LeafletMouseEvent) => {
       handleMouseOut(e);
       markerProps.eventHandlers?.mouseout?.(e);
+    },
+    click: (e: L.LeafletMouseEvent) => {
+      handleClick(e);
     },
   };
 
