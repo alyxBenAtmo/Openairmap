@@ -162,6 +162,8 @@ const MarkerWithTooltip: React.FC<MarkerWithTooltipProps> = ({
   } | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const tooltipInstanceRef = useRef<L.Tooltip | null>(null);
+  const eventHandlersRef = useRef(markerProps.eventHandlers);
+  eventHandlersRef.current = markerProps.eventHandlers;
 
   // Charger les métadonnées du capteur si elles ne sont pas fournies
   useEffect(() => {
@@ -233,8 +235,9 @@ const MarkerWithTooltip: React.FC<MarkerWithTooltipProps> = ({
   }, []);
 
   // Fermer le tooltip au clic si le zoom est sous le seuil (Leaflet peut l'ouvrir au clic/focus après nos handlers)
+  // Utiliser eventHandlersRef pour toujours appeler le handler parent à jour (évite closure périmée en mode comparaison)
   const handleClick = useCallback((e: L.LeafletMouseEvent) => {
-    markerProps.eventHandlers?.click?.(e);
+    eventHandlersRef.current?.click?.(e);
     if (effectiveMinZoom === null) return;
     const map = mapRef?.current;
     if (!map) return;

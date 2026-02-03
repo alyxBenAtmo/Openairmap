@@ -4,8 +4,14 @@
 
 import html2canvas from "html2canvas";
 import { saveAs } from "file-saver";
+import { getRootById } from "@amcharts/amcharts5";
 import { pollutants } from "../constants/pollutants";
 import { StationInfo } from "../types";
+import {
+  prepareLegendForExport,
+  restoreLegendAfterExport,
+  type LegendExportState,
+} from "../components/charts/utils/amChartsHelpers";
 
 /**
  * Formate le pas de temps pour l'affichage
@@ -77,6 +83,38 @@ export const exportAmChartsAsPNG = async (
   try {
     // Attendre un peu pour s'assurer que le graphique est complètement rendu
     await new Promise((resolve) => setTimeout(resolve, 300));
+
+    const isComparisonMode = source === "comparison" && stations.length > 0;
+
+    // Préparer la légende pour l'export : pas de scroll, grille multi-colonnes pour tout afficher
+    let legendExportState: LegendExportState | null = null;
+    const root = container.id ? getRootById(container.id) : null;
+    if (root) {
+      legendExportState = prepareLegendForExport(root);
+      if (legendExportState) {
+        root.resize?.();
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      }
+    }
+
+    // En mode comparaison, augmenter temporairement la hauteur du conteneur pour l'export
+    // afin que le graphique ne soit pas écrasé par la légende et les métadonnées
+    const EXPORT_CHART_MIN_HEIGHT_PX = 560;
+    let savedContainerHeight: string | null = null;
+    let savedContainerMinHeight: string | null = null;
+    if (isComparisonMode && container instanceof HTMLElement) {
+      savedContainerHeight = container.style.height || null;
+      savedContainerMinHeight = container.style.minHeight || null;
+      const currentHeight = container.offsetHeight;
+      if (currentHeight < EXPORT_CHART_MIN_HEIGHT_PX) {
+        container.style.height = `${EXPORT_CHART_MIN_HEIGHT_PX}px`;
+        container.style.minHeight = `${EXPORT_CHART_MIN_HEIGHT_PX}px`;
+        if (root) {
+          root.resize?.();
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+      }
+    }
 
     // Masquer tous les tooltips d'amCharts avant la capture
     // amCharts 5 utilise des éléments avec des classes spécifiques pour les tooltips
@@ -157,13 +195,26 @@ export const exportAmChartsAsPNG = async (
       element.style.opacity = opacity;
     });
 
+    // Restaurer la hauteur du conteneur
+    if (savedContainerHeight !== null || savedContainerMinHeight !== null) {
+      if (container instanceof HTMLElement) {
+        container.style.height = savedContainerHeight ?? "";
+        container.style.minHeight = savedContainerMinHeight ?? "";
+      }
+      if (root) root.resize?.();
+    }
+
+    // Restaurer la légende (scroll + hauteur limitée) après l'export
+    if (root && legendExportState) {
+      restoreLegendAfterExport(root, legendExportState);
+      root.resize?.();
+    }
+
     // Calculer la hauteur nécessaire pour le titre et les métadonnées
     const paddingBottom = 20;
     const paddingLeft = 20;
     const paddingRight = 20;
-    
-    const isComparisonMode = source === "comparison" && stations.length > 0;
-    
+
     let paddingTop = 20;
     if (stationInfo) {
       // Estimer la hauteur nécessaire (approximatif)

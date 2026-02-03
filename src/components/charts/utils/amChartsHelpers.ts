@@ -343,3 +343,80 @@ export const setupLegend = (
   return legend;
 };
 
+/** Nombre de colonnes pour la légende en mode export (sans scroll, tout visible, plus compact) */
+const LEGEND_EXPORT_MAX_COLUMNS = 5;
+
+export interface LegendExportState {
+  verticalScrollbar: am5.Scrollbar | undefined;
+  height: number | am5.Percent | undefined;
+  layout: am5.Layout | undefined;
+}
+
+function toUndefined<T>(v: T | null | undefined): T | undefined {
+  return v === null ? undefined : v;
+}
+
+/**
+ * Trouve la légende du graphique (dernier enfant de type Legend du chart).
+ */
+function findChartLegend(root: am5.Root): am5.Legend | null {
+  const container = root.container;
+  const children = container.children;
+  if (!children || !children.values || children.values.length === 0) return null;
+  const chart = children.values[0];
+  if (!chart || !("children" in chart)) return null;
+  const chartChildren = (chart as am5.Container).children;
+  if (!chartChildren || !chartChildren.values) return null;
+  for (let i = chartChildren.values.length - 1; i >= 0; i--) {
+    const child = chartChildren.values[i];
+    if (child && child instanceof am5.Legend) return child as am5.Legend;
+  }
+  return null;
+}
+
+/**
+ * Prépare la légende pour l'export image : retire le scroll, fixe une grille multi-colonnes
+ * pour que toute la légende soit visible sans écraser le graphique.
+ * @returns État sauvegardé à passer à restoreLegendAfterExport
+ */
+export function prepareLegendForExport(root: am5.Root): LegendExportState | null {
+  const legend = findChartLegend(root);
+  if (!legend) return null;
+  const scrollbar = legend.get("verticalScrollbar");
+  if (scrollbar === undefined) return null;
+
+  const saved: LegendExportState = {
+    verticalScrollbar: legend.get("verticalScrollbar"),
+    height: toUndefined(legend.get("height")),
+    layout: toUndefined(legend.get("layout")),
+  };
+
+  legend.set("verticalScrollbar", undefined);
+  legend.set("height", undefined);
+  legend.set(
+    "layout",
+    am5.GridLayout.new(root, {
+      maxColumns: LEGEND_EXPORT_MAX_COLUMNS,
+      fixedWidthGrid: true,
+    })
+  );
+
+  return saved;
+}
+
+/**
+ * Restaure la légende après l'export image (remet scroll et hauteur limitée).
+ */
+export function restoreLegendAfterExport(
+  root: am5.Root,
+  saved: LegendExportState | null
+): void {
+  if (!saved) return;
+  const legend = findChartLegend(root);
+  if (!legend) return;
+
+  legend.set("verticalScrollbar", saved.verticalScrollbar);
+  legend.set("height", saved.height);
+  legend.set("layout", saved.layout);
+}
+
