@@ -223,10 +223,10 @@ export const exportAmChartsAsPNG = async (
       if (stationInfo.sensorModel || timeStep) estimatedLines += 1; // Modèle et pas de temps sur la même ligne
       paddingTop = estimatedLines * 30 + 20; // Marge réduite
     } else if (isComparisonMode) {
-      // Mode comparaison : titre + polluant + liste des stations + date
+      // Mode comparaison : titre + polluant + liste des stations (3 colonnes) + date
       let estimatedLines = 2; // Titre + espace
       if (selectedPollutants.length > 0) estimatedLines += 1;
-      estimatedLines += stations.length; // Une ligne par station
+      estimatedLines += Math.ceil(stations.length / 3); // Lignes en grille (3 colonnes)
       estimatedLines += 1; // Date d'export
       paddingTop = estimatedLines * 25 + 30; // Marge de sécurité
     }
@@ -330,11 +330,25 @@ export const exportAmChartsAsPNG = async (
         }
       }
       
-      // Liste des appareils/stations comparées
+      // Liste des appareils/stations comparées sur plusieurs colonnes
+      const DEVICE_LIST_COLUMNS = 3;
+      const deviceLineHeight = 25;
       yOffset = drawText(`Appareils (${stations.length}):`, paddingLeft, yOffset, maxTextWidth);
-      stations.forEach((station) => {
-        yOffset = drawText(`  • ${station.name}`, paddingLeft, yOffset, maxTextWidth);
+      const colCount = Math.min(DEVICE_LIST_COLUMNS, stations.length);
+      const columnWidth = colCount > 0 ? maxTextWidth / colCount : maxTextWidth;
+      const rowStartY = yOffset;
+      ctx.font = "14px Arial, sans-serif";
+      stations.forEach((station, i) => {
+        const col = i % colCount;
+        const row = Math.floor(i / colCount);
+        const x = paddingLeft + col * columnWidth;
+        const y = rowStartY + row * deviceLineHeight;
+        const label = `  • ${station.name}`;
+        const maxChars = Math.max(1, Math.floor((columnWidth - 10) / 8));
+        const text = label.length > maxChars ? `${label.slice(0, maxChars - 1)}…` : label;
+        ctx.fillText(text, x, y);
       });
+      yOffset = rowStartY + Math.ceil(stations.length / colCount) * deviceLineHeight;
       
       // Date et heure d'export
       const now = new Date();
@@ -463,10 +477,10 @@ export const exportChartAsPNG = async (
       if (stationInfo.sensorModel || timeStep) estimatedLines += 1; // Modèle et pas de temps sur la même ligne
       paddingTop = estimatedLines * 30 + 20; // Marge réduite
     } else if (isComparisonMode) {
-      // Mode comparaison : titre + polluant + liste des stations + date
+      // Mode comparaison : titre + polluant + liste des stations (3 colonnes) + date
       let estimatedLines = 2; // Titre + espace
       if (selectedPollutants.length > 0) estimatedLines += 1;
-      estimatedLines += stations.length; // Une ligne par station
+      estimatedLines += Math.ceil(stations.length / 3); // Lignes en grille (3 colonnes)
       estimatedLines += 1; // Date d'export
       paddingTop = estimatedLines * 25 + 30; // Marge de sécurité
     }
@@ -570,11 +584,25 @@ export const exportChartAsPNG = async (
         }
       }
       
-      // Liste des appareils/stations comparées
+      // Liste des appareils/stations comparées sur plusieurs colonnes
+      const DEVICE_LIST_COLUMNS = 3;
+      const deviceLineHeight = 25;
       yOffset = drawText(`Appareils (${stations.length}):`, paddingLeft, yOffset, maxTextWidth);
-      stations.forEach((station) => {
-        yOffset = drawText(`  • ${station.name}`, paddingLeft, yOffset, maxTextWidth);
+      const colCount = Math.min(DEVICE_LIST_COLUMNS, stations.length);
+      const columnWidth = colCount > 0 ? maxTextWidth / colCount : maxTextWidth;
+      const rowStartY = yOffset;
+      ctx.font = "14px Arial, sans-serif";
+      stations.forEach((station, i) => {
+        const col = i % colCount;
+        const row = Math.floor(i / colCount);
+        const x = paddingLeft + col * columnWidth;
+        const y = rowStartY + row * deviceLineHeight;
+        const label = `  • ${station.name}`;
+        const maxChars = Math.max(1, Math.floor((columnWidth - 10) / 8));
+        const text = label.length > maxChars ? `${label.slice(0, maxChars - 1)}…` : label;
+        ctx.fillText(text, x, y);
       });
+      yOffset = rowStartY + Math.ceil(stations.length / colCount) * deviceLineHeight;
       
       // Date et heure d'export
       const now = new Date();
