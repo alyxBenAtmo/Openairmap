@@ -9,7 +9,9 @@ interface UseSignalAirProps {
   reports: SignalAirReport[];
   mapRef: React.RefObject<L.Map | null>;
   onSignalAirLoadRequest?: () => void;
-  isEnabled?: boolean; // Nouveau prop pour contrôler si SignalAir est activé
+  isEnabled?: boolean;
+  /** Mode historique avec signalements chargés : 0 dans fenêtre courante ≠ aucune donnée */
+  isHistoricalModeWithSignalAirData?: boolean;
 }
 
 export const useSignalAir = ({
@@ -20,6 +22,7 @@ export const useSignalAir = ({
   mapRef,
   onSignalAirLoadRequest,
   isEnabled = false,
+  isHistoricalModeWithSignalAirData = false,
 }: UseSignalAirProps) => {
   const [isSignalAirPanelOpen, setIsSignalAirPanelOpen] = useState(false);
   const [signalAirPanelSize, setSignalAirPanelSize] = useState<
@@ -88,15 +91,21 @@ export const useSignalAir = ({
   // Effet pour gérer le feedback quand aucun signalement n'est trouvé
   useEffect(() => {
     if (signalAirHasLoaded && signalAirReportsCount === 0) {
-      setSignalAirFeedback(
-        "Aucun signalement SignalAir n'a été trouvé pour la période sélectionnée."
-      );
+      if (isHistoricalModeWithSignalAirData) {
+        setSignalAirFeedback(
+          "Aucun signalement dans la fenêtre temporelle courante. Naviguez sur la timeline pour en voir."
+        );
+      } else {
+        setSignalAirFeedback(
+          "Aucun signalement SignalAir n'a été trouvé pour la période sélectionnée."
+        );
+      }
       setIsSignalAirDetailPanelOpen(false);
       setSelectedSignalAirReport(null);
     } else if (signalAirReportsCount > 0) {
       setSignalAirFeedback(null);
     }
-  }, [signalAirHasLoaded, signalAirReportsCount]);
+  }, [signalAirHasLoaded, signalAirReportsCount, isHistoricalModeWithSignalAirData]);
 
   // Effet pour nettoyer le feedback pendant le chargement
   useEffect(() => {

@@ -417,6 +417,8 @@ export interface TemporalVisualizationState {
   data: TemporalDataPoint[];
   loading: boolean;
   error: string | null;
+  /** Signalements SignalAir chargés pour la période historique (traitement à part) */
+  historicalSignalAirReports: SignalAirReport[];
 }
 
 export interface TemporalDataPoint {

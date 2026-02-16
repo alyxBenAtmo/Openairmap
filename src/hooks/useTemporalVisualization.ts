@@ -3,22 +3,31 @@ import {
   TemporalVisualizationState,
   TemporalControls,
   TemporalDataPoint,
+  SignalAirReport,
 } from "../types";
 import { AtmoMicroService } from "../services/AtmoMicroService";
 import { AtmoRefService } from "../services/AtmoRefService";
 import { NebuleAirService } from "../services/NebuleAirService";
+import { SignalAirService } from "../services/SignalAirService";
 import { DataServiceFactory } from "../services/DataServiceFactory";
+import { filterReportsByDisplayWindow } from "../utils/signalAirDateUtils";
 
 interface UseTemporalVisualizationProps {
   selectedPollutant: string;
   selectedSources: string[];
   timeStep: string;
+  /** Activer le chargement des signalements SignalAir pour la période historique */
+  signalAirEnabled?: boolean;
+  /** Types de signalements à charger (odeur, bruit, brulage, visuel) */
+  signalAirSelectedTypes?: string[];
 }
 
 export const useTemporalVisualization = ({
   selectedPollutant,
   selectedSources,
   timeStep,
+  signalAirEnabled = false,
+  signalAirSelectedTypes = [],
 }: UseTemporalVisualizationProps) => {
   // État de la visualisation temporelle
   const [state, setState] = useState<TemporalVisualizationState>({
@@ -32,6 +41,7 @@ export const useTemporalVisualization = ({
     data: [],
     loading: false,
     error: null,
+    historicalSignalAirReports: [],
   });
 
   // Références pour la gestion des intervalles
@@ -39,6 +49,7 @@ export const useTemporalVisualization = ({
   const atmoMicroService = useRef(DataServiceFactory.getService('atmoMicro') as AtmoMicroService);
   const atmoRefService = useRef(DataServiceFactory.getService('atmoRef') as AtmoRefService);
   const nebuleAirService = useRef(DataServiceFactory.getService('nebuleair') as NebuleAirService);
+  const signalAirService = useRef(DataServiceFactory.getService('signalair') as SignalAirService);
 
   // Synchroniser le timeStep du state avec le timeStep des props
   // et réinitialiser les données si elles sont déjà chargées (car elles ne correspondent plus au nouveau pas de temps)
@@ -53,6 +64,7 @@ export const useTemporalVisualization = ({
           currentDate: "",
           isPlaying: false,
           error: null,
+          historicalSignalAirReports: [],
         };
       }
       return {
@@ -70,6 +82,7 @@ export const useTemporalVisualization = ({
       // Réinitialiser les données quand on désactive
       data: !prev.isActive ? prev.data : [],
       currentDate: !prev.isActive ? prev.currentDate : "",
+      historicalSignalAirReports: !prev.isActive ? prev.historicalSignalAirReports : [],
       isPlaying: false,
       error: null,
     }));
@@ -143,6 +156,28 @@ export const useTemporalVisualization = ({
             endDate: state.endDate,
           })
         );
+      }
+
+      // Charger les signalements SignalAir automatiquement pour la période sélectionnée (traitement à part)
+      const signalAirTypes =
+        signalAirSelectedTypes.length > 0
+          ? signalAirSelectedTypes
+          : ["odeur", "bruit", "brulage", "visuel"];
+      let signalAirReports: SignalAirReport[] = [];
+      try {
+        const rawResult = await signalAirService.current.fetchData({
+          pollutant: selectedPollutant,
+          timeStep: state.timeStep,
+          sources: ["signalair"],
+          signalAirPeriod: {
+            startDate: state.startDate,
+            endDate: state.endDate,
+          },
+          signalAirSelectedTypes: signalAirTypes,
+        });
+        signalAirReports = Array.isArray(rawResult) ? rawResult : [];
+      } catch (err) {
+        console.warn("SignalAir: erreur lors du chargement historique:", err);
       }
 
       const results = await Promise.all(promises);
@@ -278,6 +313,7 @@ export const useTemporalVisualization = ({
           allTemporalData.length > 0
             ? allTemporalData[0].timestamp
             : prev.startDate,
+        historicalSignalAirReports: signalAirReports,
         loading: false,
         error: null,
       }));
@@ -298,6 +334,7 @@ export const useTemporalVisualization = ({
     selectedPollutant,
     state.timeStep,
     selectedSources,
+    signalAirSelectedTypes,
   ]);
 
   // Fonction pour démarrer/arrêter la lecture
@@ -330,6 +367,7 @@ export const useTemporalVisualization = ({
       isActive: false,
       data: [],
       currentDate: "",
+      historicalSignalAirReports: [],
       isPlaying: false,
       error: null,
     }));
@@ -354,6 +392,7 @@ export const useTemporalVisualization = ({
       endDate: "",
       currentDate: "",
       data: [],
+      historicalSignalAirReports: [],
       error: null,
     }));
   }, [stopPlayback]);
@@ -480,6 +519,29 @@ export const useTemporalVisualization = ({
     return currentPoint ? currentPoint.devices : [];
   }, [getCurrentDataPoint]);
 
+  /**
+   * Obtenir les signalements SignalAir visibles pour la fenêtre d'affichage courante.
+   * Filtre par chevauchement de périodes (local) : signalement visible si sa période
+   * chevauche la fenêtre currentDate/timeStep.
+   */
+  const getCurrentSignalAirReports = useCallback((): SignalAirReport[] => {
+    if (
+      !state.currentDate ||
+      state.historicalSignalAirReports.length === 0
+    ) {
+      return [];
+    }
+    return filterReportsByDisplayWindow(
+      state.historicalSignalAirReports,
+      state.currentDate,
+      state.timeStep
+    );
+  }, [
+    state.currentDate,
+    state.historicalSignalAirReports,
+    state.timeStep,
+  ]);
+
   // Contrôles exposés
   const controls: TemporalControls = {
     startDate: state.startDate,
@@ -514,6 +576,7 @@ export const useTemporalVisualization = ({
     loadHistoricalData,
     getCurrentDataPoint,
     getCurrentDevices,
+    getCurrentSignalAirReports,
 
     // Navigation temporelle
     seekToDate,

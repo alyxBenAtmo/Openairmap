@@ -224,6 +224,7 @@ const App: React.FC = () => {
     exitHistoricalMode,
     loadHistoricalData,
     getCurrentDevices,
+    getCurrentSignalAirReports,
     isHistoricalModeActive,
     hasHistoricalData,
     seekToDate,
@@ -233,6 +234,8 @@ const App: React.FC = () => {
     selectedPollutant,
     selectedSources,
     timeStep: selectedTimeStep,
+    signalAirEnabled: isSignalAirEnabled,
+    signalAirSelectedTypes,
   });
 
   // Mode historique autorisé uniquement pour les pas 15 min, heure et jour
@@ -261,6 +264,21 @@ const App: React.FC = () => {
     }
   }, [hasHistoricalData, isHistoricalModeActive]);
 
+  // En mode historique avec signalements chargés : afficher automatiquement les marqueurs SignalAir
+  useEffect(() => {
+    if (
+      isHistoricalModeActive &&
+      hasHistoricalData &&
+      (temporalState.historicalSignalAirReports?.length ?? 0) > 0
+    ) {
+      setIsSignalAirVisible(true);
+    }
+  }, [
+    isHistoricalModeActive,
+    hasHistoricalData,
+    temporalState.historicalSignalAirReports?.length,
+  ]);
+
   // Hook pour récupérer les données (mode normal)
   const {
     devices: normalDevices,
@@ -288,8 +306,21 @@ const App: React.FC = () => {
     [reports]
   );
 
+  // En mode historique avec données : afficher les signalements filtrés par fenêtre temporelle (période locale)
+  const reportsForMap = useMemo(() => {
+    if (isHistoricalModeActive && hasHistoricalData) {
+      return getCurrentSignalAirReports();
+    }
+    return reports;
+  }, [isHistoricalModeActive, hasHistoricalData, getCurrentSignalAirReports, reports]);
+
   const isSignalAirLoading = loadingSources.includes("signalair");
-  const hasSignalAirLoaded = signalAirLoadTrigger > 0;
+  // En mode historique : considérer "chargé" si des signalements ont été récupérés
+  const hasSignalAirLoaded =
+    signalAirLoadTrigger > 0 ||
+    (isHistoricalModeActive &&
+      hasHistoricalData &&
+      temporalState.historicalSignalAirReports?.length > 0);
 
   // Fonction pour gérer le chargement des données historiques
   const handleLoadHistoricalData = () => {
@@ -473,7 +504,7 @@ const App: React.FC = () => {
         {/* Carte */}
         <AirQualityMap
           devices={devices}
-          reports={reports}
+          reports={reportsForMap}
           center={mapCenter}
           zoom={mapZoom}
           selectedPollutant={selectedPollutant}
@@ -488,7 +519,12 @@ const App: React.FC = () => {
           onSignalAirLoadRequest={handleSignalAirLoadRequest}
           isSignalAirLoading={isSignalAirLoading}
           signalAirHasLoaded={hasSignalAirLoaded}
-          signalAirReportsCount={signalAirReports.length}
+          signalAirReportsCount={reportsForMap.filter((r) => r.source === "signalair").length}
+          isHistoricalModeWithSignalAirData={
+            isHistoricalModeActive &&
+            hasHistoricalData &&
+            (temporalState.historicalSignalAirReports?.length ?? 0) > 0
+          }
           onSignalAirSourceDeselected={handleSignalAirSourceDeselected}
           onMobileAirSensorSelected={handleMobileAirSensorSelected}
           onMobileAirSourceDeselected={handleMobileAirSourceDeselected}

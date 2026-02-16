@@ -115,6 +115,8 @@ interface AirQualityMapProps {
   isSignalAirLoading?: boolean;
   signalAirHasLoaded?: boolean;
   signalAirReportsCount?: number;
+  /** Mode historique avec des signalements chargés (0 dans fenêtre courante ≠ aucune donnée) */
+  isHistoricalModeWithSignalAirData?: boolean;
   onSignalAirSourceDeselected?: () => void;
   onMobileAirSensorSelected?: (
     sensorId: string,
@@ -191,6 +193,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
   isSignalAirLoading = false,
   signalAirHasLoaded = false,
   signalAirReportsCount = 0,
+  isHistoricalModeWithSignalAirData = false,
   onSignalAirSourceDeselected,
   onMobileAirSensorSelected,
   onMobileAirSourceDeselected,
@@ -258,6 +261,7 @@ const AirQualityMap: React.FC<AirQualityMapProps> = ({
     mapRef: mapView.mapRef,
     onSignalAirLoadRequest,
     isEnabled: isSignalAirEnabled,
+    isHistoricalModeWithSignalAirData,
   });
 
   const mobileAir = useMobileAir({
