@@ -1,40 +1,40 @@
-# 📊 Documentation Technique - Fonctionnalité d'Intercomparaison
+# Documentation Technique - Fonctionnalité d'Intercomparaison
 
-**Version** : 1.0  
-**Date** : 9 octobre 2025  
+**Version** : 1.2
+**Date** : 16 février 2026
 **Auteur** : Équipe ReactOpenAirMap
 
 ---
 
-## 📋 Table des matières
+## Table des matières
 
 1. [Vue d'ensemble](#vue-densemble)
 2. [Architecture technique](#architecture-technique)
 3. [Composants principaux](#composants-principaux)
-   - AirQualityMap
-   - ComparisonSidePanel
-   - HistoricalChart
+- AirQualityMap
+- ComparisonSidePanel
+- HistoricalChart
 4. [Flux de données](#flux-de-données)
-   - Activation du mode comparaison
-   - Ajout d'une station
-   - Changement de polluant
+- Activation du mode comparaison
+- Ajout d'une station
+- Changement de polluant
 5. [Services et APIs](#services-et-apis)
-   - AtmoRef Service
-   - AtmoMicro Service
-   - Différences entre les sources
-   - Requêtes HTTP complètes
+- AtmoRef Service
+- AtmoMicro Service
+- Différences entre les sources
+- Requêtes HTTP complètes
 6. [Récapitulatif : API vs Code](#récapitulatif--api-vs-code)
 7. [Gestion des états](#gestion-des-états)
-   - StationInfo
-   - ComparisonState
+- StationInfo
+- ComparisonState
 8. [Transformation des données](#transformation-des-données)
-   - Normalisation timestamps
-   - Normalisation unités
-   - Structure chartData
+- Normalisation timestamps
+- Normalisation unités
+- Structure chartData
 9. [Cas particuliers](#cas-particuliers)
-   - Mode Scan
-   - connectNulls
-   - Limite de 5 stations
+- Mode Scan
+- connectNulls
+- Limite de 10 stations
 10. [Bugs corrigés](#bugs-corrigés)
 11. [Guide de maintenance](#guide-de-maintenance)
 12. [Résumé visuel](#résumé-visuel-du-fonctionnement)
@@ -51,22 +51,23 @@ La fonctionnalité d'intercomparaison permet de **comparer les mesures de plusie
 
 - **Stations AtmoRef** (stations de référence AtmoSud)
 - **Sites AtmoMicro** (microcapteurs AtmoSud)
-- **Mixte** : Comparaison entre AtmoRef et AtmoMicro
+- **NebuleAir** (capteurs communautaires)
+- **Mixte** : Comparaison entre ces sources (ex. AtmoRef + AtmoMicro + NebuleAir)
 
 ### Fonctionnalités clés
 
-- ✅ Sélection multi-stations (maximum 5)
-- ✅ Détection automatique des polluants communs
-- ✅ Graphique temporel avec courbes superposées
-- ✅ Gestion des résolutions temporelles différentes
-- ✅ Contrôles de période et pas de temps
-- ✅ Interface responsive avec redimensionnement
+- Sélection multi-stations (maximum 10)
+- Détection automatique des polluants communs
+- Graphique temporel avec courbes superposées
+- Gestion des résolutions temporelles différentes
+- Contrôles de période et pas de temps
+- Interface responsive avec redimensionnement
 
 ### Limitations
 
-- Maximum **5 stations** comparables simultanément
+- Maximum **10 stations** comparables simultanément
 - Comparaison d'**un seul polluant** à la fois (celui disponible dans toutes les stations)
-- Supporte uniquement **AtmoRef** et **AtmoMicro** (pas d'autres sources)
+- Supporte **AtmoRef**, **AtmoMicro** et **NebuleAir** (capteurs communautaires)
 
 ---
 
@@ -76,41 +77,41 @@ La fonctionnalité d'intercomparaison permet de **comparer les mesures de plusie
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     AirQualityMap                           │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │  État de comparaison (ComparisonState)               │   │
-│  │  - isComparisonMode                                  │   │
-│  │  - comparedStations[]                                │   │
-│  │  - comparisonData                                    │   │
-│  │  - selectedPollutant, timeRange, timeStep            │   │
-│  └──────────────────────────────────────────────────────┘   │
-│                           │                                 │
-│                           ▼                                 │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │         Handlers de comparaison                      │   │
-│  │  - handleComparisonModeToggle()                      │   │
-│  │  - handleAddStationToComparison()                    │   │
-│  │  - handleRemoveStationFromComparison()               │   │
-│  │  - handleLoadComparisonData()                        │   │
-│  └──────────────────────────────────────────────────────┘   │
-│                           │                                 │
-│                           ▼                                 │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │           ComparisonSidePanel                        │   │
-│  │  - Liste des stations                                │   │
-│  │  - Sélecteur de polluant                             │   │
-│  │  - Graphique (HistoricalChart)                       │   │
-│  │  - Contrôles temporels                               │   │
-│  └──────────────────────────────────────────────────────┘   │
+│ AirQualityMap │
+│ ┌──────────────────────────────────────────────────────┐ │
+│ │ État de comparaison (ComparisonState) │ │
+│ │ - isComparisonMode │ │
+│ │ - comparedStations[] │ │
+│ │ - comparisonData │ │
+│ │ - selectedPollutant, timeRange, timeStep │ │
+│ └──────────────────────────────────────────────────────┘ │
+│ │ │
+│ ▼ │
+│ ┌──────────────────────────────────────────────────────┐ │
+│ │ Handlers de comparaison │ │
+│ │ - handleComparisonModeToggle() │ │
+│ │ - handleAddStationToComparison() │ │
+│ │ - handleRemoveStationFromComparison() │ │
+│ │ - handleLoadComparisonData() │ │
+│ └──────────────────────────────────────────────────────┘ │
+│ │ │
+│ ▼ │
+│ ┌──────────────────────────────────────────────────────┐ │
+│ │ ComparisonSidePanel │ │
+│ │ - Liste des stations │ │
+│ │ - Sélecteur de polluant │ │
+│ │ - Graphique (HistoricalChart) │ │
+│ │ - Contrôles temporels │ │
+│ └──────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-              ┌────────────────────────┐
-              │   HistoricalChart      │
-              │  - Transformation      │
-              │  - Normalisation       │
-              │  - Rendu Recharts      │
-              └────────────────────────┘
+│
+▼
+┌────────────────────────┐
+│ HistoricalChart │
+│ - Transformation │
+│ - Normalisation │
+│ - Rendu Recharts │
+└────────────────────────┘
 ```
 
 ### Stack technologique
@@ -136,18 +137,18 @@ La fonctionnalité d'intercomparaison permet de **comparer les mesures de plusie
 - Chargement des données historiques
 - Coordination entre la carte et le panel
 
-**État géré** :
+**État géré** : L’état de comparaison est exposé via `sidePanels.comparisonState` et mis à jour via `sidePanels.setComparisonState` (hook / état parent).
 
 ```typescript
 interface ComparisonState {
-  isComparisonMode: boolean; // Mode actif/inactif
-  comparedStations: StationInfo[]; // Stations sélectionnées (max 5)
-  comparisonData: Record<string, Record<string, HistoricalDataPoint[]>>;
-  selectedPollutant: string; // Polluant affiché
-  timeRange: TimeRange; // Période temporelle
-  timeStep: string; // Pas de temps (scan, 15min, 1h, 1j)
-  loading: boolean;
-  error: string | null;
+isComparisonMode: boolean; // Mode actif/inactif
+comparedStations: StationInfo[]; // Stations sélectionnées (max 10)
+comparisonData: Record<string, Record<string, HistoricalDataPoint[]>>;
+selectedPollutant: string; // Polluant affiché
+timeRange: TimeRange; // Période temporelle
+timeStep: string; // Pas de temps (scan, 15min, 1h, 1j)
+loading: boolean;
+error: string | null;
 }
 ```
 
@@ -156,115 +157,120 @@ interface ComparisonState {
 ```typescript
 // Activation du mode comparaison (ligne 714-724)
 const handleComparisonModeToggle = () => {
-  setComparisonState((prev) => ({
-    ...prev,
-    isComparisonMode: !prev.isComparisonMode,
-    comparedStations:
-      !prev.isComparisonMode && selectedStation
-        ? [selectedStation] // Ajoute la station actuelle comme première
-        : prev.comparedStations,
-  }));
+setComparisonState((prev) => ({
+...prev,
+isComparisonMode: !prev.isComparisonMode,
+comparedStations:
+!prev.isComparisonMode && selectedStation
+? [selectedStation] // Ajoute la station actuelle comme première
+: prev.comparedStations,
+}));
 };
 
-// Ajout d'une station à la comparaison (ligne 726-776)
+// Ajout d'une station à la comparaison (AirQualityMap.tsx, ~ligne 433)
+// Comportement : si la station est déjà dans la liste, elle est retirée (toggle).
 const handleAddStationToComparison = async (device: MeasurementDevice) => {
-  // 1. Vérifier limite (max 5)
-  if (comparisonState.comparedStations.length >= 5) return;
+// 1. Si déjà ajoutée → retirer (désélection)
+const isAlreadyAdded = comparisonState.comparedStations.some(
+(station) => station.id === device.id
+);
+if (isAlreadyAdded) {
+handleRemoveStationFromComparison(device.id);
+return;
+}
 
-  // 2. Vérifier doublons
-  const isAlreadyAdded = comparisonState.comparedStations.some(
-    (station) => station.id === device.id
-  );
-  if (isAlreadyAdded) return;
+// 2. Vérifier limite (MAX_COMPARISON_STATIONS = 10)
+if (comparisonState.comparedStations.length >= MAX_COMPARISON_STATIONS) return;
 
-  // 3. Récupérer les variables disponibles via API
-  let variables = {};
-  if (device.source === "atmoRef") {
-    variables = await atmoRefService.fetchStationVariables(device.id);
-  } else if (device.source === "atmoMicro") {
-    variables = await atmoMicroService.fetchSiteVariables(device.id);
-  }
+// 3. Récupérer les variables disponibles via API
+let variables = {};
+let sensorModel: string | undefined;
+let lastSeenSec: number | undefined;
+if (device.source === "atmoRef") {
+variables = await atmoRefService.fetchStationVariables(device.id);
+} else if (device.source === "atmoMicro") {
+const siteInfo = await atmoMicroService.fetchSiteVariables(device.id);
+variables = siteInfo.variables;
+sensorModel = siteInfo.sensorModel;
+} else if (device.source === "nebuleair") {
+const siteInfo = await nebuleAirService.fetchSiteInfo(device.id);
+variables = siteInfo.variables;
+lastSeenSec = siteInfo.lastSeenSec;
+}
 
-  // 4. Créer StationInfo et ajouter à l'état
-  const stationInfo: StationInfo = {
-    id: device.id,
-    name: device.name,
-    address: device.address || "",
-    departmentId: device.departmentId || "",
-    source: device.source,
-    variables, // Variables disponibles
-  };
-
-  setComparisonState((prev) => ({
-    ...prev,
-    comparedStations: [...prev.comparedStations, stationInfo],
-  }));
+// 4. Créer StationInfo et ajouter à l'état
+const stationInfo: StationInfo = {
+id: device.id,
+name: device.name,
+address: device.address || "",
+departmentId: device.departmentId || "",
+source: device.source,
+variables,
+...(sensorModel !== undefined && { sensorModel }),
+...(lastSeenSec !== undefined && { lastSeenSec }),
 };
 
-// Chargement des données de comparaison (ligne 797-852)
+setComparisonState((prev) => ({
+...prev,
+comparedStations: [...prev.comparedStations, stationInfo],
+}));
+};
+
+// Chargement des données de comparaison
+// Implémentation dans src/components/map/handlers/comparisonHandlers.ts
+// (createLoadComparisonDataHandler). Supporte atmoRef, atmoMicro et nebuleair.
 const handleLoadComparisonData = async (
-  stations: StationInfo[],
-  pollutant: string,
-  timeRange: TimeRange,
-  timeStep: string
+stations: StationInfo[],
+pollutant: string,
+timeRange: TimeRange,
+timeStep: string
 ) => {
-  setComparisonState((prev) => ({ ...prev, loading: true, error: null }));
+setComparisonState((prev) => ({ ...prev, loading: true, error: null }));
 
-  try {
-    const { startDate, endDate } = getDateRange(timeRange);
-    const newComparisonData = {};
+try {
+const { startDate, endDate } = getDateRange(timeRange);
+const newComparisonData = {};
 
-    // Charger les données pour chaque station
-    for (const station of stations) {
-      let stationData = [];
+for (const station of stations) {
+let stationData = [];
+if (station.source === "atmoRef") {
+stationData = await atmoRefService.fetchHistoricalData({ ... });
+} else if (station.source === "atmoMicro") {
+stationData = await atmoMicroService.fetchHistoricalData({ ... });
+} else if (station.source === "nebuleair") {
+stationData = await nebuleAirService.fetchHistoricalData({
+sensorId: station.id,
+pollutant,
+timeStep,
+startDate,
+endDate,
+});
+}
+if (!newComparisonData[pollutant]) newComparisonData[pollutant] = {};
+newComparisonData[pollutant][station.id] = stationData;
+}
 
-      if (station.source === "atmoRef") {
-        stationData = await atmoRefService.fetchHistoricalData({
-          stationId: station.id,
-          pollutant,
-          timeStep,
-          startDate,
-          endDate,
-        });
-      } else if (station.source === "atmoMicro") {
-        stationData = await atmoMicroService.fetchHistoricalData({
-          siteId: station.id,
-          pollutant,
-          timeStep,
-          startDate,
-          endDate,
-        });
-      }
-
-      // Structure : { pollutant: { stationId: data[] } }
-      if (!newComparisonData[pollutant]) {
-        newComparisonData[pollutant] = {};
-      }
-      newComparisonData[pollutant][station.id] = stationData;
-    }
-
-    setComparisonState((prev) => ({
-      ...prev,
-      comparisonData: newComparisonData,
-      selectedPollutant: pollutant,
-      timeRange,
-      timeStep,
-      loading: false,
-    }));
-  } catch (error) {
-    console.error("Erreur chargement données comparaison:", error);
-    setComparisonState((prev) => ({
-      ...prev,
-      loading: false,
-      error: "Erreur lors du chargement des données",
-    }));
-  }
+setComparisonState((prev) => ({
+...prev,
+comparisonData: newComparisonData,
+selectedPollutant: pollutant,
+timeRange,
+timeStep,
+loading: false,
+}));
+} catch (error) {
+setComparisonState((prev) => ({
+...prev,
+loading: false,
+error: "Erreur lors du chargement des données",
+}));
+}
 };
 ```
 
 ### 2. ComparisonSidePanel (Interface)
 
-**Fichier** : `src/components/map/ComparisonSidePanel.tsx`
+**Fichier** : `src/components/panels/ComparisonSidePanel.tsx`
 
 **Responsabilités** :
 
@@ -279,38 +285,38 @@ const handleLoadComparisonData = async (
 ```typescript
 // Détection des polluants disponibles dans TOUTES les stations (ligne 54-81)
 const isPollutantAvailableInAllStations = (pollutantCode: string): boolean => {
-  return comparisonState.comparedStations.every((station) => {
-    return Object.entries(station.variables || {}).some(([code, variable]) => {
-      let mappedCode = code;
+return comparisonState.comparedStations.every((station) => {
+return Object.entries(station.variables || {}).some(([code, variable]) => {
+let mappedCode = code;
 
-      // Mapping AtmoRef : codes numériques → codes normalisés
-      if (station.source === "atmoRef") {
-        const atmoRefMapping = {
-          "01": "so2",
-          "03": "no2",
-          "08": "o3",
-          "24": "pm10",
-          "39": "pm25",
-          "68": "pm1",
-        };
-        mappedCode = atmoRefMapping[code] || code;
-      }
-      // AtmoMicro : déjà normalisés ("pm25", "pm10", etc.)
+// Mapping AtmoRef : codes numériques → codes normalisés
+if (station.source === "atmoRef") {
+const atmoRefMapping = {
+"01": "so2",
+"03": "no2",
+"08": "o3",
+"24": "pm10",
+"39": "pm25",
+"68": "pm1",
+};
+mappedCode = atmoRefMapping[code] || code;
+}
+// AtmoMicro : déjà normalisés ("pm25", "pm10", etc.)
 
-      return mappedCode === pollutantCode && variable.en_service;
-    });
-  });
+return mappedCode === pollutantCode && variable.en_service;
+});
+});
 };
 
 // Obtenir la liste des polluants communs (ligne 89-98)
 const getAvailablePollutants = (): string[] => {
-  if (comparisonState.comparedStations.length === 0) return [];
+if (comparisonState.comparedStations.length === 0) return [];
 
-  return Object.entries(pollutants)
-    .filter(([pollutantCode]) => {
-      return isPollutantAvailableInAllStations(pollutantCode);
-    })
-    .map(([pollutantCode]) => pollutantCode);
+return Object.entries(pollutants)
+.filter(([pollutantCode]) => {
+return isPollutantAvailableInAllStations(pollutantCode);
+})
+.map(([pollutantCode]) => pollutantCode);
 };
 ```
 
@@ -325,7 +331,7 @@ const getAvailablePollutants = (): string[] => {
 
 ### 3. HistoricalChart (Visualisation)
 
-**Fichier** : `src/components/map/HistoricalChart.tsx`
+**Fichier** : `src/components/charts/HistoricalChart.tsx`
 
 **Responsabilités** :
 
@@ -339,11 +345,11 @@ const getAvailablePollutants = (): string[] => {
 ```typescript
 // Props du composant
 interface HistoricalChartProps {
-  data: Record<string, HistoricalDataPoint[]>;
-  selectedPollutants: string[];
-  source: string; // "comparison" | "atmoRef" | "atmoMicro" | ...
-  onHasCorrectedDataChange?: (hasCorrectedData: boolean) => void;
-  stations?: StationInfo[]; // Requis en mode "comparison"
+data: Record<string, HistoricalDataPoint[]>;
+selectedPollutants: string[];
+source: string; // "comparison" | "atmoRef" | "atmoMicro" | ...
+onHasCorrectedDataChange?: (hasCorrectedData: boolean) => void;
+stations?: StationInfo[]; // Requis en mode "comparison"
 }
 ```
 
@@ -352,50 +358,50 @@ interface HistoricalChartProps {
 ```typescript
 // Mode comparaison : données par station (ligne 114-173)
 if (source === "comparison" && stations.length > 0) {
-  const allTimestamps = new Map<number, string>();  // Timestamps normalisés
-  const pollutant = selectedPollutants[0];
+const allTimestamps = new Map<number, string>(); // Timestamps normalisés
+const pollutant = selectedPollutants[0];
 
-  // 1. Collecter tous les timestamps uniques (en millisecondes)
-  stations.forEach((station) => {
-    if (data[station.id]) {
-      data[station.id].forEach((point) => {
-        const timestampMs = new Date(point.timestamp).getTime();
-        if (!allTimestamps.has(timestampMs)) {
-          allTimestamps.set(timestampMs, point.timestamp);
-        }
-      });
-    }
-  });
+// 1. Collecter tous les timestamps uniques (en millisecondes)
+stations.forEach((station) => {
+if (data[station.id]) {
+data[station.id].forEach((point) => {
+const timestampMs = new Date(point.timestamp).getTime();
+if (!allTimestamps.has(timestampMs)) {
+allTimestamps.set(timestampMs, point.timestamp);
+}
+});
+}
+});
 
-  // 2. Trier les timestamps
-  const sortedTimestamps = Array.from(allTimestamps.entries()).sort(
-    (a, b) => a[0] - b[0]
-  );
+// 2. Trier les timestamps
+const sortedTimestamps = Array.from(allTimestamps.entries()).sort(
+(a, b) => a[0] - b[0]
+);
 
-  // 3. Créer les points de données
-  const transformedData = sortedTimestamps.map(([timestampMs, _]) => {
-    const point: any = {
-      timestamp: new Date(timestampMs).toLocaleString("fr-FR", {...}),
-      rawTimestamp: timestampMs,
-    };
+// 3. Créer les points de données
+const transformedData = sortedTimestamps.map(([timestampMs, _]) => {
+const point: any = {
+timestamp: new Date(timestampMs).toLocaleString("fr-FR", {...}),
+rawTimestamp: timestampMs,
+};
 
-    // Ajouter les valeurs pour chaque station
-    stations.forEach((station) => {
-      if (data[station.id]) {
-        const dataPoint = data[station.id].find(
-          (p) => new Date(p.timestamp).getTime() === timestampMs
-        );
-        if (dataPoint) {
-          point[station.id] = dataPoint.value;  // Clé = ID station
-          point[`${station.id}_unit`] = dataPoint.unit;
-        }
-      }
-    });
+// Ajouter les valeurs pour chaque station
+stations.forEach((station) => {
+if (data[station.id]) {
+const dataPoint = data[station.id].find(
+(p) => new Date(p.timestamp).getTime() === timestampMs
+);
+if (dataPoint) {
+point[station.id] = dataPoint.value; // Clé = ID station
+point[`${station.id}_unit`] = dataPoint.unit;
+}
+}
+});
 
-    return point;
-  });
+return point;
+});
 
-  return transformedData;
+return transformedData;
 }
 ```
 
@@ -404,28 +410,28 @@ if (source === "comparison" && stations.length > 0) {
 ```typescript
 // Une ligne par station en mode comparaison (ligne 420-444)
 {source === "comparison" && stations.length > 0
-  ? stations.map((station, index) => {
-      const pollutant = selectedPollutants[0];
-      const stationColor = fallbackColors[index % fallbackColors.length];
-      const pollutantName = pollutants[pollutant]?.name || pollutant;
+? stations.map((station, index) => {
+const pollutant = selectedPollutants[0];
+const stationColor = fallbackColors[index % fallbackColors.length];
+const pollutantName = pollutants[pollutant]?.name || pollutant;
 
-      return (
-        <Line
-          key={station.id}
-          type="monotone"
-          dataKey={station.id}           // Clé = ID station
-          yAxisId="left"
-          stroke={stationColor}          // Couleur unique par station
-          strokeWidth={2}
-          strokeDasharray="0"
-          dot={{ r: 3 }}
-          activeDot={{ r: 5 }}
-          name={`${station.name} - ${pollutantName}`}
-          connectNulls={true}            // Important : relier malgré les gaps
-        />
-      );
-    })
-  : /* Mode normal */
+return (
+<Line
+key={station.id}
+type="monotone"
+dataKey={station.id} // Clé = ID station
+yAxisId="left"
+stroke={stationColor} // Couleur unique par station
+strokeWidth={2}
+strokeDasharray="0"
+dot={{ r: 3 }}
+activeDot={{ r: 5 }}
+name={`${station.name} - ${pollutantName}`}
+connectNulls={true} // Important : relier malgré les gaps
+/>
+);
+})
+: /* Mode normal */
 }
 ```
 
@@ -442,14 +448,14 @@ if (source === "comparison" && stations.length > 0) {
 async fetchStationVariables(stationId: string): Promise<
 Record<string, { label: string; code_iso: string; en_service: boolean }>
 > {
-  const url = `https://api.atmosud.org/observations/stations?format=json&station_en_service=true&download=false&metadata=true`;
-  const response = await this.makeRequest(url);
+const url = `https://api.atmosud.org/observations/stations?format=json&station_en_service=true&download=false&metadata=true`;
+const response = await this.makeRequest(url);
 
-  const station = response.stations.find(
-    (s: AtmoRefStation) => s.id_station === stationId
-  );
+const station = response.stations.find(
+(s: AtmoRefStation) => s.id_station === stationId
+);
 
-  return station.variables;  // Format : { "01": {...}, "03": {...}, ... }
+return station.variables; // Format : { "01": {...}, "03": {...}, ... }
 }
 ```
 
@@ -466,62 +472,62 @@ GET https://api.atmosud.org/observations/stations?format=json&station_en_service
 - `download=false` : Pas de téléchargement de fichier
 - `metadata=true` : **CRUCIAL** - Inclure les métadonnées dont les variables
 
-**⚠️ Sans `metadata=true`, le champ `variables` n'est pas retourné par l'API !**
+**Attention :** Sans `metadata=true`, le champ `variables` n'est pas retourné par l'API !**
 
 **Format de réponse API brut** :
 
 ```json
 {
-  "stations": [
-    {
-      "id_station": "FR00008",
-      "nom_station": "Marseille Place Verneuil",
-      "departement_id": "13",
-      "adresse": "Place Henri Verneuil",
-      "latitude": 43.30885,
-      "longitude": 5.36788,
-      "en_service": true,
-      "date_debut_mesure": "2018-10-16T15:00:00+00:00",
-      "date_fin_mesure": null,
-      "variables": {
-        "01": {
-          "label": "SO2",
-          "code_iso": "01",
-          "date_fin": null,
-          "date_debut": "2019-03-08T12:00:00+00:00",
-          "en_service": true
-        },
-        "03": {
-          "label": "NO2",
-          "code_iso": "03",
-          "date_fin": null,
-          "date_debut": "2019-03-08T12:00:00+00:00",
-          "en_service": true
-        },
-        "24": {
-          "label": "PM10",
-          "code_iso": "24",
-          "date_fin": "2023-03-27T14:30:00+00:00",
-          "date_debut": "2018-10-16T15:00:00+00:00",
-          "en_service": false
-        },
-        "39": {
-          "label": "PM2.5",
-          "code_iso": "39",
-          "date_fin": null,
-          "date_debut": "2021-12-10T00:00:00+00:00",
-          "en_service": true
-        },
-        "68": {
-          "label": "PM1",
-          "code_iso": "68",
-          "date_fin": "2023-03-28T00:00:00+00:00",
-          "date_debut": "2021-04-28T00:00:00+00:00",
-          "en_service": false
-        }
-      }
-    }
-  ]
+"stations": [
+{
+"id_station": "FR00008",
+"nom_station": "Marseille Place Verneuil",
+"departement_id": "13",
+"adresse": "Place Henri Verneuil",
+"latitude": 43.30885,
+"longitude": 5.36788,
+"en_service": true,
+"date_debut_mesure": "2018-10-16T15:00:00+00:00",
+"date_fin_mesure": null,
+"variables": {
+"01": {
+"label": "SO2",
+"code_iso": "01",
+"date_fin": null,
+"date_debut": "2019-03-08T12:00:00+00:00",
+"en_service": true
+},
+"03": {
+"label": "NO2",
+"code_iso": "03",
+"date_fin": null,
+"date_debut": "2019-03-08T12:00:00+00:00",
+"en_service": true
+},
+"24": {
+"label": "PM10",
+"code_iso": "24",
+"date_fin": "2023-03-27T14:30:00+00:00",
+"date_debut": "2018-10-16T15:00:00+00:00",
+"en_service": false
+},
+"39": {
+"label": "PM2.5",
+"code_iso": "39",
+"date_fin": null,
+"date_debut": "2021-12-10T00:00:00+00:00",
+"en_service": true
+},
+"68": {
+"label": "PM1",
+"code_iso": "68",
+"date_fin": "2023-03-28T00:00:00+00:00",
+"date_debut": "2021-04-28T00:00:00+00:00",
+"en_service": false
+}
+}
+}
+]
 }
 ```
 
@@ -529,27 +535,27 @@ GET https://api.atmosud.org/observations/stations?format=json&station_en_service
 
 ```json
 {
-  "01": {
-    "label": "SO2",
-    "code_iso": "01",
-    "date_fin": null,
-    "date_debut": "2019-03-08T12:00:00+00:00",
-    "en_service": true
-  },
-  "03": {
-    "label": "NO2",
-    "code_iso": "03",
-    "date_fin": null,
-    "date_debut": "2019-03-08T12:00:00+00:00",
-    "en_service": true
-  },
-  "39": {
-    "label": "PM2.5",
-    "code_iso": "39",
-    "date_fin": null,
-    "date_debut": "2021-12-10T00:00:00+00:00",
-    "en_service": true
-  }
+"01": {
+"label": "SO2",
+"code_iso": "01",
+"date_fin": null,
+"date_debut": "2019-03-08T12:00:00+00:00",
+"en_service": true
+},
+"03": {
+"label": "NO2",
+"code_iso": "03",
+"date_fin": null,
+"date_debut": "2019-03-08T12:00:00+00:00",
+"en_service": true
+},
+"39": {
+"label": "PM2.5",
+"code_iso": "39",
+"date_fin": null,
+"date_debut": "2021-12-10T00:00:00+00:00",
+"en_service": true
+}
 }
 ```
 
@@ -560,12 +566,12 @@ GET https://api.atmosud.org/observations/stations?format=json&station_en_service
 ```typescript
 // Défini dans src/types/index.ts
 export const ATMOREF_POLLUTANT_MAPPING: Record<string, string> = {
-  "01": "so2", // SO2
-  "03": "no2", // NO2
-  "08": "o3", // O3
-  "24": "pm10", // PM10
-  "39": "pm25", // PM2.5
-  "68": "pm1", // PM1
+"01": "so2", // SO2
+"03": "no2", // NO2
+"08": "o3", // O3
+"24": "pm10", // PM10
+"39": "pm25", // PM2.5
+"68": "pm1", // PM1
 };
 ```
 
@@ -573,38 +579,35 @@ export const ATMOREF_POLLUTANT_MAPPING: Record<string, string> = {
 
 **Fichier** : `src/services/AtmoMicroService.ts`
 
-**Méthode clé pour la comparaison** :
+**Méthode clé pour la comparaison** : Retourne un objet `{ variables, sensorModel? }`. L’appelant utilise `siteInfo.variables` pour construire la `StationInfo`.
 
 ```typescript
-// Récupération des variables disponibles (ligne 236-284)
-async fetchSiteVariables(siteId: string): Promise<
-Record<string, { label: string; code_iso: string; en_service: boolean }>
-> {
-  const url = `https://api.atmosud.org/observations/capteurs/sites?format=json&actifs=2880`;
-  const sites = await this.makeRequest(url);
+// Récupération des variables disponibles (AtmoMicroService.ts)
+async fetchSiteVariables(siteId: string): Promise<{
+variables: Record<string, { label: string; code_iso: string; en_service: boolean }>;
+sensorModel?: string;
+}> {
+const allSites = await this.getCachedAllSites();
+const site = allSites.find((s) => s.id_site.toString() === siteId);
+if (!site) return { variables: {} };
 
-  const site = sites.find(
-    (s: AtmoMicroSite) => s.id_site.toString() === siteId
-  );
+const variablesString = site.variables;
+const availableVariables = {};
 
-  // Parser la chaîne de variables (ex: "PM10, PM2.5, Air Pres., ...")
-  const variablesString = site.variables;
-  const availableVariables = {};
+const variableList = variablesString.split(",").map((v) => v.trim());
+for (const variable of variableList) {
+const pollutantCode = ATMOMICRO_POLLUTANT_MAPPING[variable];
+if (pollutantCode && pollutants[pollutantCode]) {
+availableVariables[pollutantCode] = {
+label: pollutants[pollutantCode].name,
+code_iso: variable,
+en_service: true,
+};
+}
+}
 
-  const variableList = variablesString.split(",").map((v) => v.trim());
-
-  for (const variable of variableList) {
-    const pollutantCode = ATMOMICRO_POLLUTANT_MAPPING[variable];
-    if (pollutantCode && pollutants[pollutantCode]) {
-      availableVariables[pollutantCode] = {  // CLÉ DÉJÀ NORMALISÉE
-        label: pollutants[pollutantCode].name,
-        code_iso: variable,
-        en_service: true,
-      };
-    }
-  }
-
-  return availableVariables;  // Format : { "pm25": {...}, "pm10": {...}, ... }
+const sensorModel = site.modele_capteur || undefined;
+return { variables: availableVariables, sensorModel };
 }
 ```
 
@@ -625,42 +628,42 @@ GET https://api.atmosud.org/observations/capteurs/sites?format=json&actifs=2880
 
 ```json
 [
-  {
-    "id_site": 1175,
-    "nom_site": "Aix-en-Provence Centre",
-    "type_site": "Fixe",
-    "influence": "urbain",
-    "lon": 5.4454,
-    "lat": 43.5263,
-    "code_station_commun": "FR27001",
-    "date_debut_site": "2020-01-15T00:00:00",
-    "date_fin_site": "2099-12-31T23:59:59",
-    "alti_mer": 150,
-    "alti_sol": 3,
-    "id_campagne": 42,
-    "nom_campagne": "Réseau urbain Aix",
-    "id_capteur": 234,
-    "marque_capteur": "Sensirion",
-    "modele_capteur": "SPS30",
-    "variables": "PM10, PM2.5, Air Pres., Air Temp., Air Hum., PM1"
-  },
-  {
-    "id_site": 1232,
-    "nom_site": "Marseille Prado",
-    "variables": "PM10, PM2.5, NO2, O3"
-  }
+{
+"id_site": 1175,
+"nom_site": "Aix-en-Provence Centre",
+"type_site": "Fixe",
+"influence": "urbain",
+"lon": 5.4454,
+"lat": 43.5263,
+"code_station_commun": "FR27001",
+"date_debut_site": "2020-01-15T00:00:00",
+"date_fin_site": "2099-12-31T23:59:59",
+"alti_mer": 150,
+"alti_sol": 3,
+"id_campagne": 42,
+"nom_campagne": "Réseau urbain Aix",
+"id_capteur": 234,
+"marque_capteur": "Sensirion",
+"modele_capteur": "SPS30",
+"variables": "PM10, PM2.5, Air Pres., Air Temp., Air Hum., PM1"
+},
+{
+"id_site": 1232,
+"nom_site": "Marseille Prado",
+"variables": "PM10, PM2.5, NO2, O3"
+}
 ]
 ```
 
-**⚠️ Important** : Le champ `variables` dans l'API est une **chaîne de caractères** (string), **PAS un objet JSON**.
+**Important** : Le champ `variables` dans l'API est une **chaîne de caractères** (string), **PAS un objet JSON**.
 
 **Exemple de réponse API réelle** :
 
 ```json
 {
-  "id_site": 1175,
-  "nom_site": "Aix-en-Provence Centre",
-  "variables": "PM10, PM2.5, Air Pres., Air Temp., Air Hum., PM1" // ← STRING !
+"id_site": 1175,
+"nom_site": "Aix-en-Provence Centre",
+"variables": "PM10, PM2.5, Air Pres., Air Temp., Air Hum., PM1" // ← STRING !
 }
 ```
 
@@ -668,25 +671,25 @@ GET https://api.atmosud.org/observations/capteurs/sites?format=json&actifs=2880
 
 ```json
 {
-  "pm25": {
-    "label": "PM₂.₅",
-    "code_iso": "PM2.5",
-    "en_service": true
-  },
-  "pm10": {
-    "label": "PM₁₀",
-    "code_iso": "PM10",
-    "en_service": true
-  },
-  "pm1": {
-    "label": "PM₁",
-    "code_iso": "PM1",
-    "en_service": true
-  }
+"pm25": {
+"label": "PM₂.₅",
+"code_iso": "PM2.5",
+"en_service": true
+},
+"pm10": {
+"label": "PM₁₀",
+"code_iso": "PM10",
+"en_service": true
+},
+"pm1": {
+"label": "PM₁",
+"code_iso": "PM1",
+"en_service": true
+}
 }
 ```
 
-**⚠️ Les champs `label`, `code_iso` et `en_service` sont créés par NOTRE code** (ligne 268-272 de AtmoMicroService.ts), **ils ne viennent PAS directement de l'API**.
+**Attention :** Les champs `label`, `code_iso` et `en_service` sont créés par NOTRE code** (ligne 268-272 de AtmoMicroService.ts), **ils ne viennent PAS directement de l'API**.
 
 **Processus de transformation détaillé** :
 
@@ -699,20 +702,20 @@ variableList = ["PM10", "PM2.5", "Air Pres.", "Air Temp.", "Air Hum.", "PM1"]
 
 // 3. Pour chaque variable, mapper via ATMOMICRO_POLLUTANT_MAPPING
 "PM2.5" → pollutantCode = "pm25"
-"PM10"  → pollutantCode = "pm10"
-"PM1"   → pollutantCode = "pm1"
+"PM10" → pollutantCode = "pm10"
+"PM1" → pollutantCode = "pm1"
 "Air Pres." → pollutantCode = undefined (ignoré, pas un polluant)
 
 // 4. Filtrage : Garder uniquement les variables qui sont des polluants
 if (pollutantCode && pollutants[pollutantCode]) {
-  // Air Pres., Air Temp., Air Hum. sont ignorés
+// Air Pres., Air Temp., Air Hum. sont ignorés
 }
 
 // 5. Construction de l'objet de retour (CRÉÉ par notre code)
 availableVariables[pollutantCode] = {
-  label: pollutants[pollutantCode].name,  // "PM₂.₅" depuis nos constantes
-  code_iso: variable,                     // "PM2.5" original de l'API
-  en_service: true                        // Supposé true si listé
+label: pollutants[pollutantCode].name, // "PM₂.₅" depuis nos constantes
+code_iso: variable, // "PM2.5" original de l'API
+en_service: true // Supposé true si listé
 };
 ```
 
@@ -723,42 +726,42 @@ availableVariables[pollutantCode] = {
 ```typescript
 // Défini dans src/types/index.ts
 export const ATMOMICRO_POLLUTANT_MAPPING: Record<string, string> = {
-  "PM2.5": "pm25",
-  PM10: "pm10",
-  PM1: "pm1",
-  NO2: "no2",
-  O3: "o3",
-  SO2: "so2",
+"PM2.5": "pm25",
+PM10: "pm10",
+PM1: "pm1",
+NO2: "no2",
+O3: "o3",
+SO2: "so2",
 };
 ```
 
 ### Différences importantes entre les sources
 
-| Aspect                      | AtmoRef                                                     | AtmoMicro                                                      |
+| Aspect | AtmoRef | AtmoMicro |
 | --------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
-| **Format variables API**    | Objet JSON structuré                                        | Chaîne de caractères (string)                                  |
-| **Codes dans l'API**        | Codes numériques (`"01"`, `"03"`, `"24"`)                   | Codes texte (`"PM2.5"`, `"PM10"`, `"NO2"`)                     |
-| **Clés retournées**         | Codes bruts (`"01"`, `"39"`)                                | **Normalisées** (`"pm25"`, `"pm10"`)                           |
-| **Transformation**          | ❌ Aucune (données brutes)                                  | ✅ Oui (parsing + construction d'objet)                        |
-| **Mapping nécessaire**      | ✅ Oui (`"01" → "so2"`)                                     | ❌ Non (déjà `"pm25"`)                                         |
-| **Champs API**              | `label`, `code_iso`, `date_debut`, `date_fin`, `en_service` | Uniquement `variables` (string)                                |
-| **Champs créés par code**   | ❌ Aucun (tout vient de l'API)                              | ✅ `label`, `code_iso`, `en_service` (objet entier construit)  |
-| **Variables non-polluants** | Uniquement polluants                                        | Inclut Air Pres., Air Temp., Air Hum. (filtrés par notre code) |
+| **Format variables API** | Objet JSON structuré | Chaîne de caractères (string) |
+| **Codes dans l'API** | Codes numériques (`"01"`, `"03"`, `"24"`) | Codes texte (`"PM2.5"`, `"PM10"`, `"NO2"`) |
+| **Clés retournées** | Codes bruts (`"01"`, `"39"`) | **Normalisées** (`"pm25"`, `"pm10"`) |
+| **Transformation** | Aucune (données brutes) | Oui (parsing + construction d'objet) |
+| **Mapping nécessaire** | Oui (`"01" → "so2"`) | Non (déjà `"pm25"`) |
+| **Champs API** | `label`, `code_iso`, `date_debut`, `date_fin`, `en_service` | Uniquement `variables` (string) |
+| **Champs créés par code** | Aucun (tout vient de l'API) | `label`, `code_iso`, `en_service` (objet entier construit) |
+| **Variables non-polluants** | Uniquement polluants | Inclut Air Pres., Air Temp., Air Hum. (filtrés par notre code) |
 
-**⚠️ Différence clé à comprendre** :
+**Différence clé** à comprendre** :
 
 **AtmoRef** :
 
-- ✅ L'API retourne **directement** un objet structuré avec tous les champs
-- ❌ **Pas de transformation**, on utilise `station.variables` tel quel
-- 🔑 Les **clés** sont les codes numériques de l'API (`"01"`, `"03"`, `"39"`)
+- L'API retourne **directement** un objet structuré avec tous les champs
+- **Pas de transformation**, on utilise `station.variables` tel quel
+- Les **clés** sont les codes numériques de l'API (`"01"`, `"03"`, `"39"`)
 
 **AtmoMicro** :
 
-- ❌ L'API retourne seulement une **string** : `"PM10, PM2.5, Air Pres., ..."`
-- ✅ **Transformation complète** : parsing + filtrage + construction d'objet
-- 🔑 Les **clés** sont normalisées par notre code (`"pm25"`, `"pm10"`, `"pm1"`)
-- 📝 Le champ `code_iso` stocke le texte original (`"PM2.5"`) pour référence
+- L'API retourne seulement une **string** : `"PM10, PM2.5, Air Pres., ..."`
+- **Transformation complète** : parsing + filtrage + construction d'objet
+- Les **clés** sont normalisées par notre code (`"pm25"`, `"pm10"`, `"pm1"`)
+- Le champ `code_iso` stocke le texte original (`"PM2.5"`) pour référence
 
 **Conséquence pour la comparaison** :
 
@@ -767,31 +770,31 @@ export const ATMOMICRO_POLLUTANT_MAPPING: Record<string, string> = {
 
 ---
 
-## 📋 Récapitulatif : API vs Code
+## Récapitulatif : API vs Code
 
 Pour clarifier ce qui vient directement de l'API et ce qui est créé/transformé par notre code :
 
 ### AtmoRef : Données brutes de l'API
 
-| Champ              | Source | Valeur exemple                | Transformation |
+| Champ | Source | Valeur exemple | Transformation |
 | ------------------ | ------ | ----------------------------- | -------------- |
-| **Clé de l'objet** | ✅ API | `"01"`, `"03"`, `"39"`        | ❌ Aucune      |
-| `label`            | ✅ API | `"SO2"`, `"NO2"`, `"PM2.5"`   | ❌ Aucune      |
-| `code_iso`         | ✅ API | `"01"`, `"03"`, `"39"`        | ❌ Aucune      |
-| `date_debut`       | ✅ API | `"2019-03-08T12:00:00+00:00"` | ❌ Aucune      |
-| `date_fin`         | ✅ API | `null` ou `"2025-08-12..."`   | ❌ Aucune      |
-| `en_service`       | ✅ API | `true` ou `false`             | ❌ Aucune      |
+| **Clé de l'objet** | API | `"01"`, `"03"`, `"39"` | Aucune |
+| `label` | API | `"SO2"`, `"NO2"`, `"PM2.5"` | Aucune |
+| `code_iso` | API | `"01"`, `"03"`, `"39"` | Aucune |
+| `date_debut` | API | `"2019-03-08T12:00:00+00:00"` | Aucune |
+| `date_fin` | API | `null` ou `"2025-08-12..."` | Aucune |
+| `en_service` | API | `true` ou `false` | Aucune |
 
 **Résumé AtmoRef** : `return station.variables` → **Aucune transformation**, données brutes de l'API.
 
 ### AtmoMicro : Données transformées par notre code
 
-| Champ              | Source  | Valeur exemple               | Transformation                          |
+| Champ | Source | Valeur exemple | Transformation |
 | ------------------ | ------- | ---------------------------- | --------------------------------------- |
-| **Clé de l'objet** | ❌ Code | `"pm25"`, `"pm10"`, `"pm1"`  | ✅ Mapping `"PM2.5" → "pm25"`           |
-| `label`            | ❌ Code | `"PM₂.₅"`, `"PM₁₀"`, `"PM₁"` | ✅ Pris depuis `pollutants[].name`      |
-| `code_iso`         | ✅ API  | `"PM2.5"`, `"PM10"`, `"PM1"` | ❌ String originale conservée           |
-| `en_service`       | ❌ Code | `true`                       | ✅ Toujours `true` (si présent = actif) |
+| **Clé de l'objet** | Code | `"pm25"`, `"pm10"`, `"pm1"` | Mapping `"PM2.5" → "pm25"` |
+| `label` | Code | `"PM₂.₅"`, `"PM₁₀"`, `"PM₁"` | Pris depuis `pollutants[].name` |
+| `code_iso` | API | `"PM2.5"`, `"PM10"`, `"PM1"` | String originale conservée |
+| `en_service` | Code | `true` | Toujours `true` (si présent = actif) |
 
 **Résumé AtmoMicro** : L'API retourne `variables: "PM10, PM2.5, ..."` (string) → **Transformation complète** pour créer un objet compatible avec AtmoRef.
 
@@ -809,17 +812,17 @@ Pour clarifier ce qui vient directement de l'API et ce qui est créé/transform�
 
 **Objectif final** : Avoir le **même format de `variables`** pour les deux sources afin de faciliter le traitement unifié dans `ComparisonSidePanel`.
 
-### 💡 Pourquoi créer des champs non utilisés ?
+### Pourquoi créer des champs non utilisés ?
 
 **Question** : Pourquoi créer `label` et `code_iso` pour AtmoMicro alors qu'ils ne sont jamais utilisés dans le code ?
 
 **Analyse de l'utilisation réelle** :
 
-| Champ        | Créé pour AtmoMicro | Utilisé dans le code | Nécessité        |
+| Champ | Créé pour AtmoMicro | Utilisé dans le code | Nécessité |
 | ------------ | ------------------- | -------------------- | ---------------- |
-| `label`      | ✅ Oui              | ❌ **JAMAIS**        | ❌ Non utilisé   |
-| `code_iso`   | ✅ Oui              | ❌ **JAMAIS**        | ❌ Non utilisé   |
-| `en_service` | ✅ Oui              | ✅ **OUI** (partout) | ✅ **ESSENTIEL** |
+| `label` | Oui | **JAMAIS** | Non utilisé |
+| `code_iso` | Oui | **JAMAIS** | Non utilisé |
+| `en_service` | Oui | **OUI** (partout) | **ESSENTIEL** |
 
 **Seul `en_service` est réellement utilisé** :
 
@@ -835,9 +838,9 @@ return mappedCode === pollutantCode && variable.en_service;
 ```typescript
 // Type unifié pour les deux sources
 interface StationVariable {
-  label: string; // ← Requis par le type
-  code_iso: string; // ← Requis par le type
-  en_service: boolean;
+label: string; // ← Requis par le type
+code_iso: string; // ← Requis par le type
+en_service: boolean;
 }
 
 // Sans ces champs, erreur TypeScript :
@@ -866,11 +869,11 @@ Créer 2 strings supplémentaires par polluant n'a aucun impact sur les performa
 ```typescript
 // Option : Types différents par source
 type AtmoRefVariable = { label: string; code_iso: string; en_service: boolean; ... };
-type AtmoMicroVariable = { en_service: boolean };  // Minimal
+type AtmoMicroVariable = { en_service: boolean }; // Minimal
 
-// ❌ Problème : Complexifie le code avec des guards de type partout
+// Problème : Complexifie le code avec des guards de type partout
 if (station.source === "atmoRef" && "label" in variable) {
-  // ...
+// ...
 }
 ```
 
@@ -897,23 +900,23 @@ GET https://api.atmosud.org/observations/stations/mesures?format=json&station_id
 
 ```json
 {
-  "mesures": [
-    {
-      "id_station": "FR24039",
-      "nom_station": "Marseille Place Verneuil",
-      "date_debut": "2025-10-09T07:00:00+00:00",
-      "valeur": 4.8,
-      "unite": "µg-m3",
-      "validation": "validée"
-    },
-    {
-      "id_station": "FR24039",
-      "date_debut": "2025-10-09T08:00:00+00:00",
-      "valeur": 4.7,
-      "unite": "µg-m3",
-      "validation": "validée"
-    }
-  ]
+"mesures": [
+{
+"id_station": "FR24039",
+"nom_station": "Marseille Place Verneuil",
+"date_debut": "2025-10-09T07:00:00+00:00",
+"valeur": 4.8,
+"unite": "µg-m3",
+"validation": "validée"
+},
+{
+"id_station": "FR24039",
+"date_debut": "2025-10-09T08:00:00+00:00",
+"valeur": 4.7,
+"unite": "µg-m3",
+"validation": "validée"
+}
+]
 }
 ```
 
@@ -937,28 +940,28 @@ GET https://api.atmosud.org/observations/capteurs/mesures?id_site=1175&format=js
 
 ```json
 [
-  {
-    "id_site": 1175,
-    "nom_site": "Aix-en-Provence Centre",
-    "variable": "PM2.5",
-    "time": "2025-10-09T07:04:07Z",
-    "lat": 43.5263,
-    "lon": 5.4454,
-    "valeur": null,
-    "valeur_ref": null,
-    "valeur_brute": 2,
-    "unite": "µg/m3",
-    "marque_capteur": "Sensirion",
-    "modele_capteur": "SPS30"
-  },
-  {
-    "id_site": 1175,
-    "time": "2025-10-09T07:06:19Z",
-    "valeur": null,
-    "valeur_ref": null,
-    "valeur_brute": 2,
-    "unite": "µg/m3"
-  }
+{
+"id_site": 1175,
+"nom_site": "Aix-en-Provence Centre",
+"variable": "PM2.5",
+"time": "2025-10-09T07:04:07Z",
+"lat": 43.5263,
+"lon": 5.4454,
+"valeur": null,
+"valeur_ref": null,
+"valeur_brute": 2,
+"unite": "µg/m3",
+"marque_capteur": "Sensirion",
+"modele_capteur": "SPS30"
+},
+{
+"id_site": 1175,
+"time": "2025-10-09T07:06:19Z",
+"valeur": null,
+"valeur_ref": null,
+"valeur_brute": 2,
+"unite": "µg/m3"
+}
 ]
 ```
 
@@ -977,21 +980,23 @@ GET https://api.atmosud.org/observations/capteurs/mesures?id_site=1175&format=js
 
 ```typescript
 export interface StationInfo {
-  id: string; // ID unique de la station
-  name: string; // Nom de la station
-  address: string; // Adresse complète
-  departmentId: string; // ID du département
-  source: string; // "atmoRef" | "atmoMicro"
-  variables: Record<string, StationVariable>; // Variables disponibles
+id: string; // ID unique de la station
+name: string; // Nom de la station
+address: string; // Adresse complète
+departmentId: string; // ID du département
+source: string; // "atmoRef" | "atmoMicro" | "nebuleair"
+variables: Record<string, StationVariable>; // Variables disponibles
+sensorModel?: string; // Modèle du capteur (AtmoMicro)
+lastSeenSec?: number; // Dernière émission en secondes (NebuleAir)
 }
 
 interface StationVariable {
-  label: string; // Nom complet du polluant
-  code_iso: string; // Code ISO original de l'API
-  en_service: boolean; // Si la variable est actuellement active
-  // Champs supplémentaires pour AtmoRef :
-  date_debut?: string; // Date de début de mesure (AtmoRef uniquement)
-  date_fin?: string | null; // Date de fin de mesure (AtmoRef uniquement)
+label: string; // Nom complet du polluant
+code_iso: string; // Code ISO original de l'API
+en_service: boolean; // Si la variable est actuellement active
+// Champs supplémentaires pour AtmoRef :
+date_debut?: string; // Date de début de mesure (AtmoRef uniquement)
+date_fin?: string | null; // Date de fin de mesure (AtmoRef uniquement)
 }
 ```
 
@@ -1001,38 +1006,38 @@ interface StationVariable {
 
 ```json
 {
-  "01": {
-    "label": "SO2",
-    "code_iso": "01",
-    "date_debut": "2019-03-08T12:00:00+00:00",
-    "date_fin": null,
-    "en_service": true
-  },
-  "03": {
-    "label": "NO2",
-    "code_iso": "03",
-    "date_debut": "2019-03-08T12:00:00+00:00",
-    "date_fin": null,
-    "en_service": true
-  },
-  "39": {
-    "label": "PM2.5",
-    "code_iso": "39",
-    "date_debut": "2021-12-10T00:00:00+00:00",
-    "date_fin": null,
-    "en_service": true
-  },
-  "24": {
-    "label": "PM10",
-    "code_iso": "24",
-    "date_debut": "2018-10-16T15:00:00+00:00",
-    "date_fin": "2023-03-27T14:30:00+00:00",
-    "en_service": false
-  }
+"01": {
+"label": "SO2",
+"code_iso": "01",
+"date_debut": "2019-03-08T12:00:00+00:00",
+"date_fin": null,
+"en_service": true
+},
+"03": {
+"label": "NO2",
+"code_iso": "03",
+"date_debut": "2019-03-08T12:00:00+00:00",
+"date_fin": null,
+"en_service": true
+},
+"39": {
+"label": "PM2.5",
+"code_iso": "39",
+"date_debut": "2021-12-10T00:00:00+00:00",
+"date_fin": null,
+"en_service": true
+},
+"24": {
+"label": "PM10",
+"code_iso": "24",
+"date_debut": "2018-10-16T15:00:00+00:00",
+"date_fin": "2023-03-27T14:30:00+00:00",
+"en_service": false
+}
 }
 ```
 
-**✅ Tous ces champs viennent directement de l'API** - Aucune transformation appliquée.
+** Tous ces champs viennent directement de l'API** - Aucune transformation appliquée.
 
 **Code source** (AtmoRefService.ts ligne 252) :
 
@@ -1044,20 +1049,20 @@ return station.variables; // Retourné tel quel depuis l'API
 
 ```json
 {
-  "pm25": {
-    "label": "PM₂.₅",
-    "code_iso": "PM2.5",
-    "en_service": true
-  },
-  "pm10": {
-    "label": "PM₁₀",
-    "code_iso": "PM10",
-    "en_service": true
-  }
+"pm25": {
+"label": "PM₂.₅",
+"code_iso": "PM2.5",
+"en_service": true
+},
+"pm10": {
+"label": "PM₁₀",
+"code_iso": "PM10",
+"en_service": true
+}
 }
 ```
 
-**⚠️ Important** : Pour AtmoMicro, cet objet est **entièrement construit par notre code** :
+**Important** : Pour AtmoMicro, cet objet est **entièrement construit par notre code** :
 
 - `label` : Pris depuis `pollutants[pollutantCode].name` (nos constantes)
 - `code_iso` : Variable originale de l'API (`"PM2.5"`, `"PM10"`) stockée pour référence
@@ -1067,9 +1072,9 @@ return station.variables; // Retourné tel quel depuis l'API
 
 ```typescript
 availableVariables[pollutantCode] = {
-  label: pollutants[pollutantCode].name, // "PM₂.₅" depuis constants/pollutants.ts
-  code_iso: variable, // "PM2.5" original de l'API
-  en_service: true, // Supposé actif si présent dans la liste
+label: pollutants[pollutantCode].name, // "PM₂.₅" depuis constants/pollutants.ts
+code_iso: variable, // "PM2.5" original de l'API
+en_service: true, // Supposé actif si présent dans la liste
 };
 ```
 
@@ -1079,14 +1084,14 @@ availableVariables[pollutantCode] = {
 
 ```typescript
 export interface ComparisonState {
-  isComparisonMode: boolean;
-  comparedStations: StationInfo[]; // Max 5 stations
-  comparisonData: Record<string, Record<string, HistoricalDataPoint[]>>;
-  selectedPollutant: string;
-  timeRange: TimeRange;
-  timeStep: string;
-  loading: boolean;
-  error: string | null;
+isComparisonMode: boolean;
+comparedStations: StationInfo[]; // Max 10 stations
+comparisonData: Record<string, Record<string, HistoricalDataPoint[]>>;
+selectedPollutant: string;
+timeRange: TimeRange;
+timeStep: string;
+loading: boolean;
+error: string | null;
 }
 ```
 
@@ -1095,43 +1100,43 @@ export interface ComparisonState {
 ```typescript
 // Exemple avec 2 stations comparant PM2.5
 comparisonData = {
-  pm25: {
-    // Clé = polluant
-    FR24039: [
-      // Clé = ID station AtmoRef
-      {
-        timestamp: "2025-10-09T07:00:00+00:00",
-        value: 4.8,
-        unit: "µg-m3",
-      },
-      {
-        timestamp: "2025-10-09T07:15:00+00:00",
-        value: 4.8,
-        unit: "µg-m3",
-      },
-      // ... 13 points au total (tous les 15min)
-    ],
-    "1175": [
-      // Clé = ID site AtmoMicro
-      {
-        timestamp: "2025-10-09T07:04:07Z",
-        value: 2,
-        unit: "µg/m3",
-        corrected_value: undefined,
-        raw_value: 2,
-        has_correction: false,
-      },
-      {
-        timestamp: "2025-10-09T07:06:19Z",
-        value: 2,
-        unit: "µg/m3",
-        corrected_value: undefined,
-        raw_value: 2,
-        has_correction: false,
-      },
-      // ... 81 points au total (tous les ~2min)
-    ],
-  },
+pm25: {
+// Clé = polluant
+FR24039: [
+// Clé = ID station AtmoRef
+{
+timestamp: "2025-10-09T07:00:00+00:00",
+value: 4.8,
+unit: "µg-m3",
+},
+{
+timestamp: "2025-10-09T07:15:00+00:00",
+value: 4.8,
+unit: "µg-m3",
+},
+// ... 13 points au total (tous les 15min)
+],
+"1175": [
+// Clé = ID site AtmoMicro
+{
+timestamp: "2025-10-09T07:04:07Z",
+value: 2,
+unit: "µg/m3",
+corrected_value: undefined,
+raw_value: 2,
+has_correction: false,
+},
+{
+timestamp: "2025-10-09T07:06:19Z",
+value: 2,
+unit: "µg/m3",
+corrected_value: undefined,
+raw_value: 2,
+has_correction: false,
+},
+// ... 81 points au total (tous les ~2min)
+],
+},
 };
 ```
 
@@ -1147,17 +1152,17 @@ comparisonData = {
 ```typescript
 // Dans AirQualityMap.tsx (ligne 101-112)
 const [comparisonState, setComparisonState] = useState<ComparisonState>({
-  isComparisonMode: false,
-  comparedStations: [],
-  comparisonData: {},
-  selectedPollutant: selectedPollutant, // Hérite du polluant global
-  timeRange: {
-    type: "preset",
-    preset: "24h",
-  },
-  timeStep: "heure",
-  loading: false,
-  error: null,
+isComparisonMode: false,
+comparedStations: [],
+comparisonData: {},
+selectedPollutant: selectedPollutant, // Hérite du polluant global
+timeRange: {
+type: "preset",
+preset: "24h",
+},
+timeStep: "heure",
+loading: false,
+error: null,
 });
 ```
 
@@ -1179,11 +1184,11 @@ const [comparisonState, setComparisonState] = useState<ComparisonState>({
 const timestamp1 = "2025-10-09T07:00:00+00:00"; // AtmoRef
 const timestamp2 = "2025-10-09T07:00:00Z"; // AtmoMicro
 
-timestamp1 === timestamp2; // ❌ false ! (formats différents)
+timestamp1 === timestamp2; // false ! (formats différents)
 
 // Conséquence du bug : Les données ne sont jamais matchées
 const dataPoint = data[station.id].find(
-  (p) => p.timestamp === timestamp // ❌ Jamais de match
+(p) => p.timestamp === timestamp // Jamais de match
 );
 // Résultat : dataPoint = undefined → Pas de valeur dans le point du graphique
 ```
@@ -1201,7 +1206,7 @@ const date2 = new Date("2025-10-09T07:00:00Z");
 console.log(date1.getTime()); // 1759993200000
 console.log(date2.getTime()); // 1759993200000 ← IDENTIQUE !
 
-date1.getTime() === date2.getTime(); // ✅ true !
+date1.getTime() === date2.getTime(); // true !
 ```
 
 **Magie** : `getTime()` retourne le **nombre de millisecondes depuis le 1er janvier 1970 00:00:00 UTC** (timestamp Unix), indépendamment du format de la string.
@@ -1215,25 +1220,25 @@ date1.getTime() === date2.getTime(); // ✅ true !
 const allTimestamps = new Map<number, string>();
 
 stations.forEach((station) => {
-  if (data[station.id]) {
-    data[station.id].forEach((point) => {
-      // Convertir en millisecondes
-      const timestampMs = new Date(point.timestamp).getTime();
+if (data[station.id]) {
+data[station.id].forEach((point) => {
+// Convertir en millisecondes
+const timestampMs = new Date(point.timestamp).getTime();
 
-      // Utiliser les millisecondes comme clé (détection automatique des doublons)
-      if (!allTimestamps.has(timestampMs)) {
-        allTimestamps.set(timestampMs, point.timestamp);
-      }
-    });
-  }
+// Utiliser les millisecondes comme clé (détection automatique des doublons)
+if (!allTimestamps.has(timestampMs)) {
+allTimestamps.set(timestampMs, point.timestamp);
+}
+});
+}
 });
 
 // Résultat : Map avec clés numériques uniques
 // Map {
-//   1759993200000 => "2025-10-09T07:00:00+00:00",
-//   1759993447000 => "2025-10-09T07:04:07Z",
-//   1759993579000 => "2025-10-09T07:06:19Z",
-//   ...
+// 1759993200000 => "2025-10-09T07:00:00+00:00",
+// 1759993447000 => "2025-10-09T07:04:07Z",
+// 1759993579000 => "2025-10-09T07:06:19Z",
+// ...
 // }
 ```
 
@@ -1242,14 +1247,14 @@ stations.forEach((station) => {
 ```typescript
 // Convertir en array et trier numériquement
 const sortedTimestamps = Array.from(allTimestamps.entries()).sort(
-  (a, b) => a[0] - b[0] // Tri sur les millisecondes (a[0])
+(a, b) => a[0] - b[0] // Tri sur les millisecondes (a[0])
 );
 
 // Résultat : Array trié chronologiquement
 // [
-//   [1759993200000, "2025-10-09T07:00:00+00:00"],
-//   [1759993447000, "2025-10-09T07:04:07Z"],
-//   ...
+// [1759993200000, "2025-10-09T07:00:00+00:00"],
+// [1759993447000, "2025-10-09T07:04:07Z"],
+// ...
 // ]
 ```
 
@@ -1258,27 +1263,27 @@ const sortedTimestamps = Array.from(allTimestamps.entries()).sort(
 ```typescript
 // Pour chaque timestamp normalisé, chercher les valeurs de chaque station
 const transformedData = sortedTimestamps.map(([timestampMs, originalTimestamp]) => {
-  const point: any = {
-    timestamp: new Date(timestampMs).toLocaleString("fr-FR", {...}),
-    rawTimestamp: timestampMs,
-  };
+const point: any = {
+timestamp: new Date(timestampMs).toLocaleString("fr-FR", {...}),
+rawTimestamp: timestampMs,
+};
 
-  stations.forEach((station) => {
-    if (data[station.id]) {
-      // Comparaison numérique au lieu de strings
-      const dataPoint = data[station.id].find(
-        (p) => new Date(p.timestamp).getTime() === timestampMs
-      );
+stations.forEach((station) => {
+if (data[station.id]) {
+// Comparaison numérique au lieu de strings
+const dataPoint = data[station.id].find(
+(p) => new Date(p.timestamp).getTime() === timestampMs
+);
 
-      if (dataPoint) {
-        point[station.id] = dataPoint.value;  // ✅ Valeur trouvée
-        point[`${station.id}_unit`] = dataPoint.unit;
-      }
-      // Sinon : point[station.id] reste undefined
-    }
-  });
+if (dataPoint) {
+point[station.id] = dataPoint.value; // Valeur trouvée
+point[`${station.id}_unit`] = dataPoint.unit;
+}
+// Sinon : point[station.id] reste undefined
+}
+});
 
-  return point;
+return point;
 });
 ```
 
@@ -1289,43 +1294,43 @@ const transformedData = sortedTimestamps.map(([timestampMs, originalTimestamp]) 
 ```javascript
 // AtmoRef
 const dataPoint = data["FR24039"].find(
-  p => new Date(p.timestamp).getTime() === 1759993200000
+p => new Date(p.timestamp).getTime() === 1759993200000
 );
 // new Date("2025-10-09T07:00:00+00:00").getTime() = 1759993200000
-// ✅ MATCH ! Retourne { timestamp: "...", value: 4.8, unit: "µg-m3" }
+// MATCH ! Retourne { timestamp: "...", value: 4.8, unit: "µg-m3" }
 
 // AtmoMicro
 const dataPoint = data["1175"].find(
-  p => new Date(p.timestamp).getTime() === 1759993200000
+p => new Date(p.timestamp).getTime() === 1759993200000
 );
 // Aucun point à exactement 07:00:00, le premier est à 07:04:07
 // new Date("2025-10-09T07:04:07Z").getTime() = 1759993447000
-// ❌ 1759993447000 !== 1759993200000
+// 1759993447000 !== 1759993200000
 // Retourne undefined
 
 // Point du graphique généré
 {
-  timestamp: "09 oct., 09:00",
-  rawTimestamp: 1759993200000,
-  FR24039: 4.8,        // ✅ Valeur trouvée
-  1175: undefined      // Pas de mesure à cet instant précis
+timestamp: "09 oct., 09:00",
+rawTimestamp: 1759993200000,
+FR24039: 4.8, // Valeur trouvée
+1175: undefined // Pas de mesure à cet instant précis
 }
 ```
 
 #### Avantages de cette approche
 
-✅ **Compatible tous formats ISO 8601** :
+**Compatible tous formats ISO 8601** :
 
 - `"2025-10-09T07:00:00Z"` (Zulu)
 - `"2025-10-09T07:00:00+00:00"` (timezone explicite)
 - `"2025-10-09T07:00:00.000Z"` (avec millisecondes)
 - `"2025-10-09T09:00:00+02:00"` (autre timezone)
 
-✅ **Fusion automatique** : Si deux stations mesurent exactement au même instant (même milliseconde), un seul point est créé avec les deux valeurs.
+**Fusion automatique** : Si deux stations mesurent exactement au même instant (même milliseconde), un seul point est créé avec les deux valeurs.
 
-✅ **Tri chronologique fiable** : Tri numérique garanti, pas de problème d'ordre alphabétique.
+**Tri chronologique fiable** : Tri numérique garanti, pas de problème d'ordre alphabétique.
 
-✅ **Précision maximale** : Aucune approximation, précision à la milliseconde.
+**Précision maximale** : Aucune approximation, précision à la milliseconde.
 
 #### Cas particulier : Tolérance temporelle
 
@@ -1335,7 +1340,7 @@ const dataPoint = data["1175"].find(
 // Exemple non implémenté : Tolérance de 30 secondes
 const tolerance = 30000; // 30 secondes en ms
 const dataPoint = data[station.id].find(
-  (p) => Math.abs(new Date(p.timestamp).getTime() - timestampMs) <= tolerance
+(p) => Math.abs(new Date(p.timestamp).getTime() - timestampMs) <= tolerance
 );
 ```
 
@@ -1352,16 +1357,16 @@ const dataPoint = data[station.id].find(
 
 ```typescript
 const encodeUnit = (unit: string): string => {
-  const unitMap: Record<string, string> = {
-    "µg-m3": "µg/m³",
-    "µg-m³": "μg/m³",
-    "µg/m3": "µg/m³",
-    "µg/m³": "µg/m³",
-    "mg/m³": "mg/m³",
-    ppm: "ppm",
-    ppb: "ppb",
-  };
-  return unitMap[unit] || unit;
+const unitMap: Record<string, string> = {
+"µg-m3": "µg/m³",
+"µg-m³": "μg/m³",
+"µg/m3": "µg/m³",
+"µg/m³": "µg/m³",
+"mg/m³": "mg/m³",
+ppm: "ppm",
+ppb: "ppb",
+};
+return unitMap[unit] || unit;
 };
 ```
 
@@ -1370,27 +1375,27 @@ const encodeUnit = (unit: string): string => {
 ```typescript
 // Mode comparaison spécifique (ligne 75-108)
 const groupPollutantsByUnit = () => {
-  const unitGroups: Record<string, string[]> = {};
+const unitGroups: Record<string, string[]> = {};
 
-  if (source === "comparison" && stations.length > 0) {
-    const pollutant = selectedPollutants[0];
+if (source === "comparison" && stations.length > 0) {
+const pollutant = selectedPollutants[0];
 
-    // Trouver la première station avec des données
-    for (const station of stations) {
-      if (data[station.id] && data[station.id].length > 0) {
-        const unit = encodeUnit(data[station.id][0].unit);
-        if (!unitGroups[unit]) {
-          unitGroups[unit] = [];
-        }
-        if (!unitGroups[unit].includes(pollutant)) {
-          unitGroups[unit].push(pollutant);
-        }
-        break; // Une seule unité en mode comparaison
-      }
-    }
-  }
+// Trouver la première station avec des données
+for (const station of stations) {
+if (data[station.id] && data[station.id].length > 0) {
+const unit = encodeUnit(data[station.id][0].unit);
+if (!unitGroups[unit]) {
+unitGroups[unit] = [];
+}
+if (!unitGroups[unit].includes(pollutant)) {
+unitGroups[unit].push(pollutant);
+}
+break; // Une seule unité en mode comparaison
+}
+}
+}
 
-  return unitGroups;
+return unitGroups;
 };
 ```
 
@@ -1400,53 +1405,53 @@ const groupPollutantsByUnit = () => {
 
 ```javascript
 {
-  "pm25": {                           // Clé = polluant sélectionné
-    "FR24039": [                      // Clé = ID station AtmoRef
-      {
-        timestamp: "2025-10-09T07:00:00+00:00",
-        value: 4.8,
-        unit: "µg-m3"
-      },
-      {
-        timestamp: "2025-10-09T07:15:00+00:00",
-        value: 4.8,
-        unit: "µg-m3"
-      },
-      {
-        timestamp: "2025-10-09T07:30:00+00:00",
-        value: 5.1,
-        unit: "µg-m3"
-      }
-      // ... 13 points au total (tous les 15min en mode Scan)
-    ],
-    "1175": [                         // Clé = ID site AtmoMicro
-      {
-        timestamp: "2025-10-09T07:04:07Z",
-        value: 2,
-        unit: "µg/m3",
-        corrected_value: undefined,
-        raw_value: 2,
-        has_correction: false
-      },
-      {
-        timestamp: "2025-10-09T07:06:19Z",
-        value: 2,
-        unit: "µg/m3",
-        corrected_value: undefined,
-        raw_value: 2,
-        has_correction: false
-      },
-      {
-        timestamp: "2025-10-09T07:08:31Z",
-        value: 2.2,
-        unit: "µg/m3",
-        corrected_value: undefined,
-        raw_value: 2.2,
-        has_correction: false
-      }
-      // ... 81 points au total (tous les ~2min en mode Scan)
-    ]
-  }
+"pm25": { // Clé = polluant sélectionné
+"FR24039": [ // Clé = ID station AtmoRef
+{
+timestamp: "2025-10-09T07:00:00+00:00",
+value: 4.8,
+unit: "µg-m3"
+},
+{
+timestamp: "2025-10-09T07:15:00+00:00",
+value: 4.8,
+unit: "µg-m3"
+},
+{
+timestamp: "2025-10-09T07:30:00+00:00",
+value: 5.1,
+unit: "µg-m3"
+}
+// ... 13 points au total (tous les 15min en mode Scan)
+],
+"1175": [ // Clé = ID site AtmoMicro
+{
+timestamp: "2025-10-09T07:04:07Z",
+value: 2,
+unit: "µg/m3",
+corrected_value: undefined,
+raw_value: 2,
+has_correction: false
+},
+{
+timestamp: "2025-10-09T07:06:19Z",
+value: 2,
+unit: "µg/m3",
+corrected_value: undefined,
+raw_value: 2,
+has_correction: false
+},
+{
+timestamp: "2025-10-09T07:08:31Z",
+value: 2.2,
+unit: "µg/m3",
+corrected_value: undefined,
+raw_value: 2.2,
+has_correction: false
+}
+// ... 81 points au total (tous les ~2min en mode Scan)
+]
+}
 }
 ```
 
@@ -1454,35 +1459,35 @@ const groupPollutantsByUnit = () => {
 
 ```javascript
 [
-  {
-    timestamp: "09 oct., 09:00",
-    rawTimestamp: 1759993200000,
-    FR24039: 4.8,
-    FR24039_unit: "µg/m³",
-    1175: undefined              // ← AtmoMicro n'a pas de donnée à ce timestamp exact
-  },
-  {
-    timestamp: "09 oct., 09:04",
-    rawTimestamp: 1759993447000,
-    FR24039: undefined,          // ← AtmoRef n'a pas de donnée à ce timestamp exact
-    1175: 2,
-    1175_unit: "µg/m³"
-  },
-  {
-    timestamp: "09 oct., 09:06",
-    rawTimestamp: 1759993579000,
-    FR24039: undefined,
-    1175: 2,
-    1175_unit: "µg/m³"
-  },
-  {
-    timestamp: "09 oct., 09:08",
-    rawTimestamp: 1759993711000,
-    FR24039: undefined,
-    1175: 2.2,
-    1175_unit: "µg/m³"
-  },
-  // ... 94 points au total (union de tous les timestamps des 2 stations)
+{
+timestamp: "09 oct., 09:00",
+rawTimestamp: 1759993200000,
+FR24039: 4.8,
+FR24039_unit: "µg/m³",
+1175: undefined // ← AtmoMicro n'a pas de donnée à ce timestamp exact
+},
+{
+timestamp: "09 oct., 09:04",
+rawTimestamp: 1759993447000,
+FR24039: undefined, // ← AtmoRef n'a pas de donnée à ce timestamp exact
+1175: 2,
+1175_unit: "µg/m³"
+},
+{
+timestamp: "09 oct., 09:06",
+rawTimestamp: 1759993579000,
+FR24039: undefined,
+1175: 2,
+1175_unit: "µg/m³"
+},
+{
+timestamp: "09 oct., 09:08",
+rawTimestamp: 1759993711000,
+FR24039: undefined,
+1175: 2.2,
+1175_unit: "µg/m³"
+},
+// ... 94 points au total (union de tous les timestamps des 2 stations)
 ]
 ```
 
@@ -1524,15 +1529,15 @@ instantane: { aggregation: "brute", delais: 181 }
 ```javascript
 // Map<number, string> avec 94 timestamps uniques au total
 allTimestamps = [
-  [1759993200000, "2025-10-09T07:00:00+00:00"], // AtmoRef
-  [1759993447000, "2025-10-09T07:04:07Z"], // AtmoMicro seul
-  [1759993579000, "2025-10-09T07:06:19Z"], // AtmoMicro seul
-  [1759993711000, "2025-10-09T07:08:31Z"], // AtmoMicro seul
-  [1759993842000, "2025-10-09T07:10:42Z"], // AtmoMicro seul
-  [1759993974000, "2025-10-09T07:12:54Z"], // AtmoMicro seul
-  [1759994107000, "2025-10-09T07:15:07Z"], // AtmoMicro proche de 07:15
-  [1759994100000, "2025-10-09T07:15:00+00:00"], // AtmoRef
-  // ... 94 points au total (13 AtmoRef + 81 AtmoMicro)
+[1759993200000, "2025-10-09T07:00:00+00:00"], // AtmoRef
+[1759993447000, "2025-10-09T07:04:07Z"], // AtmoMicro seul
+[1759993579000, "2025-10-09T07:06:19Z"], // AtmoMicro seul
+[1759993711000, "2025-10-09T07:08:31Z"], // AtmoMicro seul
+[1759993842000, "2025-10-09T07:10:42Z"], // AtmoMicro seul
+[1759993974000, "2025-10-09T07:12:54Z"], // AtmoMicro seul
+[1759994107000, "2025-10-09T07:15:07Z"], // AtmoMicro proche de 07:15
+[1759994100000, "2025-10-09T07:15:00+00:00"], // AtmoRef
+// ... 94 points au total (13 AtmoRef + 81 AtmoMicro)
 ];
 ```
 
@@ -1546,18 +1551,18 @@ allTimestamps = [
 
 ```tsx
 {
-  comparisonState.timeStep === "instantane" && (
-    <div className="mb-3 sm:mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-      <p className="text-sm text-blue-800 font-medium">
-        Mode Scan - Résolutions temporelles variables
-      </p>
-      <p className="text-xs text-blue-700 mt-1">
-        En mode Scan, chaque source affiche sa résolution réelle : AtmoRef
-        mesure toutes les 15 minutes, AtmoMicro entre 1 et 5 minutes selon le
-        capteur. Les différences de densité des points sont normales.
-      </p>
-    </div>
-  );
+comparisonState.timeStep === "instantane" && (
+<div className="mb-3 sm:mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+<p className="text-sm text-blue-800 font-medium">
+Mode Scan - Résolutions temporelles variables
+</p>
+<p className="text-xs text-blue-700 mt-1">
+En mode Scan, chaque source affiche sa résolution réelle : AtmoRef
+mesure toutes les 15 minutes, AtmoMicro entre 1 et 5 minutes selon le
+capteur. Les différences de densité des points sont normales.
+</p>
+</div>
+);
 }
 ```
 
@@ -1582,23 +1587,25 @@ allTimestamps = [
 // Avec connectNulls=true : Ligne continue pour chaque station
 ```
 
-### Limite de 5 stations
+### Limite de 10 stations
 
 **Raison** : Performance et lisibilité
 
+La limite est définie par la constante `MAX_COMPARISON_STATIONS` (fichier `src/constants/comparison.ts`). Valeur par défaut : **10**.
+
 ```typescript
-// Vérification (ligne 728)
-if (comparisonState.comparedStations.length >= 5) {
-  console.warn("Maximum 5 stations autorisées en comparaison");
-  return;
+// Vérification dans AirQualityMap.tsx (handleAddStationToComparison)
+if (sidePanels.comparisonState.comparedStations.length >= MAX_COMPARISON_STATIONS) {
+console.warn(`Maximum ${MAX_COMPARISON_STATIONS} stations autorisées en comparaison`);
+return;
 }
 ```
 
 **Impact** :
 
-- Au-delà de 5 stations, le graphique devient illisible
-- Trop de couleurs différentes
-- Performance du navigateur
+- Au-delà de 10 stations, le graphique peut devenir moins lisible
+- Dix couleurs distinctes sont prévues dans `fallbackColors` (historicalChartUtils.ts)
+- Performance du navigateur à prendre en compte au-delà de 10 stations
 
 ---
 
@@ -1606,7 +1613,7 @@ if (comparisonState.comparedStations.length >= 5) {
 
 ### Bug #1 : Polluants communs non détectés
 
-**Date** : 9 octobre 2025  
+**Date** : 9 octobre 2025
 **Fichier** : `ComparisonSidePanel.tsx`
 
 **Problème** :
@@ -1624,15 +1631,15 @@ if (comparisonState.comparedStations.length >= 5) {
 
 ```typescript
 if (station.source === "atmoRef") {
-  const atmoRefMapping = { "01": "so2", "03": "no2", ... };
-  mappedCode = atmoRefMapping[code] || code;
+const atmoRefMapping = { "01": "so2", "03": "no2", ... };
+mappedCode = atmoRefMapping[code] || code;
 }
 // Pour AtmoMicro : pas de mapping, les clés sont déjà normalisées
 ```
 
 ### Bug #2 : Graphique vide (unitGroups)
 
-**Date** : 9 octobre 2025  
+**Date** : 9 octobre 2025
 **Fichier** : `HistoricalChart.tsx`
 
 **Problème** :
@@ -1650,21 +1657,21 @@ if (station.source === "atmoRef") {
 
 ```typescript
 if (source === "comparison" && stations.length > 0) {
-  const pollutant = selectedPollutants[0];
+const pollutant = selectedPollutants[0];
 
-  for (const station of stations) {
-    if (data[station.id] && data[station.id].length > 0) {
-      const unit = encodeUnit(data[station.id][0].unit);
-      // ...
-      break;
-    }
-  }
+for (const station of stations) {
+if (data[station.id] && data[station.id].length > 0) {
+const unit = encodeUnit(data[station.id][0].unit);
+// ...
+break;
+}
+}
 }
 ```
 
 ### Bug #3 : Points non reliés (timestamps)
 
-**Date** : 9 octobre 2025  
+**Date** : 9 octobre 2025
 **Fichier** : `HistoricalChart.tsx`
 
 **Problème** :
@@ -1689,13 +1696,13 @@ const dataPoint = data[station.id].find((p) => p.timestamp === timestamp);
 const timestampMs = new Date(point.timestamp).getTime();
 allTimestamps.set(timestampMs, point.timestamp); // Map<number, string>
 const dataPoint = data[station.id].find(
-  (p) => new Date(p.timestamp).getTime() === timestampMs
+(p) => new Date(p.timestamp).getTime() === timestampMs
 );
 ```
 
 ### Bug #4 : Lignes non tracées (connectNulls)
 
-**Date** : 9 octobre 2025  
+**Date** : 9 octobre 2025
 **Fichier** : `HistoricalChart.tsx`
 
 **Problème** :
@@ -1713,10 +1720,10 @@ const dataPoint = data[station.id].find(
 
 ```typescript
 <Line
-  key={station.id}
-  dataKey={station.id}
-  connectNulls={true} // ← Modification critique
-  // ...
+key={station.id}
+dataKey={station.id}
+connectNulls={true} // ← Modification critique
+// ...
 />
 ```
 
@@ -1730,81 +1737,85 @@ Pour ajouter une nouvelle source (ex: NebuleAir) à la comparaison :
 
 1. **Vérifier le format des variables** :
 
-   ```typescript
-   // Le service doit retourner un format cohérent
-   async fetchSiteVariables(siteId: string): Promise<
-     Record<string, { label: string; code_iso: string; en_service: boolean }>
-   >
-   ```
+```typescript
+// Le service doit retourner un format cohérent
+async fetchSiteVariables(siteId: string): Promise<
+Record<string, { label: string; code_iso: string; en_service: boolean }>
+>
+```
 
 2. **Ajouter le mapping si nécessaire** :
 
-   ```typescript
-   // Dans ComparisonSidePanel.tsx
-   else if (station.source === "nebuleair") {
-     const nebuleAirMapping = { ... };
-     mappedCode = nebuleAirMapping[code] || code;
-   }
-   ```
+```typescript
+// Dans ComparisonSidePanel.tsx
+else if (station.source === "nebuleair") {
+const nebuleAirMapping = { ... };
+mappedCode = nebuleAirMapping[code] || code;
+}
+```
 
 3. **Ajouter le support dans AirQualityMap** :
 
-   ```typescript
-   // Dans handleAddStationToComparison
-   else if (device.source === "nebuleair") {
-     const nebuleAirService = new NebuleAirService();
-     variables = await nebuleAirService.fetchSiteVariables(device.id);
-   }
+```typescript
+// Dans handleAddStationToComparison
+else if (device.source === "nebuleair") {
+const nebuleAirService = new NebuleAirService();
+variables = await nebuleAirService.fetchSiteVariables(device.id);
+}
 
-   // Dans handleLoadComparisonData
-   else if (station.source === "nebuleair") {
-     stationData = await nebuleAirService.fetchHistoricalData({...});
-   }
-   ```
+// Dans handleLoadComparisonData
+else if (station.source === "nebuleair") {
+stationData = await nebuleAirService.fetchHistoricalData({...});
+}
+```
 
 4. **Mettre à jour les labels** :
-   ```typescript
-   // Dans ComparisonSidePanel.tsx
-   {
-     station.source === "atmoRef"
-       ? "Station de référence"
-       : station.source === "atmoMicro"
-       ? "Microcapteur"
-       : "Capteur communautaire";
-   }
-   ```
+```typescript
+// Dans ComparisonSidePanel.tsx
+{
+station.source === "atmoRef"
+? "Station de référence"
+: station.source === "atmoMicro"
+? "Microcapteur"
+: "Capteur communautaire";
+}
+```
 
 ### Modification des limites
 
 **Changer le nombre maximum de stations** :
 
+Modifier la constante dans `src/constants/comparison.ts` :
+
 ```typescript
-// AirQualityMap.tsx ligne 728
-if (comparisonState.comparedStations.length >= 5) {
-  // ← Modifier ici
-  console.warn("Maximum X stations autorisées en comparaison");
-  return;
-}
+/** Nombre maximum de capteurs/stations pouvant être comparés simultanément */
+export const MAX_COMPARISON_STATIONS = 10; // ← Modifier ici
 ```
 
-**⚠️ Attention** : Au-delà de 5, prévoir :
+La vérification dans `AirQualityMap.tsx` utilise cette constante. Aucune modification supplémentaire n’est nécessaire dans le composant.
 
-- Plus de couleurs dans `fallbackColors`
+**Attention** : Si vous augmentez au-delà de 10, prévoir :
+
+- Plus de couleurs dans `fallbackColors` (historicalChartUtils.ts)
 - Tests de performance
 - Ajustements UX (lisibilité)
 
 ### Modification des couleurs des courbes
 
 ```typescript
-// HistoricalChart.tsx ligne 37-44
-const fallbackColors = [
-  "#3B82F6", // Bleu
-  "#EF4444", // Rouge
-  "#10B981", // Vert
-  "#F59E0B", // Orange
-  "#8B5CF6", // Violet
-  "#EC4899", // Rose
-  // Ajouter plus de couleurs si limite > 5
+// historicalChartUtils.ts - fallbackColors
+export const fallbackColors = [
+"#3B82F6", // Bleu
+"#EF4444", // Rouge
+"#10B981", // Vert
+"#F59E0B", // Orange
+"#8B5CF6", // Violet
+"#EC4899", // Rose
+"#06B6D4", // Cyan
+"#84CC16", // Lime
+"#F97316", // Orange vif
+"#6366F1", // Indigo
+// Ajouter plus de couleurs si MAX_COMPARISON_STATIONS > 10
 ];
 ```
 
@@ -1812,22 +1823,22 @@ const fallbackColors = [
 
 1. **Vérifier le support dans les APIs** :
 
-   ```typescript
-   // AtmoRefService.ts
-   const timeStepConfigs = {
-     // ... existants
-     "nouveau": { temporalite: "...", delais: ... }
-   };
-   ```
+```typescript
+// AtmoRefService.ts
+const timeStepConfigs = {
+// ... existants
+"nouveau": { temporalite: "...", delais: ... }
+};
+```
 
 2. **Ajouter dans ComparisonSidePanel** :
-   ```tsx
-   {[
-     { key: "instantane", label: "Scan" },
-     // ...
-     { key: "nouveau", label: "Nouveau" },
-   ].map(({ key, label }) => (...))}
-   ```
+```tsx
+{[
+{ key: "instantane", label: "Scan" },
+// ...
+{ key: "nouveau", label: "Nouveau" },
+].map(({ key, label }) => (...))}
+```
 
 ### Tests recommandés
 
@@ -1837,7 +1848,7 @@ Après toute modification, tester :
 2. **Comparaison AtmoMicro + AtmoMicro** (même source)
 3. **Comparaison AtmoRef + AtmoMicro** (sources mixtes)
 4. **Mode Scan** (résolutions différentes)
-5. **5 stations maximum** (limite)
+5. **10 stations maximum** (limite, constante `MAX_COMPARISON_STATIONS`)
 6. **Changement de polluant** (rechargement)
 7. **Changement de période** (rechargement)
 8. **Suppression de station** (mise à jour graphique)
@@ -1848,22 +1859,22 @@ Après toute modification, tester :
 
 ```typescript
 // Données reçues
-console.log("📊 [HistoricalChart] Props reçues:", { data, selectedPollutants });
+console.log(" [HistoricalChart] Props reçues:", { data, selectedPollutants });
 
 // Données transformées
-console.log("📈 [HistoricalChart] Données transformées:", {
-  chartDataLength,
-  unitGroups,
-  unitKeys,
-  chartData: chartData.slice(0, 3),
+console.log("[HistoricalChart] Données transformées:", {
+chartDataLength,
+unitGroups,
+unitKeys,
+chartData: chartData.slice(0, 3),
 });
 
 // Mode comparaison spécifique
-console.log("🔍 [HistoricalChart] Mode comparaison - Analyse:", {
-  totalPoints,
-  stations: stations.map((s) => s.id),
-  sampleData: chartData.slice(0, 5),
-  stationDataCount,
+console.log(" [HistoricalChart] Mode comparaison - Analyse:", {
+totalPoints,
+stations: stations.map((s) => s.id),
+sampleData: chartData.slice(0, 5),
+stationDataCount,
 });
 ```
 
@@ -1875,7 +1886,7 @@ console.log("🔍 [HistoricalChart] Mode comparaison - Analyse:", {
 
 ---
 
-## 🎯 Résumé visuel du fonctionnement
+## Résumé visuel du fonctionnement
 
 ### Exemple complet : Comparaison FR24039 (AtmoRef) + 1175 (AtmoMicro)
 
@@ -1897,34 +1908,34 @@ console.log("🔍 [HistoricalChart] Mode comparaison - Analyse:", {
 
 ```
 Normalisation timestamps :
-  "2025-10-09T07:00:00+00:00" → 1759993200000 (ms)
-  "2025-10-09T07:04:07Z" → 1759993447000 (ms)
+"2025-10-09T07:00:00+00:00" → 1759993200000 (ms)
+"2025-10-09T07:04:07Z" → 1759993447000 (ms)
 
 Union des timestamps :
-  94 timestamps uniques (13 + 81)
+94 timestamps uniques (13 + 81)
 
 Normalisation unités :
-  "µg-m3" → "µg/m³"
-  "µg/m3" → "µg/m³"
+"µg-m3" → "µg/m³"
+"µg/m3" → "µg/m³"
 
 Structure chartData :
-  Point 1: { timestamp: "09 oct., 09:00", FR24039: 4.8, 1175: undefined }
-  Point 2: { timestamp: "09 oct., 09:04", FR24039: undefined, 1175: 2 }
-  Point 3: { timestamp: "09 oct., 09:06", FR24039: undefined, 1175: 2 }
-  ...
-  Point 94: { timestamp: "...", FR24039: ..., 1175: ... }
+Point 1: { timestamp: "09 oct., 09:00", FR24039: 4.8, 1175: undefined }
+Point 2: { timestamp: "09 oct., 09:04", FR24039: undefined, 1175: 2 }
+Point 3: { timestamp: "09 oct., 09:06", FR24039: undefined, 1175: 2 }
+...
+Point 94: { timestamp: "...", FR24039: ..., 1175: ... }
 ```
 
 #### 3. Rendu Recharts
 
 ```
 Ligne 1 (Bleue) - "Marseille Place Verneuil - PM₂.₅" :
-  • 13 points reliés par connectNulls={true}
-  • Points espacés régulièrement (15min)
+• 13 points reliés par connectNulls={true}
+• Points espacés régulièrement (15min)
 
 Ligne 2 (Rouge) - "Aix-en-Provence Centre - PM₂.₅" :
-  • 81 points reliés par connectNulls={true}
-  • Points rapprochés (2min)
+• 81 points reliés par connectNulls={true}
+• Points rapprochés (2min)
 
 Axe X : Timestamps formatés ("09 oct., 09:00", etc.)
 Axe Y : "Concentration (µg/m³)"
@@ -1935,22 +1946,22 @@ Légende : Noms des stations + polluant
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Concentration (µg/m³)                                       │
-│   6 │                                                        │
-│     │  ●                                                     │
-│   5 │      ●─────●─────●                                    │
-│     │                    ●────●────●                        │
-│   4 │           ○○○○○○○○○○○○○○○○○○○○                       │
-│     │     ○○○○○○                        ○○○○○○○○            │
-│   3 │  ○○○                                       ○○○○○○      │
-│     │                                                        │
-│   2 │                                                        │
-│   0 └────────────────────────────────────────────────────── │
-│     07:00  07:15  07:30  07:45  08:00  08:15  08:30  ...   │
-│                                                              │
-│  Légende :                                                   │
-│  ● Ligne bleue : Marseille Place Verneuil - PM₂.₅          │
-│  ○ Ligne rouge : Aix-en-Provence Centre - PM₂.₅            │
+│ Concentration (µg/m³) │
+│ 6 │ │
+│ │ ● │
+│ 5 │ ●─────●─────● │
+│ │ ●────●────● │
+│ 4 │ ○○○○○○○○○○○○○○○○○○○○ │
+│ │ ○○○○○○ ○○○○○○○○ │
+│ 3 │ ○○○ ○○○○○○ │
+│ │ │
+│ 2 │ │
+│ 0 └────────────────────────────────────────────────────── │
+│ 07:00 07:15 07:30 07:45 08:00 08:15 08:30 ... │
+│ │
+│ Légende : │
+│ ● Ligne bleue : Marseille Place Verneuil - PM₂.₅ │
+│ ○ Ligne rouge : Aix-en-Provence Centre - PM₂.₅ │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -1968,37 +1979,37 @@ Légende : Noms des stations + polluant
 
 ```
 Activation mode comparaison
-         ↓
+↓
 Clic sur marqueur (en mode comparaison)
-         ↓
+↓
 Vérifications (limite, doublons)
-         ↓
+↓
 Récupération variables via API
-         ↓
+↓
 Création StationInfo
-         ↓
+↓
 Ajout à comparedStations
-         ↓
+↓
 Calcul polluants communs
-         ↓
+↓
 Chargement données historiques (si polluant change)
-         ↓
+↓
 Transformation des données
-         ↓
+↓
 Normalisation timestamps (ms)
-         ↓
+↓
 Création chartData
-         ↓
+↓
 Groupement par unité
-         ↓
+↓
 Rendu Recharts
-         ↓
+↓
 Affichage graphique
 ```
 
 ---
 
-## ❓ FAQ et Troubleshooting
+## FAQ et Troubleshooting
 
 ### Problème : "Aucun polluant disponible" dans le dropdown
 
@@ -2008,25 +2019,25 @@ Affichage graphique
 
 1. **Aucun polluant commun** entre les stations sélectionnées
 
-   - Exemple : Station A mesure SO2, NO2, O3 / Station B mesure PM10, PM2.5
-   - Solution : Sélectionner des stations qui mesurent au moins un polluant commun
+- Exemple : Station A mesure SO2, NO2, O3 / Station B mesure PM10, PM2.5
+- Solution : Sélectionner des stations qui mesurent au moins un polluant commun
 
 2. **Toutes les variables sont `en_service: false`**
-   - Vérifier dans les logs : `📊 [HistoricalChart] Props reçues`
-   - Solution : Choisir des stations avec des mesures actives
+- Vérifier dans les logs : ` [HistoricalChart] Props reçues`
+- Solution : Choisir des stations avec des mesures actives
 
 **Vérification** : Console logs
 
 ```javascript
 // Développer station.variables dans les logs
 variables: {
-  "39": { label: "PM2.5", en_service: false }  // ❌ Pas actif
+"39": { label: "PM2.5", en_service: false } // Pas actif
 }
 ```
 
 ### Problème : Le graphique affiche "Aucune donnée disponible"
 
-**Symptôme** : `⚠️ [HistoricalChart] Aucune donnée disponible pour le graphique`
+**Symptôme** : `[HistoricalChart] Aucune donnée disponible pour le graphique`
 
 **Causes possibles** :
 
@@ -2037,10 +2048,10 @@ variables: {
 **Vérification** : Console logs
 
 ```javascript
-📈 [HistoricalChart] Données transformées: {
-  chartDataLength: 0,        // ❌ Problème
-  unitGroups: {},            // ❌ Problème
-  unitKeys: []
+[HistoricalChart] Données transformées: {
+chartDataLength: 0, // Problème
+unitGroups: {}, // Problème
+unitKeys: []
 }
 ```
 
@@ -2060,8 +2071,8 @@ variables: {
 
 ```typescript
 <Line
-  dataKey={station.id}
-  connectNulls={true} // ✅ DOIT être true en mode comparaison
+dataKey={station.id}
+connectNulls={true} // DOIT être true en mode comparaison
 />
 ```
 
@@ -2077,11 +2088,11 @@ variables: {
 **Vérification** : Console logs
 
 ```javascript
-🔍 [HistoricalChart] Mode comparaison - Analyse des données: {
-  stationDataCount: {
-    "FR24039": 13,  // ✅ OK
-    "1175": 0       // ❌ Problème : aucun point avec valeur
-  }
+[HistoricalChart] Mode comparaison - Analyse des données: {
+stationDataCount: {
+"FR24039": 13, // OK
+"1175": 0 // Problème : aucun point avec valeur
+}
 }
 ```
 
@@ -2090,19 +2101,19 @@ variables: {
 - Vérifier que les timestamps sont bien normalisés en millisecondes
 - Vérifier que les données sont bien chargées dans `comparisonData`
 
-### Problème : Erreur "Maximum 5 stations autorisées"
+### Problème : Erreur "Maximum 10 stations autorisées"
 
-**Symptôme** : Impossible d'ajouter une 6ème station.
+**Symptôme** : Impossible d'ajouter une 11ème station.
 
-**Cause** : Limite hardcodée pour la performance et lisibilité.
+**Cause** : Limite définie par `MAX_COMPARISON_STATIONS` (10 par défaut) pour la performance et la lisibilité.
 
-**Solution** : Si vous devez vraiment comparer plus de 5 stations :
+**Solution** : Si vous devez vraiment comparer plus de 10 stations :
 
-1. Modifier la limite dans `AirQualityMap.tsx` ligne 728
-2. Ajouter plus de couleurs dans `fallbackColors`
+1. Modifier la constante dans `src/constants/comparison.ts`
+2. Ajouter plus de couleurs dans `fallbackColors` (historicalChartUtils.ts)
 3. Tester la performance avec le nombre souhaité
 
-⚠️ **Non recommandé** : Au-delà de 5, le graphique devient difficile à lire.
+**À considérer** : Au-delà de 10, le graphique peut devenir difficile à lire.
 
 ### Problème : Erreur "Station déjà ajoutée"
 
@@ -2122,15 +2133,15 @@ variables: {
 
 ```typescript
 const unitMap = {
-  "µg-m3": "µg/m³",
-  "nouveau-format": "µg/m³", // ← Ajouter ici
-  // ...
+"µg-m3": "µg/m³",
+"nouveau-format": "µg/m³", // ← Ajouter ici
+// ...
 };
 ```
 
 ---
 
-## 📚 Références
+## Références
 
 ### Références externes
 
@@ -2149,15 +2160,19 @@ const unitMap = {
 ### Fichiers clés du code
 
 - `src/components/map/AirQualityMap.tsx` : Orchestrateur principal
-- `src/components/map/ComparisonSidePanel.tsx` : Interface de comparaison
-- `src/components/map/HistoricalChart.tsx` : Visualisation graphique
+- `src/components/map/handlers/comparisonHandlers.ts` : `createLoadComparisonDataHandler`, chargement des données (atmoRef, atmoMicro, nebuleair)
+- `src/components/panels/ComparisonSidePanel.tsx` : Interface de comparaison
+- `src/components/charts/` : HistoricalChart et utilitaires (visualisation graphique)
+- `src/constants/comparison.ts` : Constante `MAX_COMPARISON_STATIONS` (limite de capteurs)
+- `src/components/charts/utils/historicalChartUtils.ts` : Couleurs de fallback pour les courbes
 - `src/services/AtmoRefService.ts` : Service AtmoRef
 - `src/services/AtmoMicroService.ts` : Service AtmoMicro
+- `src/services/NebuleAirService.ts` : Service NebuleAir (comparaison)
 - `src/types/index.ts` : Types TypeScript et mappings
 
 ---
 
 **Fin de la documentation technique**
 
-_Dernière mise à jour : 9 octobre 2025_  
-_Version : 1.0 - Documentation complète avec formats API réels et corrections de bugs_
+_Dernière mise à jour : 16 février 2026_
+_Version : 1.2 - Support NebuleAir en comparaison ; toggle ajout/retrait station ; fetchSiteVariables AtmoMicro retourne { variables, sensorModel } ; état comparaison via sidePanels_

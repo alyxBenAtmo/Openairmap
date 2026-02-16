@@ -20,18 +20,18 @@ ReactOpenAirMap est une application React/TypeScript qui affiche des données de
 ```
 App.tsx (Composant racine)
 ├── Hooks personnalisés
-│   ├── useAirQualityData (Gestion des données en temps réel)
-│   ├── useTemporalVisualization (Mode historique)
-│   └── useDomainConfig (Configuration par domaine)
+│ ├── useAirQualityData (Gestion des données en temps réel)
+│ ├── useTemporalVisualization (Mode historique)
+│ └── useDomainConfig (Configuration par domaine)
 ├── Services de données (Pattern Factory)
-│   ├── DataServiceFactory
-│   ├── AtmoRefService, AtmoMicroService
-│   ├── NebuleAirService, PurpleAirService
-│   └── SensorCommunityService, SignalAirService
+│ ├── DataServiceFactory
+│ ├── AtmoRefService, AtmoMicroService
+│ ├── NebuleAirService, PurpleAirService
+│ └── SensorCommunityService, SignalAirService
 └── Composants UI
-    ├── AirQualityMap (Carte Leaflet)
-    ├── Controls (Menus déroulants)
-    └── Panels (Affichage des détails)
+├── AirQualityMap (Carte Leaflet)
+├── Controls (Menus déroulants)
+└── Panels (Affichage des détails)
 ```
 
 ### Principe de fonctionnement
@@ -48,7 +48,7 @@ App.tsx (Composant racine)
 
 ```typescript
 const [selectedPollutant, setSelectedPollutant] = useState<string>(
-  getDefaultPollutant()
+getDefaultPollutant()
 );
 const [devices, setDevices] = useState<MeasurementDevice[]>([]);
 ```
@@ -68,30 +68,30 @@ const [devices, setDevices] = useState<MeasurementDevice[]>([]);
 
 ```typescript
 useEffect(() => {
-  fetchData();
+fetchData();
 }, [fetchData]);
 
 useEffect(() => {
-  if (intervalRef.current) {
-    clearInterval(intervalRef.current);
-    intervalRef.current = null;
-  }
+if (intervalRef.current) {
+clearInterval(intervalRef.current);
+intervalRef.current = null;
+}
 
-  if (!autoRefreshEnabled || selectedSources.length === 0) {
-    return;
-  }
+if (!autoRefreshEnabled || selectedSources.length === 0) {
+return;
+}
 
-  const refreshInterval = getRefreshInterval(selectedTimeStep);
-  intervalRef.current = setInterval(() => {
-    fetchData();
-  }, refreshInterval) as any;
+const refreshInterval = getRefreshInterval(selectedTimeStep);
+intervalRef.current = setInterval(() => {
+fetchData();
+}, refreshInterval) as any;
 
-  return () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  };
+return () => {
+if (intervalRef.current) {
+clearInterval(intervalRef.current);
+intervalRef.current = null;
+}
+};
 }, [selectedTimeStep, selectedSources, autoRefreshEnabled, fetchData]);
 ```
 
@@ -114,14 +114,15 @@ useEffect(() => {
 
 ```typescript
 const fetchData = useCallback(async () => {
-  // Logique de récupération des données
+// Logique de récupération des données
 }, [
-  selectedPollutant,
-  selectedSources,
-  selectedTimeStep,
-  signalAirPeriod,
-  mobileAirPeriod,
-  selectedMobileAirSensor,
+selectedPollutant,
+selectedSources,
+selectedTimeStep,
+signalAirPeriod,
+mobileAirPeriod,
+selectedMobileAirSensor,
+signalAirOptions,
 ]);
 ```
 
@@ -158,21 +159,21 @@ const atmoMicroService = useRef(new AtmoMicroService());
 
 ```typescript
 const defaultTimeStep = useMemo(() => {
-  const defaultTimeStep = Object.entries(pasDeTemps).find(
-    ([_, timeStep]) => timeStep.activated
-  );
-  return defaultTimeStep ? defaultTimeStep[0] : "heure";
+const defaultTimeStep = Object.entries(pasDeTemps).find(
+([_, timeStep]) => timeStep.activated
+);
+return defaultTimeStep ? defaultTimeStep[0] : "heure";
 }, []);
 
 const defaultSignalAirPeriod = useMemo(() => {
-  const end = new Date();
-  const start = new Date();
-  start.setDate(start.getDate() - 2);
+const end = new Date();
+const start = new Date();
+start.setDate(start.getDate() - 2);
 
-  return {
-    startDate: start.toISOString().split("T")[0],
-    endDate: end.toISOString().split("T")[0],
-  };
+return {
+startDate: start.toISOString().split("T")[0],
+endDate: end.toISOString().split("T")[0],
+};
 }, []);
 ```
 
@@ -192,36 +193,36 @@ L'application utilise le pattern Factory pour gérer les différents services de
 
 ```typescript
 export class DataServiceFactory {
-  private static services: Map<string, DataService> = new Map();
+private static services: Map<string, DataService> = new Map();
 
-  static getService(sourceCode: string): DataService {
-    if (!this.services.has(sourceCode)) {
-      let service: DataService;
+static getService(sourceCode: string): DataService {
+if (!this.services.has(sourceCode)) {
+let service: DataService;
 
-      switch (sourceCode) {
-        case "atmoRef":
-          service = new AtmoRefService();
-          break;
-        case "atmoMicro":
-          service = new AtmoMicroService();
-          break;
-        case "nebuleair":
-          service = new NebuleAirService();
-          break;
-        // ... autres services
-        default:
-          throw new Error(`Service non supporté pour la source: ${sourceCode}`);
-      }
+switch (sourceCode) {
+case "atmoRef":
+service = new AtmoRefService();
+break;
+case "atmoMicro":
+service = new AtmoMicroService();
+break;
+case "nebuleair":
+service = new NebuleAirService();
+break;
+// ... autres services
+default:
+throw new Error(`Service non supporté pour la source: ${sourceCode}`);
+}
 
-      this.services.set(sourceCode, service);
-    }
+this.services.set(sourceCode, service);
+}
 
-    return this.services.get(sourceCode)!;
-  }
+return this.services.get(sourceCode)!;
+}
 
-  static getServices(sourceCodes: string[]): DataService[] {
-    return sourceCodes.map((code) => this.getService(code));
-  }
+static getServices(sourceCodes: string[]): DataService[] {
+return sourceCodes.map((code) => this.getService(code));
+}
 }
 ```
 
@@ -236,18 +237,18 @@ export class DataServiceFactory {
 
 ```typescript
 export interface DataService {
-  fetchData(params: {
-    pollutant: string;
-    timeStep: string;
-    sources: string[];
-    signalAirPeriod?: { startDate: string; endDate: string };
-    mobileAirPeriod?: { startDate: string; endDate: string };
-    selectedSensors?: string[];
-  }): Promise<MeasurementDevice[] | SignalAirReport[]>;
+fetchData(params: {
+pollutant: string;
+timeStep: string;
+sources: string[];
+signalAirPeriod?: { startDate: string; endDate: string };
+mobileAirPeriod?: { startDate: string; endDate: string };
+selectedSensors?: string[];
+}): Promise<MeasurementDevice[] | SignalAirReport[]>;
 }
 ```
 
-**Principe** : Tous les services implémentent la même interface, garantissant une utilisation cohérente.
+**Principe** : Tous les services implémentent la même interface de base. Certains acceptent des paramètres supplémentaires (ex. SignalAir : `signalAirSelectedTypes` pour filtrer les types de signalements).
 
 ### Services disponibles
 
@@ -265,48 +266,48 @@ export interface DataService {
 
 ```mermaid
 graph TD
-    A[App.tsx se monte] --> B[useDomainConfig détecte le domaine]
-    B --> C[Configuration chargée]
-    C --> D[États par défaut initialisés]
-    D --> E[useAirQualityData se déclenche]
-    E --> F[fetchData appelé]
+A[App.tsx se monte] --> B[useDomainConfig détecte le domaine]
+B --> C[Configuration chargée]
+C --> D[États par défaut initialisés]
+D --> E[useAirQualityData se déclenche]
+E --> F[fetchData appelé]
 ```
 
 ### 2. Sélection utilisateur
 
 ```mermaid
 graph TD
-    A[Utilisateur change un paramètre] --> B[useState met à jour l'état]
-    B --> C[useCallback fetchData se recrée]
-    C --> D[useEffect détecte le changement]
-    D --> E[fetchData appelé]
-    E --> F[DataServiceFactory.getServices]
-    F --> G[Services récupèrent les données]
-    G --> H[Données affichées sur la carte]
+A[Utilisateur change un paramètre] --> B[useState met à jour l'état]
+B --> C[useCallback fetchData se recrée]
+C --> D[useEffect détecte le changement]
+D --> E[fetchData appelé]
+E --> F[DataServiceFactory.getServices]
+F --> G[Services récupèrent les données]
+G --> H[Données affichées sur la carte]
 ```
 
 ### 3. Auto-refresh
 
 ```mermaid
 graph TD
-    A[useEffect auto-refresh] --> B[setInterval créé]
-    B --> C[fetchData appelé périodiquement]
-    C --> D[Données mises à jour]
-    D --> E[Carte re-rendue]
-    E --> C
+A[useEffect auto-refresh] --> B[setInterval créé]
+B --> C[fetchData appelé périodiquement]
+C --> D[Données mises à jour]
+D --> E[Carte re-rendue]
+E --> C
 ```
 
 ### 4. Mode historique
 
 ```mermaid
 graph TD
-    A[Mode historique activé] --> B[useTemporalVisualization]
-    B --> C[Période sélectionnée]
-    C --> D[loadHistoricalData]
-    D --> E[Services.fetchTemporalData]
-    E --> F[Données temporelles chargées]
-    F --> G[Contrôles de lecture]
-    G --> H[Navigation temporelle]
+A[Mode historique activé] --> B[useTemporalVisualization]
+B --> C[Période sélectionnée]
+C --> D[loadHistoricalData]
+D --> E[Services.fetchTemporalData]
+E --> F[Données temporelles chargées]
+F --> G[Contrôles de lecture]
+G --> H[Navigation temporelle]
 ```
 
 ## Types TypeScript
@@ -316,43 +317,43 @@ graph TD
 ```typescript
 // Appareil de mesure
 export interface MeasurementDevice {
-  id: string;
-  name: string;
-  latitude: number;
-  longitude: number;
-  source: string;
-  pollutant: string;
-  value: number;
-  unit: string;
-  timestamp: string;
-  status: "active" | "inactive" | "error";
-  qualityLevel?: string;
-  address?: string;
-  departmentId?: string;
-  // Propriétés pour les valeurs corrigées (AtmoMicro)
-  corrected_value?: number;
-  raw_value?: number;
-  has_correction?: boolean;
+id: string;
+name: string;
+latitude: number;
+longitude: number;
+source: string;
+pollutant: string;
+value: number;
+unit: string;
+timestamp: string;
+status: "active" | "inactive" | "error";
+qualityLevel?: string;
+address?: string;
+departmentId?: string;
+// Propriétés pour les valeurs corrigées (AtmoMicro)
+corrected_value?: number;
+raw_value?: number;
+has_correction?: boolean;
 }
 
 // Signalement SignalAir
 export interface SignalAirReport {
-  id: string;
-  latitude: number;
-  longitude: number;
-  source: string;
-  timestamp: string;
-  signalType: string;
-  signalDescription: string;
+id: string;
+latitude: number;
+longitude: number;
+source: string;
+timestamp: string;
+signalType: string;
+signalDescription: string;
 }
 
 // Point temporel pour le mode historique
 export interface TemporalDataPoint {
-  timestamp: string;
-  devices: MeasurementDevice[];
-  deviceCount: number;
-  averageValue: number;
-  qualityLevels: Record<string, number>;
+timestamp: string;
+devices: MeasurementDevice[];
+deviceCount: number;
+averageValue: number;
+qualityLevels: Record<string, number>;
 }
 ```
 
@@ -360,16 +361,16 @@ export interface TemporalDataPoint {
 
 ```typescript
 export interface DomainConfig {
-  logo: string;
-  mapCenter: [number, number];
-  mapZoom: number;
-  title: string;
-  links: {
-    website: string;
-    contact: string;
-    about?: string;
-  };
-  organization: string;
+logo: string;
+mapCenter: [number, number];
+mapZoom: number;
+title: string;
+links: {
+website: string;
+contact: string;
+about?: string;
+};
+organization: string;
 }
 ```
 
@@ -379,32 +380,32 @@ export interface DomainConfig {
 
 ```typescript
 export const useAirQualityData = ({
-  selectedPollutant,
-  selectedSources,
-  selectedTimeStep,
+selectedPollutant,
+selectedSources,
+selectedTimeStep,
 }: // ... autres paramètres
 UseAirQualityDataProps) => {
-  // État local
-  const [devices, setDevices] = useState<MeasurementDevice[]>([]);
-  const [loading, setLoading] = useState(false);
+// État local
+const [devices, setDevices] = useState<MeasurementDevice[]>([]);
+const [loading, setLoading] = useState(false);
 
-  // Logique métier
-  const fetchData = useCallback(async () => {
-    // ...
-  }, [dépendances]);
+// Logique métier
+const fetchData = useCallback(async () => {
+// ...
+}, [dépendances]);
 
-  // Effets
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+// Effets
+useEffect(() => {
+fetchData();
+}, [fetchData]);
 
-  // Retour de l'interface publique
-  return {
-    devices,
-    loading,
-    error,
-    lastRefresh,
-  };
+// Retour de l'interface publique
+return {
+devices,
+loading,
+error,
+lastRefresh,
+};
 };
 ```
 
@@ -418,13 +419,13 @@ UseAirQualityDataProps) => {
 
 ```typescript
 try {
-  const data = await service.fetchData(params);
-  // Traitement des données
+const data = await service.fetchData(params);
+// Traitement des données
 } catch (err) {
-  console.error(`❌ Erreur pour ${sourceCode}:`, err);
-  // En cas d'erreur, on garde les données existantes
+console.error(` Erreur pour ${sourceCode}:`, err);
+// En cas d'erreur, on garde les données existantes
 } finally {
-  setLoadingSources((prev) => prev.filter((source) => source !== sourceCode));
+setLoadingSources((prev) => prev.filter((source) => source !== sourceCode));
 }
 ```
 
@@ -434,17 +435,17 @@ try {
 
 ```typescript
 useEffect(() => {
-  // Configuration
-  const interval = setInterval(() => {
-    fetchData();
-  }, refreshInterval);
+// Configuration
+const interval = setInterval(() => {
+fetchData();
+}, refreshInterval);
 
-  // Cleanup
-  return () => {
-    if (interval) {
-      clearInterval(interval);
-    }
-  };
+// Cleanup
+return () => {
+if (interval) {
+clearInterval(interval);
+}
+};
 }, [dépendances]);
 ```
 
@@ -471,19 +472,19 @@ useEffect(() => {
 ```typescript
 // Synchronisation du timeStep
 useEffect(() => {
-  setState((prev) => {
-    if (prev.data.length > 0 && prev.timeStep !== timeStep) {
-      return {
-        ...prev,
-        timeStep: timeStep,
-        data: [], // Réinitialiser les données
-        currentDate: "",
-        isPlaying: false,
-        error: null,
-      };
-    }
-    return { ...prev, timeStep: timeStep };
-  });
+setState((prev) => {
+if (prev.data.length > 0 && prev.timeStep !== timeStep) {
+return {
+...prev,
+timeStep: timeStep,
+data: [], // Réinitialiser les données
+currentDate: "",
+isPlaying: false,
+error: null,
+};
+}
+return { ...prev, timeStep: timeStep };
+});
 }, [timeStep]);
 ```
 
@@ -494,16 +495,16 @@ useEffect(() => {
 ```typescript
 // Évite la recréation de fonctions
 const fetchData = useCallback(async () => {
-  // ...
+// ...
 }, [dépendances]);
 
 // Évite les calculs coûteux
 const defaultTimeStep = useMemo(() => {
-  return (
-    Object.entries(pasDeTemps).find(
-      ([_, timeStep]) => timeStep.activated
-    )?.[0] || "heure"
-  );
+return (
+Object.entries(pasDeTemps).find(
+([_, timeStep]) => timeStep.activated
+)?.[0] || "heure"
+);
 }, []);
 ```
 
@@ -512,20 +513,20 @@ const defaultTimeStep = useMemo(() => {
 ```typescript
 // Auto-refresh avec intervalle adaptatif
 const getRefreshInterval = (timeStep: string): number => {
-  const code = pasDeTemps[timeStep]?.code || timeStep;
-  switch (code) {
-    case "instantane": // Scan
-    case "2min": // ≤ 2 minutes
-      return 60 * 1000; // 60 secondes
-    case "qh": // 15 minutes
-      return 15 * 60 * 1000; // 15 minutes
-    case "h": // Heure
-      return 60 * 60 * 1000; // 60 minutes
-    case "d": // Jour
-      return 24 * 60 * 60 * 1000; // 24 heures
-    default:
-      return 60 * 1000; // Par défaut, 60 secondes
-  }
+const code = pasDeTemps[timeStep]?.code || timeStep;
+switch (code) {
+case "instantane": // Scan
+case "2min": // ≤ 2 minutes
+return 60 * 1000; // 60 secondes
+case "qh": // 15 minutes
+return 15 * 60 * 1000; // 15 minutes
+case "h": // Heure
+return 60 * 60 * 1000; // 60 minutes
+case "d": // Jour
+return 24 * 60 * 60 * 1000; // 24 heures
+default:
+return 60 * 1000; // Par défaut, 60 secondes
+}
 };
 ```
 
@@ -534,19 +535,19 @@ const getRefreshInterval = (timeStep: string): number => {
 ```typescript
 // Traitement séquentiel pour affichage progressif
 for (let i = 0; i < services.length; i++) {
-  const service = services[i];
-  try {
-    const data = await service.fetchData(params);
-    // Mise à jour immédiate des données
-    setDevices((prevDevices) => {
-      const filteredDevices = prevDevices.filter(
-        (device) => device.source !== mappedSourceCode
-      );
-      return [...filteredDevices, ...measurementDevices];
-    });
-  } catch (err) {
-    // Gestion d'erreur sans interrompre les autres services
-  }
+const service = services[i];
+try {
+const data = await service.fetchData(params);
+// Mise à jour immédiate des données
+setDevices((prevDevices) => {
+const filteredDevices = prevDevices.filter(
+(device) => device.source !== mappedSourceCode
+);
+return [...filteredDevices, ...measurementDevices];
+});
+} catch (err) {
+// Gestion d'erreur sans interrompre les autres services
+}
 }
 ```
 
@@ -555,10 +556,10 @@ for (let i = 0; i < services.length; i++) {
 ```typescript
 // Suppression des données obsolètes
 setDevices((prevDevices) => {
-  const filteredDevices = prevDevices.filter((device) => {
-    return mappedSources.includes(device.source);
-  });
-  return filteredDevices;
+const filteredDevices = prevDevices.filter((device) => {
+return mappedSources.includes(device.source);
+});
+return filteredDevices;
 });
 ```
 
