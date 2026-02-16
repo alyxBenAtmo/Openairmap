@@ -23,29 +23,44 @@ const SOURCE_PRIORITY: Record<string, number> = {
 /** Valeur max utilisée pour le bonus (reste inférieure au pas entre sources = 1000) */
 const MAX_VALUE_BONUS = 999;
 
+/** Priorité très basse pour les devices sans valeur (marqueur par défaut) - passent derrière tout */
+const DEFAULT_MARKER_PRIORITY = -100000;
+
+/**
+ * Vérifie si un device a une valeur valide à afficher (marqueur non-défaut)
+ * Même logique que createCustomIcon pour qualityLevel === "default"
+ */
+const hasValidValueToDisplay = (device: MeasurementDevice): boolean =>
+  device.status === "active" &&
+  device.value !== null &&
+  device.value !== undefined &&
+  !isNaN(device.value) &&
+  typeof device.value === "number";
+
 /**
  * Calcule la priorité d'un device pour la mise en avant
  * @param device - Le device à évaluer
  * @returns Un score de priorité (plus élevé = plus prioritaire)
  *
  * La priorité est calculée en couches :
- * 1. La source est toujours le critère principal (multiplié par 1000)
- * 2. La valeur mesurée (concentration) sert à départager les devices de même source (0 à 999)
+ * 1. Les devices sans valeur (marqueur par défaut) sont toujours derrière tout le reste
+ * 2. La source est le critère principal (multiplié par 1000)
+ * 3. La valeur mesurée (concentration) sert à départager les devices de même source (0 à 999)
  *
  * Cela garantit qu'un atmoRef sera toujours au-dessus d'un atmoMicro,
  * qui sera toujours au-dessus d'un nebuleair, les plus fortes valeurs passant devant à source égale.
  */
 export const calculateDevicePriority = (device: MeasurementDevice): number => {
+  // Marqueur par défaut (pas de valeur affichée) → toujours derrière tout le reste
+  if (!hasValidValueToDisplay(device)) {
+    return DEFAULT_MARKER_PRIORITY;
+  }
+
   // Priorité de base selon la source (multipliée par 1000 pour être prédominante)
   const sourcePriority = (SOURCE_PRIORITY[device.source] || 0) * 1000;
 
   // Bonus basé sur la valeur mesurée (0 à 999) pour départager les devices de même source
-  const rawValue =
-    device.status === "active" &&
-    typeof device.value === "number" &&
-    !isNaN(device.value)
-      ? Math.max(0, device.value)
-      : 0;
+  const rawValue = Math.max(0, device.value!);
   const valueBonus = Math.min(MAX_VALUE_BONUS, Math.floor(rawValue));
 
   return sourcePriority + valueBonus;
