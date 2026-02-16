@@ -322,6 +322,19 @@ export const useTemporalVisualization = ({
     }));
   }, []);
 
+  // Désactiver le mode historique (ex. quand le pas de temps ne le permet plus)
+  const exitHistoricalMode = useCallback(() => {
+    stopPlayback();
+    setState((prev) => ({
+      ...prev,
+      isActive: false,
+      data: [],
+      currentDate: "",
+      isPlaying: false,
+      error: null,
+    }));
+  }, [stopPlayback]);
+
   // Fonction pour changer la vitesse de lecture
   const changePlaybackSpeed = useCallback((speed: number) => {
     setState((prev) => ({ ...prev, playbackSpeed: speed }));
@@ -497,6 +510,7 @@ export const useTemporalVisualization = ({
 
     // Actions
     toggleHistoricalMode,
+    exitHistoricalMode,
     loadHistoricalData,
     getCurrentDataPoint,
     getCurrentDevices,

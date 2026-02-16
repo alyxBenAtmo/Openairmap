@@ -17,6 +17,7 @@ interface MobileMenuBurgerProps {
   onTimeStepChange: (timeStep: string) => void;
   isHistoricalModeActive: boolean;
   onToggleHistoricalMode: () => void;
+  isHistoricalModeAllowed?: boolean;
   autoRefreshEnabled: boolean;
   onToggleAutoRefresh: (enabled: boolean) => void;
   lastRefresh: Date | null;
@@ -35,6 +36,7 @@ const MobileMenuBurger: React.FC<MobileMenuBurgerProps> = ({
   onTimeStepChange,
   isHistoricalModeActive,
   onToggleHistoricalMode,
+  isHistoricalModeAllowed = true,
   autoRefreshEnabled,
   onToggleAutoRefresh,
   lastRefresh,
@@ -158,6 +160,7 @@ const MobileMenuBurger: React.FC<MobileMenuBurgerProps> = ({
               <HistoricalModeButton
                 isActive={isHistoricalModeActive}
                 onToggle={onToggleHistoricalMode}
+                disabled={!isHistoricalModeAllowed}
               />
             </div>
 

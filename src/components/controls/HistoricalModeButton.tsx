@@ -6,27 +6,33 @@ import { cn } from "../../lib/utils";
 const HistoricalModeButton: React.FC<HistoricalModeButtonProps> = ({
   isActive,
   onToggle,
+  disabled = false,
 }) => {
+  const title = disabled
+    ? "Mode historique disponible uniquement pour les pas 15 min, heure et jour"
+    : isActive
+      ? "Désactiver le mode historique"
+      : "Activer le mode historique";
+
   return (
     <Toggle
       pressed={isActive}
-      onPressedChange={onToggle}
+      onPressedChange={disabled ? () => {} : onToggle}
+      disabled={disabled}
       className={cn(
         "relative flex items-center space-x-2 px-3 py-2 rounded-lg shadow-sm transition-all duration-200",
         "data-[state=on]:bg-gradient-to-br data-[state=on]:from-[#4271B3] data-[state=on]:to-[#325a96]",
-        "data-[state=off]:bg-gradient-to-br data-[state=off]:from-gray-50 data-[state=off]:to-white data-[state=off]:border data-[state=off]:border-gray-200/60"
+        "data-[state=off]:bg-gradient-to-br data-[state=off]:from-gray-50 data-[state=off]:to-white data-[state=off]:border data-[state=off]:border-gray-200/60",
+        disabled &&
+          "bg-gray-100 border-gray-200 text-gray-400 opacity-100 disabled:!pointer-events-auto disabled:!cursor-not-allowed"
       )}
-      title={
-        isActive
-          ? "Désactiver le mode historique"
-          : "Activer le mode historique"
-      }
+      title={title}
     >
       {/* Icône horloge */}
       <svg
         className={cn(
           "w-5 h-5 transition-colors",
-          isActive ? "text-white" : "text-gray-600"
+          disabled ? "text-gray-400" : isActive ? "text-white" : "text-gray-600"
         )}
         fill="none"
         stroke="currentColor"
@@ -40,8 +46,10 @@ const HistoricalModeButton: React.FC<HistoricalModeButtonProps> = ({
         />
       </svg>
 
-      {/* Texte du bouton */}
-      <span className="font-medium text-sm">Mode Historique</span>
+      {/* Texte du bouton : "(indisponible)" comme le menu modélisation */}
+      <span className="font-medium text-sm">
+        {disabled ? "Mode Historique (indisponible)" : "Mode Historique"}
+      </span>
 
       {/* Indicateur d'état */}
       {isActive && (

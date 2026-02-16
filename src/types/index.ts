@@ -448,6 +448,8 @@ export interface TemporalControls {
 export interface HistoricalModeButtonProps {
   isActive: boolean;
   onToggle: () => void;
+  /** Désactive le bouton (ex. pas de temps Scan ou ≤2 min) */
+  disabled?: boolean;
 }
 
 export interface HistoricalControlPanelProps {

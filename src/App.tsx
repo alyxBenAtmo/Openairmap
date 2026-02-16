@@ -17,7 +17,7 @@ import {
   isPollutantSupportedForTimeStep,
   getSupportedPollutantsForTimeStep,
 } from "./constants/pollutants";
-import { pasDeTemps } from "./constants/timeSteps";
+import { pasDeTemps, isHistoricalModeAllowedForTimeStep } from "./constants/timeSteps";
 import { getDefaultSources } from "./constants/sources";
 import AutoRefreshControl from "./components/controls/AutoRefreshControl";
 import PollutantDropdown from "./components/controls/PollutantDropdown";
@@ -221,6 +221,7 @@ const App: React.FC = () => {
     state: temporalState,
     controls: temporalControls,
     toggleHistoricalMode,
+    exitHistoricalMode,
     loadHistoricalData,
     getCurrentDevices,
     isHistoricalModeActive,
@@ -233,6 +234,16 @@ const App: React.FC = () => {
     selectedSources,
     timeStep: selectedTimeStep,
   });
+
+  // Mode historique autorisé uniquement pour les pas 15 min, heure et jour
+  const isHistoricalModeAllowed = isHistoricalModeAllowedForTimeStep(selectedTimeStep);
+
+  // Désactiver le mode historique si l'utilisateur passe sur Scan ou ≤2 min
+  useEffect(() => {
+    if (!isHistoricalModeAllowed && isHistoricalModeActive) {
+      exitHistoricalMode();
+    }
+  }, [isHistoricalModeAllowed, isHistoricalModeActive, exitHistoricalMode]);
 
   // Réinitialiser la visibilité du panel quand le mode historique est activé
   useEffect(() => {
@@ -340,6 +351,7 @@ const App: React.FC = () => {
             onTimeStepChange={setSelectedTimeStep}
             isHistoricalModeActive={isHistoricalModeActive}
             onToggleHistoricalMode={toggleHistoricalMode}
+            isHistoricalModeAllowed={isHistoricalModeAllowed}
             autoRefreshEnabled={autoRefreshEnabled}
             onToggleAutoRefresh={setAutoRefreshEnabled}
             lastRefresh={lastRefresh}
@@ -395,6 +407,7 @@ const App: React.FC = () => {
               <HistoricalModeButton
                 isActive={isHistoricalModeActive}
                 onToggle={toggleHistoricalMode}
+                disabled={!isHistoricalModeAllowed}
               />
             </div>
 
